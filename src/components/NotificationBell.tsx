@@ -15,13 +15,18 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [items, setItems] = useState<Notification[]>([]);
 
   const load = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("notifications")
       .select("id, type, message, is_read, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    setItems((data as Notification[]) ?? []);
+    if (error) {
+      console.error("Error loading notifications:", error.message);
+      setItems([]);
+    } else {
+      setItems((data as Notification[]) ?? []);
+    }
   };
 
   useEffect(() => {

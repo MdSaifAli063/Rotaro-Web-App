@@ -16,11 +16,21 @@ import {
   LayoutTemplate,
   Menu,
   X,
+  User as UserIcon,
 } from "lucide-react";
 import type { Profile } from "@/lib/auth";
 import { isManager } from "@/lib/auth";
 import { NotificationBell } from "@/components/NotificationBell";
 import { RotaroMark } from "@/components/RotaroMark";
+import { UserAvatar } from "@/components/UserAvatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const managerNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -48,8 +58,29 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = isManager(profile) ? managerNav : employeeNav;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
-  // Close drawer on route change
+  useEffect(() => {
+    let isMounted = true;
+    supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", profile.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          console.error("Sidebar profile fetch error:", error.message);
+          setAvatarPath(null);
+          // If we get a 400 error (column missing), we should stop "Loading profile" 
+          // by ensuring we treat it as no avatar.
+        } else {
+          setAvatarPath((data?.avatar_url as string | null) ?? null);
+        }
+      });
+    return () => { isMounted = false; };
+  }, [profile.id]);
+
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
@@ -88,13 +119,24 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
         })}
       </nav>
       <div className="border-t border-sidebar-border p-3">
-        <div className="px-3 py-2 text-sm">
-          <div className="font-medium truncate">{profile.name || profile.email}</div>
-          <div className="text-xs opacity-70 truncate">{profile.email}</div>
-        </div>
+        <Link
+          to="/profile"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent/60"
+        >
+          <UserAvatar
+            name={profile.name}
+            email={profile.email}
+            avatarPath={avatarPath}
+            size={32}
+          />
+          <div className="min-w-0 text-left">
+            <div className="font-medium truncate">{profile.name || profile.email}</div>
+            <div className="text-xs opacity-70 truncate">{profile.email}</div>
+          </div>
+        </Link>
         <button
           onClick={signOut}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent/60"
+          className="mt-1 w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent/60"
         >
           <LogOut className="size-4" />
           Sign out
@@ -148,6 +190,49 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
           </div>
           <div className="flex items-center gap-3 ml-auto">
             <NotificationBell userId={profile.id} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--navy)]"
+                  aria-label="Open user menu"
+                >
+                  <UserAvatar
+                    name={profile.name}
+                    email={profile.email}
+                    avatarPath={avatarPath}
+                    size={32}
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="font-medium truncate">{profile.name || profile.email}</div>
+                  <div className="text-xs font-normal text-muted-foreground truncate">
+                    {profile.email}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="cursor-pointer">
+                    <UserIcon className="size-4" />
+                    My Profile
+                  </Link>
+                </DropdownMenuItem>
+                {isManager(profile) && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="cursor-pointer">
+                      <Settings className="size-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                  <LogOut className="size-4" />
+                  Log Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">{children}</div>

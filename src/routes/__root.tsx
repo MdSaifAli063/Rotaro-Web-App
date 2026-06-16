@@ -114,19 +114,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  const supabaseEnv = {
-    SUPABASE_URL: process?.env?.SUPABASE_URL,
-    SUPABASE_ANON_KEY:
-      process?.env?.SUPABASE_ANON_KEY || process?.env?.SUPABASE_PUBLISHABLE_KEY,
-  };
+  // We only compute this on the server to inject it into the HTML.
+  // On the client, process.env is undefined, so we default to the existing 
+  // window.__SUPABASE__ to avoid a hydration mismatch.
+  const supabaseUrl = process?.env?.SUPABASE_URL || (typeof window !== 'undefined' ? (window as any).__SUPABASE__?.SUPABASE_URL : null);
+  const supabaseKey = (process?.env?.SUPABASE_ANON_KEY || process?.env?.SUPABASE_PUBLISHABLE_KEY) || (typeof window !== 'undefined' ? (window as any).__SUPABASE__?.SUPABASE_ANON_KEY : null);
+  const env = { SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: supabaseKey };
+
+  // Debug helper for Google Cloud logs
+  if (typeof window === 'undefined') {
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn("CRITICAL: Supabase environment variables are missing in the server environment!");
+    }
+  }
 
   return (
     <html lang="en">
       <head>
         <HeadContent />
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `window.__SUPABASE__ = ${JSON.stringify(supabaseEnv)};`,
+            __html: `window.__SUPABASE__ = ${JSON.stringify(env)};`,
           }}
         />
       </head>

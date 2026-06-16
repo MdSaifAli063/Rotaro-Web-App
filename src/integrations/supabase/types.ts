@@ -73,7 +73,10 @@ export type Database = {
       }
       businesses: {
         Row: {
+          abn: string | null
           break_options: number[] | null
+          business_email: string | null
+          business_phone: string | null
           close_time: string | null
           country: string | null
           created_at: string
@@ -91,7 +94,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          abn?: string | null
           break_options?: number[] | null
+          business_email?: string | null
+          business_phone?: string | null
           close_time?: string | null
           country?: string | null
           created_at?: string
@@ -109,7 +115,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          abn?: string | null
           break_options?: number[] | null
+          business_email?: string | null
+          business_phone?: string | null
           close_time?: string | null
           country?: string | null
           created_at?: string
@@ -382,32 +391,47 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           business_id: string | null
           created_at: string
+          date_of_birth: string | null
           department: string | null
           email: string
+          gender: string | null
           id: string
           name: string
+          notification_preferences: Json
+          phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           business_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string | null
           email: string
+          gender?: string | null
           id: string
           name?: string
+          notification_preferences?: Json
+          phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           business_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string | null
           email?: string
+          gender?: string | null
           id?: string
           name?: string
+          notification_preferences?: Json
+          phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
