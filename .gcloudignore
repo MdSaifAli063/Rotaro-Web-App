@@ -1,0 +1,8 @@
+# gcloud ignore file - allow Dockerfile and package-lock.json
+node_modules
+npm-debug.log
+.DS_Store
+dist
+.vscode
+.env*
+.git

@@ -114,10 +114,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const supabaseEnv = {
+    SUPABASE_URL: process?.env?.SUPABASE_URL,
+    SUPABASE_ANON_KEY:
+      process?.env?.SUPABASE_ANON_KEY || process?.env?.SUPABASE_PUBLISHABLE_KEY,
+  };
+
   return (
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__SUPABASE__ = ${JSON.stringify(supabaseEnv)};`,
+          }}
+        />
       </head>
       <body>
         {children}

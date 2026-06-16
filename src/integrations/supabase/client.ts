@@ -2,15 +2,36 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+declare global {
+  interface Window {
+    __SUPABASE__?: {
+      SUPABASE_URL?: string;
+      SUPABASE_ANON_KEY?: string;
+    };
+  }
+}
+
+function getRuntimeSupabaseEnv() {
+  if (typeof window === 'undefined') return undefined;
+  return window.__SUPABASE__;
+}
+
 function createSupabaseClient() {
+  const runtimeEnv = getRuntimeSupabaseEnv();
+
   // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  // Fall back to runtime-injected values from the server HTML, then process.env for SSR.
+  const SUPABASE_URL =
+    import.meta.env.VITE_SUPABASE_URL ||
+    runtimeEnv?.SUPABASE_URL ||
+    (typeof process !== 'undefined' ? process.env.SUPABASE_URL : undefined);
   const SUPABASE_ANON_KEY =
     import.meta.env.VITE_SUPABASE_ANON_KEY ||
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY;
+    runtimeEnv?.SUPABASE_ANON_KEY ||
+    (typeof process !== 'undefined'
+      ? process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY
+      : undefined);
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     const missing = [
