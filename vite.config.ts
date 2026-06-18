@@ -5,5 +5,13 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), tailwindcss(), tanstackStart(), viteReact()],
+  plugins: [
+    // tsconfigPaths(), // Vite now supports tsconfig paths resolution natively
+    tailwindcss(),
+    tanstackStart(),
+    viteReact(),
+  ],
+  resolve: {
+    tsconfigPaths: true, // Enable native tsconfig paths resolution
+  },
 });
