@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type Notification = {
   id: string;
@@ -36,7 +37,31 @@ export function NotificationBell({ userId }: { userId: string }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => load(),
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const next = payload.new as Notification;
+            setItems((current) => {
+              const withoutDuplicate = current.filter((item) => item.id !== next.id);
+              return [next, ...withoutDuplicate].slice(0, 20);
+            });
+            toast.info(next.message);
+            return;
+          }
+
+          if (payload.eventType === "UPDATE") {
+            const next = payload.new as Notification;
+            setItems((current) => current.map((item) => (item.id === next.id ? next : item)));
+            return;
+          }
+
+          if (payload.eventType === "DELETE") {
+            const oldNotification = payload.old as Pick<Notification, "id">;
+            setItems((current) => current.filter((item) => item.id !== oldNotification.id));
+            return;
+          }
+
+          load();
+        },
       )
       .subscribe();
     return () => {

@@ -78,24 +78,34 @@ function ApplyLeavePage() {
     const perType: any = settings?.auto_approve_by_type ?? {};
     const autoApprove = settings?.auto_approve_leave === true || perType[form.leave_type] === true;
 
-    const { error } = await supabase.from("leaves").insert({
-      business_id: profile.business_id,
-      employee_id: empId,
-      leave_type: form.leave_type,
-      from_date: form.from_date,
-      to_date: form.to_date,
-      reason: form.reason || null,
-      status: autoApprove ? "Approved" : "Pending",
-    });
+    const { data: leave, error } = await supabase
+      .from("leaves")
+      .insert({
+        business_id: profile.business_id,
+        employee_id: empId,
+        leave_type: form.leave_type,
+        from_date: form.from_date,
+        to_date: form.to_date,
+        reason: form.reason || null,
+        status: autoApprove ? "Approved" : "Pending",
+      })
+      .select("id")
+      .single();
     if (error) {
       toast.error(error.message);
       return;
     }
-    await notifyManagers({
-      businessId: profile.business_id,
-      type: "leave_requested",
-      message: `${empName} requested ${form.leave_type} leave (${form.from_date} → ${form.to_date}).`,
-    });
+    try {
+      await notifyManagers({
+        businessId: profile.business_id,
+        type: "leave_requested",
+        message: `${empName} requested ${form.leave_type} leave (${form.from_date} to ${form.to_date}).`,
+        relatedId: leave.id,
+      });
+    } catch (notifyError) {
+      console.error(notifyError);
+      toast.error("Leave saved, but the manager notification could not be sent.");
+    }
     toast.success(autoApprove ? "Leave auto-approved" : "Leave request submitted");
     setForm({ leave_type: "Annual", from_date: "", to_date: "", reason: "" });
     const { data: hist } = await supabase
