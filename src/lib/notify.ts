@@ -26,7 +26,7 @@ export async function notifyManagers(opts: {
     .from("profiles")
     .select("id")
     .eq("business_id", opts.businessId)
-    .in("role", ["employer", "manager"]);
+    .in("role", ["employer"]);
   if (!mgrs?.length) return;
   await supabase.from("notifications").insert(
     mgrs.map((m: any) => ({
