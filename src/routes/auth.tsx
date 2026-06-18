@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { RotaroMark } from "@/components/RotaroMark";
+import { seedDemoData } from "@/lib/seed.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -26,12 +27,37 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Fire-and-forget: seed demo data once so the demo accounts work.
+  useEffect(() => {
+    seedDemoData().catch((err) => {
+      console.error("Failed to seed demo data:", err);
+    });
+  }, []);
+
+  const quickLogin = async (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword("Demo1234!");
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: "Demo1234!",
+      });
+      if (error) throw error;
+      navigate({ to: "/dashboard" });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Demo login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -40,21 +66,6 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-
-        const user = data?.user;
-        if (user) {
-          const { error: profileError } = await supabase.from("profiles").insert({
-            id: user.id,
-            name,
-            email,
-            role,
-            business_id: null,
-          });
-          if (profileError) {
-            console.warn("Failed to create initial profile row:", profileError.message);
-          }
-        }
-
         toast.success("Account created");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -132,6 +143,35 @@ function AuthPage() {
               {loading ? "Please wait…" : mode === "signin" ? "Login" : "Create account"}
             </Button>
           </form>
+
+          {mode === "signin" && (
+            <div className="mt-6 pt-6 border-t">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
+                Try the demo
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => quickLogin("employer@rotaro.com")}
+                  disabled={loading}
+                  className="h-10 rounded-md border text-sm font-medium hover:bg-secondary disabled:opacity-50"
+                >
+                  Employer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => quickLogin("emily@rotaro.com")}
+                  disabled={loading}
+                  className="h-10 rounded-md border text-sm font-medium hover:bg-secondary disabled:opacity-50"
+                >
+                  Employee
+                </button>
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-2 text-center">
+                Password: <code className="font-mono">Demo1234!</code>
+              </div>
+            </div>
+          )}
           <div className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "signin" ? (
               <>

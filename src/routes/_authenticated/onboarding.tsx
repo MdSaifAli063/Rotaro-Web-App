@@ -56,8 +56,8 @@ function OnboardingPage() {
           open_days: openDays,
           num_employees: numEmployees,
           min_age: minAge,
-          employment_types: empTypes,
-          break_options: [0, ...breakOpts],
+          employment_types: empTypes, // Pass as native array
+          break_options: [0, ...breakOpts], // Pass as native array
           is_onboarded: true,
         })
         .select()
