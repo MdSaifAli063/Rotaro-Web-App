@@ -27,6 +27,7 @@ export type Database = {
           id: string
           status: string | null
           updated_at: string
+          total_hours: number | null
         }
         Insert: {
           break_end?: string | null
@@ -39,6 +40,7 @@ export type Database = {
           employee_id: string
           id?: string
           status?: string | null
+          total_hours?: number | null
           updated_at?: string
         }
         Update: {
@@ -52,6 +54,7 @@ export type Database = {
           employee_id?: string
           id?: string
           status?: string | null
+          total_hours?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -80,16 +83,19 @@ export type Database = {
           close_time: string | null
           country: string | null
           created_at: string
+          num_employees: number | null
+          overtime_after_hours: number | null
           employment_types: string[] | null
           id: string
           is_onboarded: boolean
           location: string | null
           min_age: number | null
           name: string
-          num_employees: number | null
           open_days: string[] | null
           open_time: string | null
           owner_id: string
+          overtime_multiplier: number | null
+          timezone: string | null
           state: string | null
           updated_at: string
         }
@@ -101,15 +107,18 @@ export type Database = {
           close_time?: string | null
           country?: string | null
           created_at?: string
+          num_employees?: number | null
+          overtime_after_hours?: number | null
           employment_types?: string[] | null
           id?: string
           is_onboarded?: boolean
           location?: string | null
           min_age?: number | null
           name?: string
-          num_employees?: number | null
           open_days?: string[] | null
           open_time?: string | null
+          overtime_multiplier?: number | null
+          timezone?: string | null
           owner_id: string
           state?: string | null
           updated_at?: string
@@ -122,15 +131,18 @@ export type Database = {
           close_time?: string | null
           country?: string | null
           created_at?: string
+          num_employees?: number | null
+          overtime_after_hours?: number | null
           employment_types?: string[] | null
           id?: string
           is_onboarded?: boolean
           location?: string | null
           min_age?: number | null
           name?: string
-          num_employees?: number | null
           open_days?: string[] | null
           open_time?: string | null
+          overtime_multiplier?: number | null
+          timezone?: string | null
           owner_id?: string
           state?: string | null
           updated_at?: string
@@ -148,6 +160,7 @@ export type Database = {
           employment_type: string | null
           id: string
           leave_balance: number | null
+          pay_rate: number | null
           name: string
           pay_rate: number | null
           phone: string | null
@@ -167,6 +180,7 @@ export type Database = {
           employee_code?: string | null
           employment_type?: string | null
           id?: string
+          pay_rate?: number | null
           leave_balance?: number | null
           name: string
           pay_rate?: number | null
@@ -187,6 +201,7 @@ export type Database = {
           employee_code?: string | null
           employment_type?: string | null
           id?: string
+          pay_rate?: number | null
           leave_balance?: number | null
           name?: string
           pay_rate?: number | null
@@ -216,6 +231,7 @@ export type Database = {
           holiday_date: string
           holiday_name: string
           id: string
+          is_custom: boolean
           is_paid: boolean
           state: string | null
         }
@@ -226,6 +242,7 @@ export type Database = {
           holiday_date: string
           holiday_name: string
           id?: string
+          is_custom?: boolean
           is_paid?: boolean
           state?: string | null
         }
@@ -236,6 +253,7 @@ export type Database = {
           holiday_date?: string
           holiday_name?: string
           id?: string
+          is_custom?: boolean
           is_paid?: boolean
           state?: string | null
         }
@@ -501,6 +519,7 @@ export type Database = {
           business_id: string
           created_at: string
           id: string
+          location: string | null
           status: string
           updated_at: string
           week_end: string
@@ -510,6 +529,7 @@ export type Database = {
           business_id: string
           created_at?: string
           id?: string
+          location?: string | null
           status?: string
           updated_at?: string
           week_end: string
@@ -519,6 +539,7 @@ export type Database = {
           business_id?: string
           created_at?: string
           id?: string
+          location?: string | null
           status?: string
           updated_at?: string
           week_end?: string
@@ -539,6 +560,7 @@ export type Database = {
           auto_approve_by_type: Json | null
           auto_approve_leave: boolean
           business_id: string
+          notification_settings: Json | null
           updated_at: string
         }
         Insert: {
@@ -546,12 +568,14 @@ export type Database = {
           auto_approve_leave?: boolean
           business_id: string
           updated_at?: string
+          notification_settings?: Json | null
         }
         Update: {
           auto_approve_by_type?: Json | null
           auto_approve_leave?: boolean
           business_id?: string
           updated_at?: string
+          notification_settings?: Json | null
         }
         Relationships: [
           {
@@ -571,6 +595,7 @@ export type Database = {
           note: string | null
           requester_employee_id: string
           requester_shift_id: string | null
+          requester_shift_id: string | null
           status: string
           target_employee_id: string
           target_shift_id: string | null
@@ -583,6 +608,7 @@ export type Database = {
           note?: string | null
           requester_employee_id: string
           requester_shift_id?: string | null
+          requester_shift_id?: string | null
           status?: string
           target_employee_id: string
           target_shift_id?: string | null
@@ -594,6 +620,7 @@ export type Database = {
           id?: string
           note?: string | null
           requester_employee_id?: string
+          requester_shift_id?: string | null
           requester_shift_id?: string | null
           status?: string
           target_employee_id?: string
@@ -648,7 +675,6 @@ export type Database = {
           end_time: string
           id: string
           min_staff_required: number | null
-          name: string
           start_time: string
           updated_at: string
         }
@@ -660,6 +686,7 @@ export type Database = {
           department?: string | null
           end_time: string
           id?: string
+          name?: string
           min_staff_required?: number | null
           name: string
           start_time: string
@@ -673,6 +700,7 @@ export type Database = {
           department?: string | null
           end_time?: string
           id?: string
+          name?: string
           min_staff_required?: number | null
           name?: string
           start_time?: string
@@ -701,7 +729,7 @@ export type Database = {
       is_manager_or_employer: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "employer" | "employee" | "manager"
+      app_role: "employer" | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
