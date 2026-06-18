@@ -29,9 +29,12 @@ function AuthPage() {
 
   // Fire-and-forget: seed demo data once so the demo accounts work.
   useEffect(() => {
-    seedDemoData().catch((err) => {
-      console.error("Failed to seed demo data:", err);
-    });
+    // This should only run in development to prevent accidental data changes in production.
+    if (import.meta.env.DEV) {
+      seedDemoData().catch((err: any) => {
+        console.error("Failed to seed demo data:", err.message);
+      });
+    }
   }, []);
 
   const quickLogin = async (demoEmail: string) => {

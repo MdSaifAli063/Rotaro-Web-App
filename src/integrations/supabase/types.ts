@@ -83,7 +83,6 @@ export type Database = {
           close_time: string | null
           country: string | null
           created_at: string
-          num_employees: number | null
           overtime_after_hours: number | null
           employment_types: string[] | null
           id: string
@@ -107,7 +106,6 @@ export type Database = {
           close_time?: string | null
           country?: string | null
           created_at?: string
-          num_employees?: number | null
           overtime_after_hours?: number | null
           employment_types?: string[] | null
           id?: string
@@ -131,7 +129,6 @@ export type Database = {
           close_time?: string | null
           country?: string | null
           created_at?: string
-          num_employees?: number | null
           overtime_after_hours?: number | null
           employment_types?: string[] | null
           id?: string
@@ -160,7 +157,6 @@ export type Database = {
           employment_type: string | null
           id: string
           leave_balance: number | null
-          pay_rate: number | null
           name: string
           pay_rate: number | null
           phone: string | null
@@ -180,7 +176,6 @@ export type Database = {
           employee_code?: string | null
           employment_type?: string | null
           id?: string
-          pay_rate?: number | null
           leave_balance?: number | null
           name: string
           pay_rate?: number | null
@@ -201,7 +196,6 @@ export type Database = {
           employee_code?: string | null
           employment_type?: string | null
           id?: string
-          pay_rate?: number | null
           leave_balance?: number | null
           name?: string
           pay_rate?: number | null
@@ -594,8 +588,6 @@ export type Database = {
           id: string
           note: string | null
           requester_employee_id: string
-          requester_shift_id: string | null
-          requester_shift_id: string | null
           status: string
           target_employee_id: string
           target_shift_id: string | null
@@ -607,8 +599,6 @@ export type Database = {
           id?: string
           note?: string | null
           requester_employee_id: string
-          requester_shift_id?: string | null
-          requester_shift_id?: string | null
           status?: string
           target_employee_id: string
           target_shift_id?: string | null
@@ -620,8 +610,6 @@ export type Database = {
           id?: string
           note?: string | null
           requester_employee_id?: string
-          requester_shift_id?: string | null
-          requester_shift_id?: string | null
           status?: string
           target_employee_id?: string
           target_shift_id?: string | null
