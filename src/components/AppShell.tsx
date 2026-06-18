@@ -34,12 +34,9 @@ import {
 
 const managerNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/roster", label: "Roster", icon: CalendarDays },
-  { to: "/shifts", label: "Shift Templates", icon: LayoutTemplate },
+  { to: "/roster", label: "Rosters", icon: CalendarDays },
   { to: "/staff", label: "Staff", icon: Users },
-  { to: "/attendance", label: "Attendance", icon: Clock4 },
   { to: "/leaves", label: "Leave Requests", icon: FileText },
-  { to: "/swaps", label: "Shift Swaps", icon: Repeat },
   { to: "/holidays", label: "Holidays", icon: CalendarCheck },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -48,9 +45,9 @@ const managerNav = [
 const employeeNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/my-roster", label: "My Roster", icon: CalendarDays },
-  { to: "/apply-leave", label: "Apply Leave", icon: ClipboardList },
+  { to: "/apply-leave", label: "Apply Leave", icon: FileText },
   { to: "/attendance", label: "My Attendance", icon: Clock4 },
-  { to: "/swaps", label: "Shift Swaps", icon: Repeat },
+  { to: "/profile", label: "My Profile", icon: UserIcon },
 ];
 
 export function AppShell({ children, profile }: { children: ReactNode; profile: Profile }) {
