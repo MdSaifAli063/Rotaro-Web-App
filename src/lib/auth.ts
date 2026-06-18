@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "employer" | "manager" | "employee";
+export type AppRole = "employer" | "employee";
 
 export type Profile = {
   id: string;
@@ -14,7 +14,7 @@ export type Profile = {
 };
 
 export function isManager(p: Profile | null) {
-  return !!p && (p.role === "employer" || p.role === "manager");
+  return !!p && (p.role === "employer" /*|| p.role === "manager"*/);
 }
 
 export function useSession() {
@@ -74,7 +74,7 @@ export async function fetchProfile(): Promise<Profile | null> {
     });
 
   if (error) {
-    console.warn("Unable to create missing profile row; using fallback profile.", error.message);
+    console.error("Profile auto-creation failed. Check if 'profiles' table schema matches 'types.ts':", error.message);
   }
 
   return fallbackProfile;
