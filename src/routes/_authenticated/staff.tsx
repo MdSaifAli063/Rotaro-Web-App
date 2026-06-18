@@ -85,10 +85,7 @@ function StaffPage() {
   }, []);
 
   const load = async () => {
-    const { data } = await supabase
-      .from("employees")
-      .select("*")
-      .order("name");
+    const { data } = await supabase.from("employees").select("*").order("name");
     setRows((data as Employee[]) ?? []);
   };
 
@@ -145,9 +142,7 @@ function StaffPage() {
     }
     const payload: any = {
       name: editing.name,
-      employee_code:
-        editing.employee_code ||
-        "EMP" + Math.floor(1000 + Math.random() * 9000),
+      employee_code: editing.employee_code || "EMP" + Math.floor(1000 + Math.random() * 9000),
       department: editing.department || null,
       role: editing.role || null,
       skills: editing.skills ?? [],
@@ -211,16 +206,22 @@ function StaffPage() {
           />
         </div>
         <Select value={filterDept} onValueChange={setFilterDept}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Department" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All departments</SelectItem>
             {departments.map((d) => (
-              <SelectItem key={d} value={d}>{d}</SelectItem>
+              <SelectItem key={d} value={d}>
+                {d}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
@@ -250,26 +251,38 @@ function StaffPage() {
               </tr>
             ) : (
               filtered.map((e) => (
-                <tr key={e.id} className="border-t hover:bg-secondary/40 cursor-pointer" onClick={() => canManage && openEdit(e)}>
+                <tr
+                  key={e.id}
+                  className="border-t hover:bg-secondary/40 cursor-pointer"
+                  onClick={() => canManage && openEdit(e)}
+                >
                   <td className="px-4 py-3 font-medium">{e.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{e.employee_code ?? "—"}</td>
                   <td className="px-4 py-3">{e.department ?? "—"}</td>
                   <td className="px-4 py-3">{e.role ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      (e.status ?? "active") === "active"
-                        ? "bg-secondary text-[var(--navy)]"
-                        : "bg-muted text-muted-foreground"
-                    }`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        (e.status ?? "active") === "active"
+                          ? "bg-secondary text-[var(--navy)]"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
                       {e.status ?? "active"}
                     </span>
                   </td>
                   {canManage && (
                     <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
-                      <button className="p-1.5 hover:bg-secondary rounded" onClick={() => openEdit(e)}>
+                      <button
+                        className="p-1.5 hover:bg-secondary rounded"
+                        onClick={() => openEdit(e)}
+                      >
                         <Pencil className="size-4" />
                       </button>
-                      <button className="p-1.5 hover:bg-secondary rounded ml-1" onClick={() => setToDelete(e)}>
+                      <button
+                        className="p-1.5 hover:bg-secondary rounded ml-1"
+                        onClick={() => setToDelete(e)}
+                      >
                         <Trash2 className="size-4 text-destructive" />
                       </button>
                     </td>
@@ -289,7 +302,10 @@ function StaffPage() {
           {editing && (
             <div className="grid grid-cols-2 gap-4 py-2">
               <Field label="Name *">
-                <Input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                <Input
+                  value={editing.name ?? ""}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                />
               </Field>
               <Field label="Employee ID">
                 <Input
@@ -299,23 +315,38 @@ function StaffPage() {
                 />
               </Field>
               <Field label="Department">
-                <Input value={editing.department ?? ""} onChange={(e) => setEditing({ ...editing, department: e.target.value })} />
+                <Input
+                  value={editing.department ?? ""}
+                  onChange={(e) => setEditing({ ...editing, department: e.target.value })}
+                />
               </Field>
               <Field label="Role / Position">
-                <Input value={editing.role ?? ""} onChange={(e) => setEditing({ ...editing, role: e.target.value })} />
+                <Input
+                  value={editing.role ?? ""}
+                  onChange={(e) => setEditing({ ...editing, role: e.target.value })}
+                />
               </Field>
               <Field label="Email">
-                <Input type="email" value={editing.email ?? ""} onChange={(e) => setEditing({ ...editing, email: e.target.value })} />
+                <Input
+                  type="email"
+                  value={editing.email ?? ""}
+                  onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                />
               </Field>
               <Field label="Phone">
-                <Input value={editing.phone ?? ""} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} />
+                <Input
+                  value={editing.phone ?? ""}
+                  onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                />
               </Field>
               <Field label="Employment type">
                 <Select
                   value={editing.employment_type ?? "Full-time"}
                   onValueChange={(v) => setEditing({ ...editing, employment_type: v })}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Full-time">Full-time</SelectItem>
                     <SelectItem value="Part-time">Part-time</SelectItem>
@@ -325,11 +356,20 @@ function StaffPage() {
                 </Select>
               </Field>
               <Field label="Start date">
-                <Input type="date" value={editing.start_date ?? ""} onChange={(e) => setEditing({ ...editing, start_date: e.target.value })} />
+                <Input
+                  type="date"
+                  value={editing.start_date ?? ""}
+                  onChange={(e) => setEditing({ ...editing, start_date: e.target.value })}
+                />
               </Field>
               <Field label="Status">
-                <Select value={editing.status ?? "active"} onValueChange={(v) => setEditing({ ...editing, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={editing.status ?? "active"}
+                  onValueChange={(v) => setEditing({ ...editing, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
@@ -350,13 +390,20 @@ function StaffPage() {
                       }
                     }}
                   />
-                  <Button type="button" variant="outline" onClick={addSkill}>Add</Button>
+                  <Button type="button" variant="outline" onClick={addSkill}>
+                    Add
+                  </Button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {(editing.skills ?? []).map((s) => (
-                    <span key={s} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary text-xs">
+                    <span
+                      key={s}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary text-xs"
+                    >
                       {s}
-                      <button onClick={() => removeSkill(s)}><X className="size-3" /></button>
+                      <button onClick={() => removeSkill(s)}>
+                        <X className="size-3" />
+                      </button>
                     </span>
                   ))}
                 </div>
@@ -364,8 +411,12 @@ function StaffPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">Save</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={save} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -380,7 +431,10 @@ function StaffPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={doDelete} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={doDelete}
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -124,11 +124,7 @@ function SwapsPage() {
                     <td className="px-4 py-3 text-right">
                       {r.status === "pending" && (
                         <div className="flex gap-2 justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => decide(r, "rejected")}
-                          >
+                          <Button size="sm" variant="outline" onClick={() => decide(r, "rejected")}>
                             Reject
                           </Button>
                           <Button

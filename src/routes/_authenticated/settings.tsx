@@ -15,10 +15,7 @@ function SettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .maybeSingle();
+      const { data: prof } = await supabase.from("profiles").select("business_id").maybeSingle();
       if (prof?.business_id) {
         setBusinessId(prof.business_id);
         const { data } = await supabase

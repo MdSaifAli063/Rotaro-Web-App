@@ -84,13 +84,7 @@ function passwordStrength(pw: string) {
   return { score: s, label: s <= 1 ? "Weak" : s === 2 ? "Medium" : "Strong" };
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="pt-6 first:pt-0">
       <h2 className="text-lg font-bold text-[var(--navy)]">{title}</h2>
@@ -169,7 +163,7 @@ function ProfilePage() {
 
   const isEmployer = profile?.role === "employer" || profile?.role === "manager";
   const notifList = isEmployer ? employerNotifKeys : employeeNotifKeys;
-  const previewAvatarUrl = useSignedAvatarUrl(avatarPath);
+  const [previewAvatarUrl] = useSignedAvatarUrl(avatarPath);
 
   const load = async () => {
     setLoading(true);
@@ -481,11 +475,7 @@ function ProfilePage() {
               <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </Field>
             <Field label="Email Address" required error={errors.email} full>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               <p className="mt-1 text-xs text-muted-foreground">
                 Changing your email may require re-verification.
               </p>
@@ -590,10 +580,7 @@ function ProfilePage() {
                     {business?.open_time || "09:00"} – {business?.close_time || "17:00"}
                   </div>
                 </div>
-                <Link
-                  to="/settings"
-                  className="text-sm font-medium text-[var(--navy)] underline"
-                >
+                <Link to="/settings" className="text-sm font-medium text-[var(--navy)] underline">
                   Edit in Settings
                 </Link>
               </div>
@@ -701,15 +688,7 @@ function PasswordInput({
   );
 }
 
-function ReadField({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+function ReadField({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div>
       <Label className="text-sm font-medium text-[var(--navy)]">{label}</Label>

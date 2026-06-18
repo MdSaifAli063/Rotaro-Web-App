@@ -3,10 +3,19 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,14 +35,23 @@ function MyRosterPage() {
   const [colleagues, setColleagues] = useState<any[]>([]);
   const [colleagueShifts, setColleagueShifts] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const [swap, setSwap] = useState({ my_shift_id: "", target_emp_id: "", target_shift_id: "", note: "" });
+  const [swap, setSwap] = useState({
+    my_shift_id: "",
+    target_emp_id: "",
+    target_shift_id: "",
+    note: "",
+  });
 
   useEffect(() => {
     (async () => {
       const p = await fetchProfile();
       setProfile(p);
       if (!p) return;
-      const { data: e } = await supabase.from("employees").select("*").eq("user_id", p.id).maybeSingle();
+      const { data: e } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("user_id", p.id)
+        .maybeSingle();
       if (!e) return;
       setEmp(e);
       const [{ data: s }, { data: c }] = await Promise.all([
@@ -113,8 +131,13 @@ function MyRosterPage() {
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
                 <Label>My shift</Label>
-                <Select value={swap.my_shift_id} onValueChange={(v) => setSwap({ ...swap, my_shift_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select your shift" /></SelectTrigger>
+                <Select
+                  value={swap.my_shift_id}
+                  onValueChange={(v) => setSwap({ ...swap, my_shift_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your shift" />
+                  </SelectTrigger>
                   <SelectContent>
                     {shifts.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
@@ -133,10 +156,14 @@ function MyRosterPage() {
                     loadColleagueShifts(v);
                   }}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select a colleague" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a colleague" />
+                  </SelectTrigger>
                   <SelectContent>
                     {colleagues.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -148,7 +175,9 @@ function MyRosterPage() {
                   onValueChange={(v) => setSwap({ ...swap, target_shift_id: v })}
                   disabled={!swap.target_emp_id}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select their shift" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select their shift" />
+                  </SelectTrigger>
                   <SelectContent>
                     {colleagueShifts.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
@@ -160,12 +189,23 @@ function MyRosterPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Note (optional)</Label>
-                <Textarea value={swap.note} onChange={(e) => setSwap({ ...swap, note: e.target.value })} rows={3} />
+                <Textarea
+                  value={swap.note}
+                  onChange={(e) => setSwap({ ...swap, note: e.target.value })}
+                  rows={3}
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={submitSwap} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">Submit</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={submitSwap}
+                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+              >
+                Submit
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -184,16 +224,22 @@ function MyRosterPage() {
           </thead>
           <tbody>
             {shifts.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">No upcoming shifts.</td></tr>
-            ) : shifts.map((s) => (
-              <tr key={s.id} className="border-t">
-                <td className="px-4 py-3">{s.day}</td>
-                <td className="px-4 py-3">{s.start_time?.slice(0, 5) ?? "—"}</td>
-                <td className="px-4 py-3">{s.end_time?.slice(0, 5) ?? "—"}</td>
-                <td className="px-4 py-3">{s.break_minutes ?? 0}m</td>
-                <td className="px-4 py-3">{s.total_hours ?? "—"}</td>
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                  No upcoming shifts.
+                </td>
               </tr>
-            ))}
+            ) : (
+              shifts.map((s) => (
+                <tr key={s.id} className="border-t">
+                  <td className="px-4 py-3">{s.day}</td>
+                  <td className="px-4 py-3">{s.start_time?.slice(0, 5) ?? "—"}</td>
+                  <td className="px-4 py-3">{s.end_time?.slice(0, 5) ?? "—"}</td>
+                  <td className="px-4 py-3">{s.break_minutes ?? 0}m</td>
+                  <td className="px-4 py-3">{s.total_hours ?? "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

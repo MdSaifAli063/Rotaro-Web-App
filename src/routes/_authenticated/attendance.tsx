@@ -102,7 +102,9 @@ function AttendancePage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Attendance</h1>
-          <p className="text-sm text-muted-foreground mt-1">Track check-in, breaks, and check-out.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Track check-in, breaks, and check-out.
+          </p>
         </div>
 
         <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-wrap gap-3 items-center justify-between">
@@ -111,8 +113,12 @@ function AttendancePage() {
             <div className="font-semibold text-lg">{new Date().toDateString()}</div>
             {today && (
               <div className="text-sm text-muted-foreground mt-1">
-                {today.check_in_time && <>In {new Date(today.check_in_time).toLocaleTimeString()}</>}
-                {today.check_out_time && <> · Out {new Date(today.check_out_time).toLocaleTimeString()}</>}
+                {today.check_in_time && (
+                  <>In {new Date(today.check_in_time).toLocaleTimeString()}</>
+                )}
+                {today.check_out_time && (
+                  <> · Out {new Date(today.check_out_time).toLocaleTimeString()}</>
+                )}
               </div>
             )}
           </div>
@@ -123,18 +129,26 @@ function AttendancePage() {
               </Button>
             )}
             {today?.check_in_time && !today?.break_start && !today?.check_out_time && (
-              <Button variant="outline" onClick={() => update({ break_start: new Date().toISOString() })}>
+              <Button
+                variant="outline"
+                onClick={() => update({ break_start: new Date().toISOString() })}
+              >
                 <Coffee className="size-4 mr-2" /> Start break
               </Button>
             )}
             {today?.break_start && !today?.break_end && (
-              <Button variant="outline" onClick={() => update({ break_end: new Date().toISOString() })}>
+              <Button
+                variant="outline"
+                onClick={() => update({ break_end: new Date().toISOString() })}
+              >
                 <Coffee className="size-4 mr-2" /> End break
               </Button>
             )}
             {today?.check_in_time && !today?.check_out_time && (
               <Button
-                onClick={() => update({ check_out_time: new Date().toISOString(), status: "completed" })}
+                onClick={() =>
+                  update({ check_out_time: new Date().toISOString(), status: "completed" })
+                }
                 className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
               >
                 <LogOut className="size-4 mr-2" /> Check out
@@ -156,16 +170,33 @@ function AttendancePage() {
             </thead>
             <tbody>
               {records.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">No history yet.</td></tr>
-              ) : records.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className="px-4 py-3">{r.date}</td>
-                  <td className="px-4 py-3">{r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : "—"}</td>
-                  <td className="px-4 py-3">{r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : "—"}</td>
-                  <td className="px-4 py-3">{r.break_start && r.break_end ? Math.round((new Date(r.break_end).getTime() - new Date(r.break_start).getTime()) / 60000) + "m" : "—"}</td>
-                  <td className="px-4 py-3 capitalize">{r.status ?? "—"}</td>
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                    No history yet.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                records.map((r) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-4 py-3">{r.date}</td>
+                    <td className="px-4 py-3">
+                      {r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.break_start && r.break_end
+                        ? Math.round(
+                            (new Date(r.break_end).getTime() - new Date(r.break_start).getTime()) /
+                              60000,
+                          ) + "m"
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 capitalize">{r.status ?? "—"}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -194,17 +225,27 @@ function AttendancePage() {
           </thead>
           <tbody>
             {records.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No records yet.</td></tr>
-            ) : records.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-4 py-3">{r.date}</td>
-                <td className="px-4 py-3 font-medium">{r.employees?.name ?? "—"}</td>
-                <td className="px-4 py-3">{r.employees?.department ?? "—"}</td>
-                <td className="px-4 py-3">{r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : "—"}</td>
-                <td className="px-4 py-3">{r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : "—"}</td>
-                <td className="px-4 py-3 capitalize">{r.status ?? "—"}</td>
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  No records yet.
+                </td>
               </tr>
-            ))}
+            ) : (
+              records.map((r) => (
+                <tr key={r.id} className="border-t">
+                  <td className="px-4 py-3">{r.date}</td>
+                  <td className="px-4 py-3 font-medium">{r.employees?.name ?? "—"}</td>
+                  <td className="px-4 py-3">{r.employees?.department ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : "—"}
+                  </td>
+                  <td className="px-4 py-3 capitalize">{r.status ?? "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

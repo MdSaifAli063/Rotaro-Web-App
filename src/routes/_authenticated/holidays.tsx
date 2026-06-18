@@ -33,7 +33,15 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, addDays } from "date-fns";
+import {
+  format,
+  isSameDay,
+  startOfMonth,
+  endOfMonth,
+  addMonths,
+  subMonths,
+  addDays,
+} from "date-fns";
 import { cn } from "@/lib/utils";
 import { COUNTRIES, STATES_BY_COUNTRY } from "@/lib/constants"; // Assuming these constants exist
 
@@ -102,7 +110,9 @@ function HolidaysPage() {
 
   // All hooks must be called unconditionally at the top level
   const filteredHolidays = useMemo(() => {
-    return holidays.filter(h => new Date(h.holiday_date).getFullYear() === parseInt(selectedYear));
+    return holidays.filter(
+      (h) => new Date(h.holiday_date).getFullYear() === parseInt(selectedYear),
+    );
   }, [holidays, selectedYear]);
 
   if (!profile) return null;
@@ -131,7 +141,9 @@ function HolidaysPage() {
       const holidaysToInsert = publicHolidays
         .filter((h: any) => {
           // Filter for national holidays or state-specific holidays matching selected state
-          return h.global || h.states.some((s: any) => s.iso === `${selectedCountry}-${selectedState}`);
+          return (
+            h.global || h.states.some((s: any) => s.iso === `${selectedCountry}-${selectedState}`)
+          );
         })
         .map((h: any) => ({
           business_id: profile.business_id,
@@ -155,7 +167,11 @@ function HolidaysPage() {
         .lte("holiday_date", `${selectedYear}-12-31`);
 
       if (existingPublicHolidays && existingPublicHolidays.length > 0) {
-        if (!confirm("Holidays already imported for this period. Re-import will replace existing public holidays. Continue?")) {
+        if (
+          !confirm(
+            "Holidays already imported for this period. Re-import will replace existing public holidays. Continue?",
+          )
+        ) {
           setImportLoading(false);
           return;
         }
@@ -170,9 +186,7 @@ function HolidaysPage() {
           .lte("holiday_date", `${selectedYear}-12-31`);
       }
 
-      const { error: insertError } = await supabase
-        .from("holidays")
-        .insert(holidaysToInsert);
+      const { error: insertError } = await supabase.from("holidays").insert(holidaysToInsert);
 
       if (insertError) {
         throw new Error("Failed to insert holidays: " + insertError.message);
@@ -181,7 +195,9 @@ function HolidaysPage() {
       toast.success(`${holidaysToInsert.length} public holidays imported successfully.`);
       loadHolidays();
     } catch (e: any) {
-      toast.error(e.message || "Could not fetch holidays. Please check your connection and try again.");
+      toast.error(
+        e.message || "Could not fetch holidays. Please check your connection and try again.",
+      );
     } finally {
       setImportLoading(false);
     }
@@ -273,7 +289,9 @@ function HolidaysPage() {
             onClick={() => setView("list")}
             className={cn(
               "gap-2",
-              view === "list" ? "bg-[var(--navy)] text-white" : "text-[var(--navy)] border-[var(--navy)] hover:bg-secondary"
+              view === "list"
+                ? "bg-[var(--navy)] text-white"
+                : "text-[var(--navy)] border-[var(--navy)] hover:bg-secondary",
             )}
           >
             <List className="size-4" /> List View
@@ -283,7 +301,9 @@ function HolidaysPage() {
             onClick={() => setView("calendar")}
             className={cn(
               "gap-2",
-              view === "calendar" ? "bg-[var(--navy)] text-white" : "text-[var(--navy)] border-[var(--navy)] hover:bg-secondary"
+              view === "calendar"
+                ? "bg-[var(--navy)] text-white"
+                : "text-[var(--navy)] border-[var(--navy)] hover:bg-secondary",
             )}
           >
             <CalendarIcon className="size-4" /> Calendar View
@@ -295,7 +315,8 @@ function HolidaysPage() {
         <div className="text-center text-muted-foreground py-10">Loading holidays...</div>
       ) : filteredHolidays.length === 0 ? (
         <div className="text-center text-muted-foreground py-10">
-          No holidays imported yet. Use the "Import Public Holidays" button above to fetch public holidays.
+          No holidays imported yet. Use the "Import Public Holidays" button above to fetch public
+          holidays.
         </div>
       ) : view === "list" ? (
         <HolidayListView
@@ -393,7 +414,7 @@ function HolidayCalendarView({
   const daysInMonth = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
-    const dates = [];
+    const dates: Date[] = [];
     let current = start;
     while (current <= end) {
       dates.push(current);
@@ -408,35 +429,44 @@ function HolidayCalendarView({
   const emptyCellsStart = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1; // Adjust for Monday start
 
   const allDays = useMemo(() => {
-    const days = [];
+    const days: Array<Date | null> = [];
     for (let i = 0; i < emptyCellsStart; i++) {
       days.push(null); // Placeholder for days before the 1st
     }
-    daysInMonth.forEach(d => days.push(d));
+    daysInMonth.forEach((d) => days.push(d));
     return days;
   }, [daysInMonth, emptyCellsStart]);
 
   const holidaysByDate = useMemo(() => {
-    return holidays.reduce((acc, h) => {
-      const dateKey = format(new Date(h.holiday_date), "yyyy-MM-dd");
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(h);
-      return acc;
-    }, {} as Record<string, Holiday[]>);
+    return holidays.reduce(
+      (acc, h) => {
+        const dateKey = format(new Date(h.holiday_date), "yyyy-MM-dd");
+        if (!acc[dateKey]) {
+          acc[dateKey] = [];
+        }
+        acc[dateKey].push(h);
+        return acc;
+      },
+      {} as Record<string, Holiday[]>,
+    );
   }, [holidays]);
 
   return (
     <div className="bg-card border rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+        >
           <ChevronLeft className="size-5" />
         </Button>
-        <h2 className="text-lg font-semibold">
-          {format(currentMonth, "MMMM yyyy")}
-        </h2>
-        <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+        <h2 className="text-lg font-semibold">{format(currentMonth, "MMMM yyyy")}</h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+        >
           <ChevronRight className="size-5" />
         </Button>
       </div>
@@ -459,7 +489,7 @@ function HolidayCalendarView({
               className={cn(
                 "relative h-24 p-1 text-sm rounded-md overflow-hidden",
                 isWeekend && "bg-secondary/30",
-                !day && "bg-transparent"
+                !day && "bg-transparent",
               )}
             >
               {day && (
@@ -467,7 +497,7 @@ function HolidayCalendarView({
                   <div
                     className={cn(
                       "absolute top-1 right-1 size-6 flex items-center justify-center rounded-full",
-                      dayHolidays.length > 0 && "bg-[var(--navy)] text-white"
+                      dayHolidays.length > 0 && "bg-[var(--navy)] text-white",
                     )}
                   >
                     {format(day, "d")}
@@ -483,9 +513,7 @@ function HolidayCalendarView({
                         <div className="absolute inset-0 cursor-pointer" />
                       </PopoverTrigger>
                       <PopoverContent className="p-2 text-sm">
-                        <div className="font-semibold mb-1">
-                          {format(day, "dd MMMM yyyy")}
-                        </div>
+                        <div className="font-semibold mb-1">{format(day, "dd MMMM yyyy")}</div>
                         {dayHolidays.map((h) => (
                           <div key={h.id} className="flex items-center gap-2">
                             <span className="font-medium">{h.holiday_name}</span>
@@ -520,7 +548,7 @@ function AddCustomHolidayDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  businessId: string;
+  businessId: string | null;
   onSave: () => void;
   countryCode: string;
   statesForCountry: { code: string; name: string }[];
@@ -545,6 +573,10 @@ function AddCustomHolidayDialog({
   const handleSaveCustomHoliday = async () => {
     if (!holidayName || !holidayDate) {
       toast.error("Holiday Name and Date are required.");
+      return;
+    }
+    if (!businessId) {
+      toast.error("Business ID not found.");
       return;
     }
 
@@ -598,7 +630,7 @@ function AddCustomHolidayDialog({
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !holidayDate && "text-muted-foreground"
+                    !holidayDate && "text-muted-foreground",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
@@ -617,16 +649,15 @@ function AddCustomHolidayDialog({
           </div>
           <div className="flex items-center justify-between space-x-2">
             <Label htmlFor="isPaid">Paid Holiday</Label>
-            <Switch
-              id="isPaid"
-              checked={isPaid}
-              onCheckedChange={setIsPaid}
-            />
+            <Switch id="isPaid" checked={isPaid} onCheckedChange={setIsPaid} />
           </div>
           {statesForCountry.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="stateSpecific">State Specific (optional)</Label>
-              <Select value={stateSpecific || ""} onValueChange={(v) => setStateSpecific(v || null)}>
+              <Select
+                value={stateSpecific || ""}
+                onValueChange={(v) => setStateSpecific(v || null)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select state (leave blank for national)" />
                 </SelectTrigger>

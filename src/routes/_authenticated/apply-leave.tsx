@@ -6,7 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fetchProfile, type Profile } from "@/lib/auth";
@@ -24,7 +28,12 @@ function ApplyLeavePage() {
   const [empName, setEmpName] = useState<string>("");
   const [balances, setBalances] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  const [form, setForm] = useState({ leave_type: "Annual", from_date: "", to_date: "", reason: "" });
+  const [form, setForm] = useState({
+    leave_type: "Annual",
+    from_date: "",
+    to_date: "",
+    reason: "",
+  });
 
   useEffect(() => {
     (async () => {
@@ -41,7 +50,12 @@ function ApplyLeavePage() {
         setEmpName(emp.name);
         const [{ data: bal }, { data: hist }] = await Promise.all([
           supabase.from("leave_balances").select("*").eq("employee_id", emp.id),
-          supabase.from("leaves").select("*").eq("employee_id", emp.id).order("created_at", { ascending: false }).limit(20),
+          supabase
+            .from("leaves")
+            .select("*")
+            .eq("employee_id", emp.id)
+            .order("created_at", { ascending: false })
+            .limit(20),
         ]);
         setBalances(bal ?? []);
         setHistory(hist ?? []);
@@ -62,9 +76,7 @@ function ApplyLeavePage() {
       .eq("business_id", profile.business_id)
       .maybeSingle();
     const perType: any = settings?.auto_approve_by_type ?? {};
-    const autoApprove =
-      settings?.auto_approve_leave === true ||
-      perType[form.leave_type] === true;
+    const autoApprove = settings?.auto_approve_leave === true || perType[form.leave_type] === true;
 
     const { error } = await supabase.from("leaves").insert({
       business_id: profile.business_id,
@@ -86,7 +98,12 @@ function ApplyLeavePage() {
     });
     toast.success(autoApprove ? "Leave auto-approved" : "Leave request submitted");
     setForm({ leave_type: "Annual", from_date: "", to_date: "", reason: "" });
-    const { data: hist } = await supabase.from("leaves").select("*").eq("employee_id", empId).order("created_at", { ascending: false }).limit(20);
+    const { data: hist } = await supabase
+      .from("leaves")
+      .select("*")
+      .eq("employee_id", empId)
+      .order("created_at", { ascending: false })
+      .limit(20);
     setHistory(hist ?? []);
   };
 
@@ -116,28 +133,51 @@ function ApplyLeavePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Leave type</Label>
-            <Select value={form.leave_type} onValueChange={(v) => setForm({ ...form, leave_type: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.leave_type}
+              onValueChange={(v) => setForm({ ...form, leave_type: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {LEAVE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {LEAVE_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <div /> 
+          <div />
           <div className="space-y-1.5">
             <Label>From</Label>
-            <Input type="date" value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value })} />
+            <Input
+              type="date"
+              value={form.from_date}
+              onChange={(e) => setForm({ ...form, from_date: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>To</Label>
-            <Input type="date" value={form.to_date} onChange={(e) => setForm({ ...form, to_date: e.target.value })} />
+            <Input
+              type="date"
+              value={form.to_date}
+              onChange={(e) => setForm({ ...form, to_date: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5 md:col-span-2">
             <Label>Reason</Label>
-            <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} />
+            <Textarea
+              value={form.reason}
+              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              rows={3}
+            />
           </div>
         </div>
-        <Button onClick={submit} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">Submit request</Button>
+        <Button onClick={submit} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
+          Submit request
+        </Button>
       </div>
 
       <div className="bg-card border rounded-xl overflow-hidden">
@@ -153,21 +193,33 @@ function ApplyLeavePage() {
           </thead>
           <tbody>
             {history.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No history yet.</td></tr>
-            ) : history.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-4 py-2 capitalize">{r.leave_type}</td>
-                <td className="px-4 py-2">{r.from_date}</td>
-                <td className="px-4 py-2">{r.to_date}</td>
-                <td className="px-4 py-2">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    r.status === "Pending" ? "bg-secondary text-[var(--navy)]"
-                    : r.status === "Approved" ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                  }`}>{r.status}</span>
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                  No history yet.
                 </td>
               </tr>
-            ))}
+            ) : (
+              history.map((r) => (
+                <tr key={r.id} className="border-t">
+                  <td className="px-4 py-2 capitalize">{r.leave_type}</td>
+                  <td className="px-4 py-2">{r.from_date}</td>
+                  <td className="px-4 py-2">{r.to_date}</td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        r.status === "Pending"
+                          ? "bg-secondary text-[var(--navy)]"
+                          : r.status === "Approved"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {r.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

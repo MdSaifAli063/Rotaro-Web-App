@@ -72,13 +72,14 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
   const employerId = await ensureUser("employer@rotaro.com", "Sarah Mitchell", "employer");
 
   // Check if business exists before inserting
-  const { data: existingBiz } = await supabaseAdmin
+  const { data: existingBusinesses } = await supabaseAdmin
     .from("businesses")
     .select("id, name")
     .eq("name", "Rotaro Demo Business")
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  let biz = existingBiz;
+  let biz = existingBusinesses?.[0] ?? null;
   if (!biz) {
     const { data: newBiz, error: bizErr } = await supabaseAdmin
       .from("businesses")
@@ -106,90 +107,193 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
   }
 
   await upsertProfile(employerId, "Sarah Mitchell", "employer@rotaro.com", "employer", biz.id);
-  await supabaseAdmin.from("settings").upsert({ business_id: biz.id }, { onConflict: "business_id" });
+  await supabaseAdmin
+    .from("settings")
+    .upsert({ business_id: biz.id }, { onConflict: "business_id" });
 
   // ---------- employees ----------
   const empSeed = [
-    { name: "Emily Chen",   email: "emily@rotaro.com", code: "EMP001", dept: "Front of House", role: "Supervisor",   type: "Full-time", rate: 28 },
-    { name: "Liam Nguyen",  email: "liam@rotaro.com",  code: "EMP002", dept: "Kitchen",         role: "Cook",         type: "Part-time", rate: 24 },
-    { name: "Priya Sharma", email: "priya@rotaro.com", code: "EMP003", dept: "Front of House", role: "Cashier",      type: "Casual",    rate: 22 },
-    { name: "Tom Williams", email: "tom@rotaro.com",   code: "EMP004", dept: "Kitchen",         role: "Kitchen Hand", type: "Casual",    rate: 21 },
-    { name: "Aisha Okafor", email: "aisha@rotaro.com", code: "EMP005", dept: "Management",      role: "Duty Manager", type: "Full-time", rate: 32 },
+    {
+      name: "Emily Chen",
+      email: "emily@rotaro.com",
+      code: "EMP001",
+      dept: "Front of House",
+      role: "Supervisor",
+      type: "Full-time",
+      rate: 28,
+    },
+    {
+      name: "Liam Nguyen",
+      email: "liam@rotaro.com",
+      code: "EMP002",
+      dept: "Kitchen",
+      role: "Cook",
+      type: "Part-time",
+      rate: 24,
+    },
+    {
+      name: "Priya Sharma",
+      email: "priya@rotaro.com",
+      code: "EMP003",
+      dept: "Front of House",
+      role: "Cashier",
+      type: "Casual",
+      rate: 22,
+    },
+    {
+      name: "Tom Williams",
+      email: "tom@rotaro.com",
+      code: "EMP004",
+      dept: "Kitchen",
+      role: "Kitchen Hand",
+      type: "Casual",
+      rate: 21,
+    },
+    {
+      name: "Aisha Okafor",
+      email: "aisha@rotaro.com",
+      code: "EMP005",
+      dept: "Management",
+      role: "Duty Manager",
+      type: "Full-time",
+      rate: 32,
+    },
   ];
-  
+
   const empIds: string[] = [];
   for (const e of empSeed) {
     const uid = await ensureUser(e.email, e.name, "employee");
     await upsertProfile(uid, e.name, e.email, "employee", biz.id, { department: e.dept });
-  
+
     // --- Make employee creation idempotent ---
     let employeeId: string;
-    const { data: existingEmp, error: findErr } = await supabaseAdmin
+    const { data: existingEmps, error: findErr } = await supabaseAdmin
       .from("employees")
       .select("id")
       .eq("user_id", uid)
       .eq("business_id", biz.id)
-      .maybeSingle();
-  
+      .order("created_at", { ascending: true })
+      .limit(1);
+
     if (findErr) throw new Error(`Error finding employee ${e.email}: ${findErr.message}`);
-  
-    if (existingEmp) {
-      employeeId = existingEmp.id;
+
+    if (existingEmps?.[0]) {
+      employeeId = existingEmps[0].id;
     } else {
       const { data: newEmp, error: empErr } = await supabaseAdmin
         .from("employees")
         .insert({
-          business_id: biz.id, user_id: uid, name: e.name, email: e.email,
-          employee_code: e.code, department: e.dept, role: e.role,
-          employment_type: e.type, pay_rate: e.rate, status: "Active",
+          business_id: biz.id,
+          user_id: uid,
+          name: e.name,
+          email: e.email,
+          employee_code: e.code,
+          department: e.dept,
+          role: e.role,
+          employment_type: e.type,
+          pay_rate: e.rate,
+          status: "Active",
           start_date: "2025-01-01",
         })
-        .select("id").single();
+        .select("id")
+        .single();
       if (empErr || !newEmp) throw new Error(`employee ${e.email}: ${empErr?.message}`);
       employeeId = newEmp.id;
     }
     empIds.push(employeeId);
-  
-    await supabaseAdmin.from("leave_balances").upsert([
-      // Ensure business_id is included for RLS if needed
-      { business_id: biz.id, employee_id: employeeId, leave_type: "Annual", total_days: 20, used_days: 0 },
-      { business_id: biz.id, employee_id: employeeId, leave_type: "Sick",   total_days: 10, used_days: 0 },
-      { business_id: biz.id, employee_id: employeeId, leave_type: "Casual", total_days: 5,  used_days: 0 },
-    ], { onConflict: "employee_id,leave_type" }); // Specify conflict columns for upsert
+
+    await supabaseAdmin.from("leave_balances").upsert(
+      [
+        // Ensure business_id is included for RLS if needed
+        {
+          business_id: biz.id,
+          employee_id: employeeId,
+          leave_type: "Annual",
+          total_days: 20,
+          used_days: 0,
+        },
+        {
+          business_id: biz.id,
+          employee_id: employeeId,
+          leave_type: "Sick",
+          total_days: 10,
+          used_days: 0,
+        },
+        {
+          business_id: biz.id,
+          employee_id: employeeId,
+          leave_type: "Casual",
+          total_days: 5,
+          used_days: 0,
+        },
+      ],
+      { onConflict: "employee_id,leave_type" },
+    ); // Specify conflict columns for upsert
   }
-  
+
   // ---------- shift templates ----------
-  const { data: existingTemplates } = await supabaseAdmin.from("shift_templates").select("id").eq("business_id", biz.id).limit(1);
+  const { data: existingTemplates } = await supabaseAdmin
+    .from("shift_templates")
+    .select("id")
+    .eq("business_id", biz.id)
+    .limit(1);
   if (!existingTemplates?.length) {
     await supabaseAdmin.from("shift_templates").insert([
-      { business_id: biz.id, name: "Morning Shift",   start_time: "07:00", end_time: "15:00", break_minutes: 30 },
-      { business_id: biz.id, name: "Afternoon Shift", start_time: "12:00", end_time: "20:00", break_minutes: 30 },
-      { business_id: biz.id, name: "Evening Shift",   start_time: "15:00", end_time: "22:00", break_minutes: 30 },
-      { business_id: biz.id, name: "Split Shift",     start_time: "09:00", end_time: "13:00", break_minutes: 0  },
+      {
+        business_id: biz.id,
+        name: "Morning Shift",
+        start_time: "07:00",
+        end_time: "15:00",
+        break_minutes: 30,
+      },
+      {
+        business_id: biz.id,
+        name: "Afternoon Shift",
+        start_time: "12:00",
+        end_time: "20:00",
+        break_minutes: 30,
+      },
+      {
+        business_id: biz.id,
+        name: "Evening Shift",
+        start_time: "15:00",
+        end_time: "22:00",
+        break_minutes: 30,
+      },
+      {
+        business_id: biz.id,
+        name: "Split Shift",
+        start_time: "09:00",
+        end_time: "13:00",
+        break_minutes: 0,
+      },
     ]);
   }
-  
+
   // ---------- rosters (last week published, this week draft) ----------
   const today = new Date();
   const thisMon = monday(today);
   const lastMon = addDays(thisMon, -7);
-  
+
   const rotation = [
     { s: "07:00", e: "15:00", brk: 30, h: 7.5 },
     { s: "12:00", e: "20:00", brk: 30, h: 7.5 },
     { s: "15:00", e: "22:00", brk: 30, h: 6.5 },
   ];
-  
-  for (const [start, status] of [[lastMon, "Published"], [thisMon, "Draft"]] as const) {
+
+  for (const [start, status] of [
+    [lastMon, "Published"],
+    [thisMon, "Draft"],
+  ] as const) {
     const { data: existingRoster } = await supabaseAdmin
       .from("rosters")
       .select("id")
       .eq("business_id", biz.id)
       .eq("week_start", fmt(start))
       .maybeSingle();
-  
+
     if (existingRoster) continue; // Skip if roster for this week already exists
-  
+
     const { data: r } = await supabaseAdmin
       .from("rosters")
       .insert({
@@ -201,7 +305,7 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
       .select()
       .single();
     if (!r) continue;
-  
+
     const shifts: any[] = [];
     for (let d = 0; d < 5; d++) {
       empIds.forEach((eid, i) => {
@@ -219,32 +323,54 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
     }
     await supabaseAdmin.from("roster_shifts").insert(shifts);
   }
-  
+
   // ---------- leaves ----------
-  const { data: existingLeaves } = await supabaseAdmin.from("leaves").select("id").eq("business_id", biz.id).limit(1);
-  if (!existingLeaves?.length) { // Only insert if no leaves exist for this business
+  const { data: existingLeaves } = await supabaseAdmin
+    .from("leaves")
+    .select("id")
+    .eq("business_id", biz.id)
+    .limit(1);
+  if (!existingLeaves?.length) {
+    // Only insert if no leaves exist for this business
     await supabaseAdmin.from("leaves").insert([
       {
-        business_id: biz.id, employee_id: empIds[0], leave_type: "Annual",
-        from_date: fmt(lastMon), to_date: fmt(addDays(lastMon, 2)),
-        status: "Approved", reason: "Family trip",
+        business_id: biz.id,
+        employee_id: empIds[0],
+        leave_type: "Annual",
+        from_date: fmt(lastMon),
+        to_date: fmt(addDays(lastMon, 2)),
+        status: "Approved",
+        reason: "Family trip",
       },
       {
-        business_id: biz.id, employee_id: empIds[1], leave_type: "Sick",
-        from_date: fmt(thisMon), to_date: fmt(addDays(thisMon, 1)),
-        status: "Pending", reason: "Flu",
+        business_id: biz.id,
+        employee_id: empIds[1],
+        leave_type: "Sick",
+        from_date: fmt(thisMon),
+        to_date: fmt(addDays(thisMon, 1)),
+        status: "Pending",
+        reason: "Flu",
       },
       {
-        business_id: biz.id, employee_id: empIds[3], leave_type: "Unpaid",
-        from_date: fmt(addDays(thisMon, -14)), to_date: fmt(addDays(thisMon, -13)),
-        status: "Rejected", reason: "Personal",
+        business_id: biz.id,
+        employee_id: empIds[3],
+        leave_type: "Unpaid",
+        from_date: fmt(addDays(thisMon, -14)),
+        to_date: fmt(addDays(thisMon, -13)),
+        status: "Rejected",
+        reason: "Personal",
       },
     ]);
   }
-  
+
   // ---------- attendance (last 5 working days) ----------
-  const { data: existingAtt } = await supabaseAdmin.from("attendance_records").select("id").eq("business_id", biz.id).limit(1);
-  if (!existingAtt?.length) { // Only insert if no attendance records exist for this business
+  const { data: existingAtt } = await supabaseAdmin
+    .from("attendance_records")
+    .select("id")
+    .eq("business_id", biz.id)
+    .limit(1);
+  if (!existingAtt?.length) {
+    // Only insert if no attendance records exist for this business
     const attRows: any[] = [];
     for (let i = 1; i <= 5; i++) {
       const d = addDays(today, -i);
@@ -267,32 +393,72 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
   }
 
   // ---------- holidays ----------
-  const { data: existingHolidays } = await supabaseAdmin.from("holidays").select("id").eq("business_id", biz.id).limit(1);
+  const { data: existingHolidays } = await supabaseAdmin
+    .from("holidays")
+    .select("id")
+    .eq("business_id", biz.id)
+    .limit(1);
   if (!existingHolidays?.length) {
     await supabaseAdmin.from("holidays").insert([
       {
-        business_id: biz.id, holiday_date: "2026-01-01", holiday_name: "New Year's Day",
-        country: "AU", state: "NSW", is_national: true, is_paid: true, is_custom: false,
+        business_id: biz.id,
+        holiday_date: "2026-01-01",
+        holiday_name: "New Year's Day",
+        country: "AU",
+        state: "NSW",
+        is_national: true,
+        is_paid: true,
+        is_custom: false,
       },
       {
-        business_id: biz.id, holiday_date: "2026-01-26", holiday_name: "Australia Day",
-        country: "AU", state: "NSW", is_national: true, is_paid: true, is_custom: false,
+        business_id: biz.id,
+        holiday_date: "2026-01-26",
+        holiday_name: "Australia Day",
+        country: "AU",
+        state: "NSW",
+        is_national: true,
+        is_paid: true,
+        is_custom: false,
       },
       {
-        business_id: biz.id, holiday_date: "2026-04-10", holiday_name: "Good Friday",
-        country: "AU", state: "NSW", is_national: true, is_paid: true, is_custom: false,
+        business_id: biz.id,
+        holiday_date: "2026-04-10",
+        holiday_name: "Good Friday",
+        country: "AU",
+        state: "NSW",
+        is_national: true,
+        is_paid: true,
+        is_custom: false,
       },
       {
-        business_id: biz.id, holiday_date: "2026-06-08", holiday_name: "King's Birthday",
-        country: "AU", state: "NSW", is_national: false, is_paid: true, is_custom: false,
+        business_id: biz.id,
+        holiday_date: "2026-06-08",
+        holiday_name: "King's Birthday",
+        country: "AU",
+        state: "NSW",
+        is_national: false,
+        is_paid: true,
+        is_custom: false,
       },
       {
-        business_id: biz.id, holiday_date: "2026-12-25", holiday_name: "Christmas Day",
-        country: "AU", state: "NSW", is_national: true, is_paid: true, is_custom: false,
+        business_id: biz.id,
+        holiday_date: "2026-12-25",
+        holiday_name: "Christmas Day",
+        country: "AU",
+        state: "NSW",
+        is_national: true,
+        is_paid: true,
+        is_custom: false,
       },
       {
-        business_id: biz.id, holiday_date: "2026-03-17", holiday_name: "St. Patrick's Day Party",
-        country: "AU", state: "NSW", is_national: false, is_paid: false, is_custom: true,
+        business_id: biz.id,
+        holiday_date: "2026-03-17",
+        holiday_name: "St. Patrick's Day Party",
+        country: "AU",
+        state: "NSW",
+        is_national: false,
+        is_paid: false,
+        is_custom: true,
       },
     ]);
   }

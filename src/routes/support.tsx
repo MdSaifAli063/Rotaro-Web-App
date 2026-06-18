@@ -12,13 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import {
-  BookOpen,
-  MessageSquare,
-  HelpCircle,
-  Headphones,
-  LayoutDashboard,
-} from "lucide-react";
+import { BookOpen, MessageSquare, HelpCircle, Headphones, LayoutDashboard } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/routes/index";
 
 export const Route = createFileRoute("/support")({

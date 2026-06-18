@@ -69,13 +69,15 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
         if (error) {
           console.error("Sidebar profile fetch error:", error.message);
           setAvatarPath(null);
-          // If we get a 400 error (column missing), we should stop "Loading profile" 
+          // If we get a 400 error (column missing), we should stop "Loading profile"
           // by ensuring we treat it as no avatar.
         } else {
           setAvatarPath((data?.avatar_url as string | null) ?? null);
         }
       });
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [profile.id]);
 
   useEffect(() => {
@@ -120,12 +122,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
           to="/profile"
           className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent/60"
         >
-          <UserAvatar
-            name={profile.name}
-            email={profile.email}
-            avatarPath={avatarPath}
-            size={32}
-          />
+          <UserAvatar name={profile.name} email={profile.email} avatarPath={avatarPath} size={32} />
           <div className="min-w-0 text-left">
             <div className="font-medium truncate">{profile.name || profile.email}</div>
             <div className="text-xs opacity-70 truncate">{profile.email}</div>

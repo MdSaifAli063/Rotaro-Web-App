@@ -197,7 +197,9 @@ function ShiftsPage() {
                 <Input
                   type="number"
                   value={editing.break_minutes ?? 0}
-                  onChange={(e) => setEditing({ ...editing, break_minutes: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, break_minutes: Number(e.target.value) })
+                  }
                 />
               </div>
               <div className="space-y-1.5">
@@ -228,8 +230,12 @@ function ShiftsPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">Save</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={save} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

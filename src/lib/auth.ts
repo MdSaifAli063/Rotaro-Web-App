@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "employer" | "employee";
+export type AppRole = "employer" | "manager" | "employee";
 
 export type Profile = {
   id: string;
@@ -14,7 +14,7 @@ export type Profile = {
 };
 
 export function isManager(p: Profile | null) {
-  return !!p && (p.role === "employer" /*|| p.role === "manager"*/);
+  return !!p && (p.role === "employer" || p.role === "manager");
 }
 
 export function useSession() {
@@ -63,18 +63,19 @@ export async function fetchProfile(): Promise<Profile | null> {
     department: null,
   };
 
-  const { error } = await supabase
-    .from("profiles")
-    .insert({
-      id: user.id,
-      name,
-      email: user.email ?? "",
-      role,
-      business_id: null,
-    });
+  const { error } = await supabase.from("profiles").insert({
+    id: user.id,
+    name,
+    email: user.email ?? "",
+    role,
+    business_id: null,
+  });
 
   if (error) {
-    console.error("Profile auto-creation failed. Check if 'profiles' table schema matches 'types.ts':", error.message);
+    console.error(
+      "Profile auto-creation failed. Check if 'profiles' table schema matches 'types.ts':",
+      error.message,
+    );
   }
 
   return fallbackProfile;

@@ -49,7 +49,11 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   const markAllRead = async () => {
     if (!unread) return;
-    await supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false);
+    await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
     load();
   };
 
@@ -71,13 +75,18 @@ export function NotificationBell({ userId }: { userId: string }) {
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="font-semibold text-sm">Notifications</div>
-          <button onClick={markAllRead} className="text-xs text-muted-foreground hover:text-[var(--navy)]">
+          <button
+            onClick={markAllRead}
+            className="text-xs text-muted-foreground hover:text-[var(--navy)]"
+          >
             Mark all read
           </button>
         </div>
         <div className="max-h-80 overflow-auto">
           {items.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">No notifications.</div>
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              No notifications.
+            </div>
           ) : (
             items.map((n) => (
               <div

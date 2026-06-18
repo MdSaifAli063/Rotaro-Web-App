@@ -91,9 +91,7 @@ function OnboardingPage() {
           {[1, 2, 3].map((s) => (
             <div
               key={s}
-              className={`h-1.5 flex-1 rounded-full ${
-                s <= step ? "bg-primary" : "bg-secondary"
-              }`}
+              className={`h-1.5 flex-1 rounded-full ${s <= step ? "bg-primary" : "bg-secondary"}`}
             />
           ))}
         </div>
@@ -104,21 +102,37 @@ function OnboardingPage() {
               <h2 className="font-semibold text-lg">Business info</h2>
               <div className="space-y-2">
                 <Label>Business name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Cafe" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Acme Cafe"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Country</Label>
-                  <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Australia" />
+                  <Input
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    placeholder="Australia"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>State / Region</Label>
-                  <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="VIC" />
+                  <Input
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    placeholder="VIC"
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Location / Place name</Label>
-                <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Melbourne CBD" />
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Melbourne CBD"
+                />
               </div>
             </div>
           )}
@@ -129,11 +143,19 @@ function OnboardingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Opening time</Label>
-                  <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
+                  <Input
+                    type="time"
+                    value={openTime}
+                    onChange={(e) => setOpenTime(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Closing time</Label>
-                  <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
+                  <Input
+                    type="time"
+                    value={closeTime}
+                    onChange={(e) => setCloseTime(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
@@ -223,11 +245,7 @@ function OnboardingPage() {
           )}
 
           <div className="flex justify-between mt-8 pt-6 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setStep(step - 1)}
-              disabled={step === 1}
-            >
+            <Button variant="outline" onClick={() => setStep(step - 1)} disabled={step === 1}>
               Back
             </Button>
             {step < 3 ? (

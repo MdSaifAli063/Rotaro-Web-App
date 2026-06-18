@@ -89,7 +89,9 @@ function UserSlider() {
     <section className="bg-secondary">
       <div className="max-w-4xl mx-auto px-6 py-20 text-center">
         <h2 className="text-3xl md:text-4xl font-bold text-[var(--navy)]">What's included?</h2>
-        <h3 className="text-lg font-semibold text-[var(--navy)] mt-8">How many employees do you have?</h3>
+        <h3 className="text-lg font-semibold text-[var(--navy)] mt-8">
+          How many employees do you have?
+        </h3>
         <p className="text-sm text-muted-foreground mt-2 max-w-2xl mx-auto">
           An employee is anyone who will be rostered, have their attendance tracked, or whose leave
           is managed using Rotaro.
@@ -186,17 +188,23 @@ function PricingTiers() {
                   MOST POPULAR
                 </span>
               )}
-              <h3 className={`text-2xl font-bold ${featured ? "text-white" : "text-[var(--navy)]"}`}>
+              <h3
+                className={`text-2xl font-bold ${featured ? "text-white" : "text-[var(--navy)]"}`}
+              >
                 {p.name}
               </h3>
               <p className={`text-sm mt-1 ${featured ? "text-white/80" : "text-muted-foreground"}`}>
                 {p.subtitle}
               </p>
               <div className="mt-6">
-                <div className={`text-5xl font-bold ${featured ? "text-white" : "text-[var(--navy)]"}`}>
+                <div
+                  className={`text-5xl font-bold ${featured ? "text-white" : "text-[var(--navy)]"}`}
+                >
                   {p.price}
                 </div>
-                <div className={`text-xs mt-1 ${featured ? "text-white/80" : "text-muted-foreground"}`}>
+                <div
+                  className={`text-xs mt-1 ${featured ? "text-white/80" : "text-muted-foreground"}`}
+                >
                   {p.sub}
                 </div>
               </div>
@@ -354,7 +362,10 @@ function FAQ() {
       a: "Yes, you can upgrade or downgrade anytime. Changes take effect at the start of your next billing cycle.",
     },
     { q: "Is there a free trial?", a: "Yes — every paid plan includes a 14-day free trial." },
-    { q: "Do I need a credit card to start?", a: "No credit card is required to start your trial." },
+    {
+      q: "Do I need a credit card to start?",
+      a: "No credit card is required to start your trial.",
+    },
     {
       q: "What happens to my data if I cancel?",
       a: "Your data is retained for 30 days after cancellation so you can export it or reactivate without losing anything.",
@@ -398,7 +409,10 @@ function BottomCTA() {
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link to="/auth">
-            <Button size="lg" className="rounded-full bg-white text-[var(--navy)] hover:bg-white/90 px-8">
+            <Button
+              size="lg"
+              className="rounded-full bg-white text-[var(--navy)] hover:bg-white/90 px-8"
+            >
               Start Free Trial
             </Button>
           </Link>

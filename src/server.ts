@@ -35,9 +35,7 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   if (capturedError) {
     console.error("h3 captured error:", capturedError);
   }
-  console.error(
-    capturedError ?? new Error(`h3 swallowed SSR error: ${body}`),
-  );
+  console.error(capturedError ?? new Error(`h3 swallowed SSR error: ${body}`));
   return new Response(renderErrorPage(), {
     status: 500,
     headers: { "content-type": "text/html; charset=utf-8" },

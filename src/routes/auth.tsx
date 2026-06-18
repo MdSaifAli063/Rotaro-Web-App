@@ -130,7 +130,12 @@ function AuthPage() {
             )}
             <div className="space-y-2">
               <Label>Email address</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label>Password</Label>
@@ -200,7 +205,9 @@ function AuthPage() {
           </div>
         </div>
         <p className="text-center text-xs text-white/80 mt-6 relative z-10">
-          <Link to="/" className="hover:underline">← Back to home</Link>
+          <Link to="/" className="hover:underline">
+            ← Back to home
+          </Link>
         </p>
       </div>
     </div>

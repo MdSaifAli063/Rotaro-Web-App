@@ -128,9 +128,29 @@ export function SiteHeader() {
             className="md:hidden p-2 -mr-2 rounded-md hover:bg-muted text-[var(--navy)]"
           >
             {open ? (
-              <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              <svg
+                viewBox="0 0 24 24"
+                className="size-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
             ) : (
-              <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+              <svg
+                viewBox="0 0 24 24"
+                className="size-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
             )}
           </button>
         </div>
@@ -552,11 +572,17 @@ export function SiteFooter() {
             />
             <div className="flex flex-wrap gap-5 pt-1">
               <label className="flex items-center gap-2 text-sm">
-                <Checkbox defaultChecked className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[var(--navy)]" />
+                <Checkbox
+                  defaultChecked
+                  className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[var(--navy)]"
+                />
                 Product Updates
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <Checkbox defaultChecked className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[var(--navy)]" />
+                <Checkbox
+                  defaultChecked
+                  className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[var(--navy)]"
+                />
                 Tips & Best Practices
               </label>
             </div>

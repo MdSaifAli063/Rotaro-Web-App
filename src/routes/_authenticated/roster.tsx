@@ -122,24 +122,13 @@ function RosterRoute() {
       />
     );
   }
-  return (
-    <RosterList
-      businessId={profile.business_id!}
-      onOpen={setEditingId}
-    />
-  );
+  return <RosterList businessId={profile.business_id!} onOpen={setEditingId} />;
 }
 
 // ===================================================================
 // LIST
 // ===================================================================
-function RosterList({
-  businessId,
-  onOpen,
-}: {
-  businessId: string;
-  onOpen: (id: string) => void;
-}) {
+function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: string) => void }) {
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -253,9 +242,7 @@ function RosterList({
                     </span>
                   )}
                 </div>
-                <div className="md:text-right text-sm font-medium text-[var(--navy)]">
-                  View →
-                </div>
+                <div className="md:text-right text-sm font-medium text-[var(--navy)]">View →</div>
               </button>
             );
           })
@@ -528,7 +515,13 @@ function RosterEditor({
   };
 
   const saveShift = async () => {
-    if (!editing || !editing.employee_id || !editing.day || !editing.start_time || !editing.end_time) {
+    if (
+      !editing ||
+      !editing.employee_id ||
+      !editing.day ||
+      !editing.start_time ||
+      !editing.end_time
+    ) {
       toast.error("Pick employee, start and end time");
       return;
     }
@@ -619,9 +612,7 @@ function RosterEditor({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold">
-              ${dayCost.toFixed(2)}
-            </div>
+            <div className="text-2xl font-bold">${dayCost.toFixed(2)}</div>
             <div className="text-xs uppercase opacity-80">Total cost for day</div>
           </div>
         </div>
@@ -647,8 +638,7 @@ function RosterEditor({
             onClick={publish}
             className="bg-white text-[var(--navy)] hover:bg-white/90 gap-1"
           >
-            <Send className="size-4" />{" "}
-            {roster.status === "Published" ? "Unpublish" : "Publish"}
+            <Send className="size-4" /> {roster.status === "Published" ? "Unpublish" : "Publish"}
           </Button>
         </div>
       </div>
@@ -684,13 +674,13 @@ function RosterEditor({
               key={i}
               onClick={() => setActiveDay(i)}
               className={`px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
-                active
-                  ? "bg-[var(--navy)] text-white"
-                  : "hover:bg-secondary text-[var(--navy)]"
+                active ? "bg-[var(--navy)] text-white" : "hover:bg-secondary text-[var(--navy)]"
               }`}
             >
               <div className="uppercase">{DAYS[i]}</div>
-              <div className="opacity-80">{d.getDate()}/{d.getMonth() + 1}</div>
+              <div className="opacity-80">
+                {d.getDate()}/{d.getMonth() + 1}
+              </div>
             </button>
           );
         })}
@@ -848,9 +838,7 @@ function RosterEditor({
                 <Label>Break</Label>
                 <Select
                   value={String(editing.break_minutes ?? 0)}
-                  onValueChange={(v) =>
-                    setEditing({ ...editing, break_minutes: parseInt(v) })
-                  }
+                  onValueChange={(v) => setEditing({ ...editing, break_minutes: parseInt(v) })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -865,7 +853,8 @@ function RosterEditor({
               </div>
               {editing.start_time && editing.end_time && (
                 <div className="text-sm bg-secondary/50 rounded-md px-3 py-2">
-                  Total: <strong>
+                  Total:{" "}
+                  <strong>
                     {hoursBetween(
                       editing.start_time,
                       editing.end_time,

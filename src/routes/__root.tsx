@@ -114,27 +114,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  const isServer = typeof window === 'undefined';
-  
+  const isServer = typeof window === "undefined";
+
   // Safely access environment variables
-  const supabaseUrl = (isServer ? process.env.SUPABASE_URL : null) || 
+  const supabaseUrl =
+    (isServer ? process.env.SUPABASE_URL : null) ||
     (!isServer ? (window as any).__SUPABASE__?.SUPABASE_URL : null);
-    
-  const supabaseKey = (isServer ? (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY) : null) || 
+
+  const supabaseKey =
+    (isServer ? process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY : null) ||
     (!isServer ? (window as any).__SUPABASE__?.SUPABASE_ANON_KEY : null);
 
   const env = { SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: supabaseKey };
 
   // Debug helper for Google Cloud logs
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     const serviceKey = process?.env?.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !supabaseKey || !serviceKey) {
       const missing = [
-        !supabaseUrl && 'SUPABASE_URL',
-        !supabaseKey && 'SUPABASE_ANON_KEY',
-        !serviceKey && 'SUPABASE_SERVICE_ROLE_KEY',
+        !supabaseUrl && "SUPABASE_URL",
+        !supabaseKey && "SUPABASE_ANON_KEY",
+        !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
       ].filter(Boolean);
-      console.warn(`CRITICAL: Supabase environment variables are missing in the server environment: ${missing.join(', ')}`);
+      console.warn(
+        `CRITICAL: Supabase environment variables are missing in the server environment: ${missing.join(", ")}`,
+      );
     }
   }
 

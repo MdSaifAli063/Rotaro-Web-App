@@ -42,7 +42,9 @@ function Dashboard() {
       <div className="min-h-screen flex items-center justify-center px-4 text-center">
         <div className="max-w-sm bg-card border rounded-xl p-8 shadow-sm">
           <p className="text-sm text-muted-foreground">{error}</p>
-          <p className="mt-3 text-sm text-muted-foreground">If this persists, please sign out and sign in again.</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            If this persists, please sign out and sign in again.
+          </p>
         </div>
       </div>
     );
@@ -81,12 +83,27 @@ function ManagerDashboard() {
         { count: holidays },
         { count: present },
       ] = await Promise.all([
-        supabase.from("roster_shifts").select("total_hours, day").gte("day", todayStr).lte("day", weekEndStr),
+        supabase
+          .from("roster_shifts")
+          .select("total_hours, day")
+          .gte("day", todayStr)
+          .lte("day", weekEndStr),
         supabase.from("leaves").select("*", { count: "exact", head: true }).eq("status", "Pending"),
-        supabase.from("shift_swaps").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase
+          .from("shift_swaps")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending"),
         supabase.from("employees").select("*", { count: "exact", head: true }),
-        supabase.from("holidays").select("*", { count: "exact", head: true }).gte("holiday_date", todayStr).lte("holiday_date", weekEndStr),
-        supabase.from("attendance_records").select("*", { count: "exact", head: true }).eq("date", todayStr).not("check_in_time", "is", null),
+        supabase
+          .from("holidays")
+          .select("*", { count: "exact", head: true })
+          .gte("holiday_date", todayStr)
+          .lte("holiday_date", weekEndStr),
+        supabase
+          .from("attendance_records")
+          .select("*", { count: "exact", head: true })
+          .eq("date", todayStr)
+          .not("check_in_time", "is", null),
       ]);
 
       setStats({
@@ -118,7 +135,11 @@ function ManagerDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map(({ label, value, icon: Icon, to }) => (
-          <Link key={label} to={to} className="bg-card border rounded-xl p-5 shadow-sm hover:border-[var(--navy)] transition-colors">
+          <Link
+            key={label}
+            to={to}
+            className="bg-card border rounded-xl p-5 shadow-sm hover:border-[var(--navy)] transition-colors"
+          >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
               <div className="size-8 rounded-md bg-secondary flex items-center justify-center">
@@ -134,7 +155,8 @@ function ManagerDashboard() {
         <div className="bg-card border rounded-xl p-5 shadow-sm flex items-start gap-3">
           <AlertTriangle className="size-5 text-[var(--navy)] mt-0.5" />
           <div className="text-sm">
-            You have <strong>{stats.pendingLeaves}</strong> leave and <strong>{stats.pendingSwaps}</strong> swap requests waiting for review.
+            You have <strong>{stats.pendingLeaves}</strong> leave and{" "}
+            <strong>{stats.pendingSwaps}</strong> swap requests waiting for review.
           </div>
         </div>
       )}
@@ -152,7 +174,11 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
 
   useEffect(() => {
     (async () => {
-      const { data: emp } = await supabase.from("employees").select("id").eq("user_id", profile.id).maybeSingle();
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", profile.id)
+        .maybeSingle();
       if (!emp) return;
       setEmpId(emp.id);
 
@@ -162,10 +188,26 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
       const weekStartStr = weekStart.toISOString().slice(0, 10);
 
       const [{ data: next }, { data: bal }, { data: att }, { data: todayAtt }] = await Promise.all([
-        supabase.from("roster_shifts").select("*").eq("employee_id", emp.id).gte("day", todayStr).order("day").limit(1).maybeSingle(),
+        supabase
+          .from("roster_shifts")
+          .select("*")
+          .eq("employee_id", emp.id)
+          .gte("day", todayStr)
+          .order("day")
+          .limit(1)
+          .maybeSingle(),
         supabase.from("leave_balances").select("*").eq("employee_id", emp.id),
-        supabase.from("attendance_records").select("check_in_time, check_out_time").eq("employee_id", emp.id).gte("date", weekStartStr),
-        supabase.from("attendance_records").select("*").eq("employee_id", emp.id).eq("date", todayStr).maybeSingle(),
+        supabase
+          .from("attendance_records")
+          .select("check_in_time, check_out_time")
+          .eq("employee_id", emp.id)
+          .gte("date", weekStartStr),
+        supabase
+          .from("attendance_records")
+          .select("*")
+          .eq("employee_id", emp.id)
+          .eq("date", todayStr)
+          .maybeSingle(),
       ]);
 
       setNextShift(next ?? null);
@@ -173,7 +215,10 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
       setToday(todayAtt ?? null);
       const hrs = (att ?? []).reduce((sum: number, a: any) => {
         if (a.check_in_time && a.check_out_time) {
-          return sum + (new Date(a.check_out_time).getTime() - new Date(a.check_in_time).getTime()) / 3600000;
+          return (
+            sum +
+            (new Date(a.check_out_time).getTime() - new Date(a.check_in_time).getTime()) / 3600000
+          );
         }
         return sum;
       }, 0);
@@ -196,10 +241,13 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
 
   const checkOut = async () => {
     if (!today) return;
-    await supabase.from("attendance_records").update({
-      check_out_time: new Date().toISOString(),
-      status: "completed",
-    }).eq("id", today.id);
+    await supabase
+      .from("attendance_records")
+      .update({
+        check_out_time: new Date().toISOString(),
+        status: "completed",
+      })
+      .eq("id", today.id);
     location.reload();
   };
 
@@ -217,17 +265,24 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
             {today?.check_in_time
               ? `Checked in at ${new Date(today.check_in_time).toLocaleTimeString()}`
               : "Not checked in yet"}
-            {today?.check_out_time && ` · Out ${new Date(today.check_out_time).toLocaleTimeString()}`}
+            {today?.check_out_time &&
+              ` · Out ${new Date(today.check_out_time).toLocaleTimeString()}`}
           </div>
         </div>
         <div className="flex gap-2">
           {!today?.check_in_time && (
-            <button onClick={checkIn} className="px-4 py-2 rounded-md bg-[var(--navy)] text-white text-sm hover:bg-[var(--navy-light)]">
+            <button
+              onClick={checkIn}
+              className="px-4 py-2 rounded-md bg-[var(--navy)] text-white text-sm hover:bg-[var(--navy-light)]"
+            >
               Check in
             </button>
           )}
           {today?.check_in_time && !today?.check_out_time && (
-            <button onClick={checkOut} className="px-4 py-2 rounded-md bg-[var(--navy)] text-white text-sm hover:bg-[var(--navy-light)]">
+            <button
+              onClick={checkOut}
+              className="px-4 py-2 rounded-md bg-[var(--navy)] text-white text-sm hover:bg-[var(--navy-light)]"
+            >
               Check out
             </button>
           )}
@@ -251,7 +306,9 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
 
         <div className="bg-card border rounded-xl p-5 shadow-sm">
           <div className="text-xs uppercase text-muted-foreground">This week</div>
-          <div className="text-3xl font-semibold text-[var(--navy)] mt-2">{weekHours.toFixed(1)}</div>
+          <div className="text-3xl font-semibold text-[var(--navy)] mt-2">
+            {weekHours.toFixed(1)}
+          </div>
           <div className="text-sm text-muted-foreground">hours · {weekDays} days worked</div>
         </div>
 
@@ -260,20 +317,37 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
           <div className="mt-2 space-y-1">
             {balances.length === 0 ? (
               <div className="text-sm text-muted-foreground">No balances set.</div>
-            ) : balances.map((b: any) => (
-              <div key={b.id} className="flex justify-between text-sm">
-                <span>{b.leave_type}</span>
-                <span className="font-medium">{Number(b.total_days) - Number(b.used_days)}d</span>
-              </div>
-            ))}
+            ) : (
+              balances.map((b: any) => (
+                <div key={b.id} className="flex justify-between text-sm">
+                  <span>{b.leave_type}</span>
+                  <span className="font-medium">{Number(b.total_days) - Number(b.used_days)}d</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Link to="/apply-leave" className="px-4 py-2 rounded-md border bg-card text-sm hover:border-[var(--navy)]">Apply Leave</Link>
-        <Link to="/swaps" className="px-4 py-2 rounded-md border bg-card text-sm hover:border-[var(--navy)]">Request Shift Swap</Link>
-        <Link to="/my-roster" className="px-4 py-2 rounded-md border bg-card text-sm hover:border-[var(--navy)]">View Full Roster</Link>
+        <Link
+          to="/apply-leave"
+          className="px-4 py-2 rounded-md border bg-card text-sm hover:border-[var(--navy)]"
+        >
+          Apply Leave
+        </Link>
+        <Link
+          to="/swaps"
+          className="px-4 py-2 rounded-md border bg-card text-sm hover:border-[var(--navy)]"
+        >
+          Request Shift Swap
+        </Link>
+        <Link
+          to="/my-roster"
+          className="px-4 py-2 rounded-md border bg-card text-sm hover:border-[var(--navy)]"
+        >
+          View Full Roster
+        </Link>
       </div>
     </div>
   );

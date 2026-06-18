@@ -4,8 +4,8 @@ import { renderErrorPage } from "./lib/error-page.js";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const csrfMiddleware = createCsrfMiddleware({
-  filter: (ctx) => ctx.handlerType === 'serverFn',
-})
+  filter: (ctx) => ctx.handlerType === "serverFn",
+});
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {

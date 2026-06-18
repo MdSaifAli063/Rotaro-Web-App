@@ -61,11 +61,11 @@ export function UserAvatar({
       className={`rounded-full overflow-hidden shrink-0 inline-flex items-center justify-center font-semibold ${className}`}
     >
       {url ? (
-        <img 
-          src={url} 
-          alt={name || email || "Avatar"} 
+        <img
+          src={url}
+          alt={name || email || "Avatar"}
           className="w-full h-full object-cover"
-          onError={() => setUrl(null)} 
+          onError={() => setUrl(null)}
         />
       ) : (
         <span

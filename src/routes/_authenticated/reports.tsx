@@ -22,7 +22,25 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, subDays, addMonths, subMonths, addQuarters, subQuarters, addYears, subYears, isSameWeek, isSameMonth, isSameQuarter, isSameYear } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  subDays,
+  addMonths,
+  subMonths,
+  addQuarters,
+  subQuarters,
+  addYears,
+  subYears,
+  isSameWeek,
+  isSameMonth,
+  isSameQuarter,
+  isSameYear,
+} from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -38,17 +56,35 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import * as ExcelJS from 'exceljs';
+import * as ExcelJS from "exceljs";
 
 export const Route = createFileRoute("/_authenticated/reports")({
   component: ReportsPage,
 });
 
 // Assuming these types exist or defining them here
-type Employee = { id: string; name: string; department: string | null; employment_type: string | null; pay_rate: number | null };
-type RosterShift = { employee_id: string; total_hours: number; start_time: string; end_time: string; day: string };
+type Employee = {
+  id: string;
+  name: string;
+  department: string | null;
+  employment_type: string | null;
+  pay_rate: number | null;
+};
+type RosterShift = {
+  employee_id: string;
+  total_hours: number;
+  start_time: string;
+  end_time: string;
+  day: string;
+};
 type AttendanceRecord = { employee_id: string; total_hours: number; date: string };
-type LeaveRecord = { employee_id: string; from_date: string; to_date: string; total_days: number; status: string };
+type LeaveRecord = {
+  employee_id: string;
+  from_date: string;
+  to_date: string;
+  total_days: number;
+  status: string;
+};
 
 type ReportData = {
   employeeId: string;
@@ -71,7 +107,13 @@ type DateRange = {
 };
 
 // Assuming this component exists or defining a placeholder
-function DateRangePickerComponent({ value, onChange }: { value: DateRange, onChange: (range: DateRange) => void }) {
+function DateRangePickerComponent({
+  value,
+  onChange,
+}: {
+  value: DateRange;
+  onChange: (range: DateRange) => void;
+}) {
   return (
     <div className="grid gap-2">
       <Popover>
@@ -81,15 +123,14 @@ function DateRangePickerComponent({ value, onChange }: { value: DateRange, onCha
             variant={"outline"}
             className={cn(
               "w-[300px] justify-start text-left font-normal",
-              !value.from && "text-muted-foreground"
+              !value.from && "text-muted-foreground",
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {value.from ? (
               value.to ? (
                 <>
-                  {format(value.from, "LLL dd, y")} -{" "}
-                  {format(value.to, "LLL dd, y")}
+                  {format(value.from, "LLL dd, y")} - {format(value.to, "LLL dd, y")}
                 </>
               ) : (
                 format(value.from, "LLL dd, y")
@@ -115,7 +156,11 @@ function DateRangePickerComponent({ value, onChange }: { value: DateRange, onCha
 }
 
 // Helper function moved outside the component to avoid re-declaration
-const getPreviousPeriodDateRange = (currentFrom: Date, currentTo: Date, groupBy: string): DateRange => {
+const getPreviousPeriodDateRange = (
+  currentFrom: Date,
+  currentTo: Date,
+  groupBy: string,
+): DateRange => {
   const diff = currentTo.getTime() - currentFrom.getTime();
   let prevFrom: Date;
   let prevTo: Date;
@@ -191,7 +236,9 @@ function ReportsPage() {
       return;
     }
     setEmployees(data || []);
-    const uniqueDepartments = Array.from(new Set(data.map((e) => e.department).filter(Boolean))) as string[];
+    const uniqueDepartments = Array.from(
+      new Set(data.map((e) => e.department).filter(Boolean)),
+    ) as string[];
     setDepartments(uniqueDepartments);
   };
 
@@ -212,7 +259,7 @@ function ReportsPage() {
         .lte("week_end", format(dateRange.to, "yyyy-MM-dd"));
 
       if (rostersError) throw rostersError;
-      const rosterIds = rostersForBusiness?.map(r => r.id) || [];
+      const rosterIds = rostersForBusiness?.map((r) => r.id) || [];
 
       // Fetch all necessary raw data
       const [rosterShiftsRes, attendanceRes, leavesRes] = await Promise.all([
@@ -240,8 +287,16 @@ function ReportsPage() {
       if (attendanceRes.error) throw attendanceRes.error;
       if (leavesRes.error) throw leavesRes.error;
 
-      const rosterShifts: RosterShift[] = rosterShiftsRes.data || [];
-      const attendanceRecords: AttendanceRecord[] = attendanceRes.data || [];
+      const rosterShifts: RosterShift[] = (rosterShiftsRes.data || []).map((shift) => ({
+        ...shift,
+        total_hours: shift.total_hours ?? 0,
+        start_time: shift.start_time ?? "",
+        end_time: shift.end_time ?? "",
+      }));
+      const attendanceRecords: AttendanceRecord[] = (attendanceRes.data || []).map((record) => ({
+        ...record,
+        total_hours: record.total_hours ?? 0,
+      }));
       const leaveRecords: LeaveRecord[] = leavesRes.data || [];
 
       const aggregatedData: Record<string, ReportData> = {};
@@ -276,10 +331,13 @@ function ReportsPage() {
           // Simple overtime calculation: anything over 8 hours in a day is 1.5x
           // This is a simplification; a real system would need more complex logic
           const dailyScheduledHours = rosterShifts
-            .filter(s => s.employee_id === shift.employee_id && s.day === shift.day)
+            .filter((s) => s.employee_id === shift.employee_id && s.day === shift.day)
             .reduce((sum, s) => sum + s.total_hours, 0);
           if (dailyScheduledHours > 8) {
-            aggregatedData[shift.employee_id].overtimeHours += Math.min(shift.total_hours, dailyScheduledHours - 8);
+            aggregatedData[shift.employee_id].overtimeHours += Math.min(
+              shift.total_hours,
+              dailyScheduledHours - 8,
+            );
           }
         }
       });
@@ -318,27 +376,59 @@ function ReportsPage() {
 
   // All hooks and top-level calculations must be unconditional
   const currentPeriodLabel = useMemo(() => {
-    return dateRange.from && dateRange.to ? `${format(dateRange.from, "MMM dd, yyyy")} - ${format(dateRange.to, "MMM dd, yyyy")}` : "Selected Period";
+    return dateRange.from && dateRange.to
+      ? `${format(dateRange.from, "MMM dd, yyyy")} - ${format(dateRange.to, "MMM dd, yyyy")}`
+      : "Selected Period";
   }, [dateRange]);
 
-  const totalScheduledHours = useMemo(() => reportData.reduce((sum, r) => sum + r.scheduledHours, 0), [reportData]);
-  const totalActualHours = useMemo(() => reportData.reduce((sum, r) => sum + r.actualHours, 0), [reportData]);
-  const averageHoursPerEmployee = useMemo(() => reportData.length > 0 ? (totalScheduledHours / reportData.length) : 0, [reportData, totalScheduledHours]);
+  const totalScheduledHours = useMemo(
+    () => reportData.reduce((sum, r) => sum + r.scheduledHours, 0),
+    [reportData],
+  );
+  const totalActualHours = useMemo(
+    () => reportData.reduce((sum, r) => sum + r.actualHours, 0),
+    [reportData],
+  );
+  const averageHoursPerEmployee = useMemo(
+    () => (reportData.length > 0 ? totalScheduledHours / reportData.length : 0),
+    [reportData, totalScheduledHours],
+  );
   const totalEmployeesRostered = useMemo(() => reportData.length, [reportData]);
 
-  const totalScheduledWages = useMemo(() => reportData.reduce((sum, r) => sum + r.totalWages, 0), [reportData]);
-  const totalActualWages = useMemo(() => reportData.reduce((sum, r) => sum + (r.actualHours * r.payRate), 0), [reportData]);
-  const averageWagePerEmployee = useMemo(() => reportData.length > 0 ? (totalScheduledWages / reportData.length) : 0, [reportData, totalScheduledWages]);
-  const estimatedOvertimeCost = useMemo(() => reportData.reduce((sum, r) => sum + r.overtimePay, 0), [reportData]);
+  const totalScheduledWages = useMemo(
+    () => reportData.reduce((sum, r) => sum + r.totalWages, 0),
+    [reportData],
+  );
+  const totalActualWages = useMemo(
+    () => reportData.reduce((sum, r) => sum + r.actualHours * r.payRate, 0),
+    [reportData],
+  );
+  const averageWagePerEmployee = useMemo(
+    () => (reportData.length > 0 ? totalScheduledWages / reportData.length : 0),
+    [reportData, totalScheduledWages],
+  );
+  const estimatedOvertimeCost = useMemo(
+    () => reportData.reduce((sum, r) => sum + r.overtimePay, 0),
+    [reportData],
+  );
 
-  const totalOvertimeHours = useMemo(() => reportData.reduce((sum, r) => sum + r.overtimeHours, 0), [reportData]);
+  const totalOvertimeHours = useMemo(
+    () => reportData.reduce((sum, r) => sum + r.overtimeHours, 0),
+    [reportData],
+  );
 
   const previousPeriodDateRange = useMemo(() => {
     if (!dateRange.from || !dateRange.to) return { from: undefined, to: undefined };
     return getPreviousPeriodDateRange(dateRange.from, dateRange.to, groupBy);
   }, [dateRange, groupBy]);
 
-  const previousPeriodLabel = useMemo(() => previousPeriodDateRange.from && previousPeriodDateRange.to ? `${format(previousPeriodDateRange.from, "MMM dd, yyyy")} - ${format(previousPeriodDateRange.to, "MMM dd, yyyy")}` : "Previous Period", [previousPeriodDateRange]);
+  const previousPeriodLabel = useMemo(
+    () =>
+      previousPeriodDateRange.from && previousPeriodDateRange.to
+        ? `${format(previousPeriodDateRange.from, "MMM dd, yyyy")} - ${format(previousPeriodDateRange.to, "MMM dd, yyyy")}`
+        : "Previous Period",
+    [previousPeriodDateRange],
+  );
 
   const comparisonData = useMemo(() => {
     // This is a simplified placeholder. In a real scenario, you'd fetch and process
@@ -354,23 +444,51 @@ function ReportsPage() {
     const wagesPercentChange = previousWages === 0 ? 0 : (wagesChange / previousWages) * 100;
 
     return {
-      totalHours: { current: currentHours, previous: previousHours, change: hoursChange, percentChange: hoursPercentChange },
-      totalWages: { current: currentWages, previous: previousWages, change: wagesChange, percentChange: wagesPercentChange },
-      avgHoursPerEmployee: { current: averageHoursPerEmployee, previous: averageHoursPerEmployee * 0.9, change: averageHoursPerEmployee * 0.1, percentChange: 10 },
-      totalCost: { current: totalScheduledWages, previous: totalScheduledWages * 0.95, change: totalScheduledWages * 0.05, percentChange: 5 },
-      employeeComparison: reportData.map(emp => ({
-        employeeName: emp.employeeName,
-        currentHours: emp.scheduledHours,
-        previousHours: emp.scheduledHours * (1 - Math.random() * 0.2), // Random change
-        currentWages: emp.totalWages,
-        previousWages: emp.totalWages * (1 - Math.random() * 0.2), // Random change
-      })).map(emp => ({
-        ...emp,
-        hoursChange: emp.currentHours - emp.previousHours,
-        hoursPercentChange: emp.previousHours === 0 ? 0 : ((emp.currentHours - emp.previousHours) / emp.previousHours) * 100,
-        wagesChange: emp.currentWages - emp.previousWages,
-        wagesPercentChange: emp.previousWages === 0 ? 0 : ((emp.currentWages - emp.previousWages) / emp.previousWages) * 100,
-      }))
+      totalHours: {
+        current: currentHours,
+        previous: previousHours,
+        change: hoursChange,
+        percentChange: hoursPercentChange,
+      },
+      totalWages: {
+        current: currentWages,
+        previous: previousWages,
+        change: wagesChange,
+        percentChange: wagesPercentChange,
+      },
+      avgHoursPerEmployee: {
+        current: averageHoursPerEmployee,
+        previous: averageHoursPerEmployee * 0.9,
+        change: averageHoursPerEmployee * 0.1,
+        percentChange: 10,
+      },
+      totalCost: {
+        current: totalScheduledWages,
+        previous: totalScheduledWages * 0.95,
+        change: totalScheduledWages * 0.05,
+        percentChange: 5,
+      },
+      employeeComparison: reportData
+        .map((emp) => ({
+          employeeName: emp.employeeName,
+          currentHours: emp.scheduledHours,
+          previousHours: emp.scheduledHours * (1 - Math.random() * 0.2), // Random change
+          currentWages: emp.totalWages,
+          previousWages: emp.totalWages * (1 - Math.random() * 0.2), // Random change
+        }))
+        .map((emp) => ({
+          ...emp,
+          hoursChange: emp.currentHours - emp.previousHours,
+          hoursPercentChange:
+            emp.previousHours === 0
+              ? 0
+              : ((emp.currentHours - emp.previousHours) / emp.previousHours) * 100,
+          wagesChange: emp.currentWages - emp.previousWages,
+          wagesPercentChange:
+            emp.previousWages === 0
+              ? 0
+              : ((emp.currentWages - emp.previousWages) / emp.previousWages) * 100,
+        })),
     };
   }, [reportData, totalScheduledHours, totalScheduledWages, averageHoursPerEmployee]);
 
@@ -395,8 +513,16 @@ function ReportsPage() {
 
     // Add report-specific data
     if (activeTab === "hours") {
-      worksheet.addRow(["Employee Name", "Department", "Employment Type", "Scheduled Hours", "Actual Hours", "Difference", "Overtime Hours"]);
-      reportData.forEach(row => {
+      worksheet.addRow([
+        "Employee Name",
+        "Department",
+        "Employment Type",
+        "Scheduled Hours",
+        "Actual Hours",
+        "Difference",
+        "Overtime Hours",
+      ]);
+      reportData.forEach((row) => {
         worksheet.addRow([
           row.employeeName,
           row.department,
@@ -408,15 +534,26 @@ function ReportsPage() {
         ]);
       });
       worksheet.addRow([
-        "Totals", "", "",
+        "Totals",
+        "",
+        "",
         totalScheduledHours.toFixed(2),
         totalActualHours.toFixed(2),
         (totalActualHours - totalScheduledHours).toFixed(2),
         totalOvertimeHours.toFixed(2),
       ]);
     } else if (activeTab === "wages") {
-      worksheet.addRow(["Employee Name", "Employment Type", "Pay Rate ($/hr)", "Scheduled Hours", "Base Pay", "Overtime Hours", "Overtime Pay (1.5x)", "Total Wages"]);
-      reportData.forEach(row => {
+      worksheet.addRow([
+        "Employee Name",
+        "Employment Type",
+        "Pay Rate ($/hr)",
+        "Scheduled Hours",
+        "Base Pay",
+        "Overtime Hours",
+        "Overtime Pay (1.5x)",
+        "Total Wages",
+      ]);
+      reportData.forEach((row) => {
         worksheet.addRow([
           row.employeeName,
           row.employmentType,
@@ -429,15 +566,28 @@ function ReportsPage() {
         ]);
       });
       worksheet.addRow([
-        "Totals", "", "", "",
+        "Totals",
+        "",
+        "",
+        "",
         totalScheduledWages.toFixed(2), // This is total wages, not base pay
         totalOvertimeHours.toFixed(2),
         estimatedOvertimeCost.toFixed(2),
         totalScheduledWages.toFixed(2),
       ]);
     } else if (activeTab === "combined") {
-      worksheet.addRow(["Employee Name", "Dept", "Type", "Pay Rate", "Sched. Hours", "Actual Hours", "Base Pay", "Overtime Pay", "Total Wages"]);
-      reportData.forEach(row => {
+      worksheet.addRow([
+        "Employee Name",
+        "Dept",
+        "Type",
+        "Pay Rate",
+        "Sched. Hours",
+        "Actual Hours",
+        "Base Pay",
+        "Overtime Pay",
+        "Total Wages",
+      ]);
+      reportData.forEach((row) => {
         worksheet.addRow([
           row.employeeName,
           row.department,
@@ -451,7 +601,10 @@ function ReportsPage() {
         ]);
       });
       worksheet.addRow([
-        "Totals", "", "", "",
+        "Totals",
+        "",
+        "",
+        "",
         totalScheduledHours.toFixed(2),
         totalActualHours.toFixed(2),
         reportData.reduce((sum, r) => sum + r.basePay, 0).toFixed(2),
@@ -466,11 +619,15 @@ function ReportsPage() {
     // Styling (basic example)
     worksheet.getRow(1).font = { bold: true, size: 16 };
     worksheet.getRow(5).font = { bold: true }; // Column headers
-    worksheet.lastRow.font = { bold: true }; // Totals row
+    if (worksheet.lastRow) {
+      worksheet.lastRow.font = { bold: true }; // Totals row
+    }
 
     // Generate buffer and download
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -485,19 +642,33 @@ function ReportsPage() {
     window.print();
   };
 
-  const renderSummaryCard = (title: string, value: number, isCurrency = false, change?: number, percentChange?: number) => (
+  const renderSummaryCard = (
+    title: string,
+    value: number,
+    isCurrency = false,
+    change?: number,
+    percentChange?: number,
+  ) => (
     <div className="bg-card border rounded-lg p-4 shadow-sm">
       <div className="text-sm text-muted-foreground">{title}</div>
       <div className="text-2xl font-bold text-[var(--navy)] mt-1">
         {isCurrency ? `$${value.toFixed(2)}` : value.toFixed(2)}
       </div>
       {change !== undefined && percentChange !== undefined && (
-        <div className={cn("text-sm mt-1 flex items-center gap-1", change > 0 ? "text-green-600" : change < 0 ? "text-red-600" : "text-muted-foreground")}>
+        <div
+          className={cn(
+            "text-sm mt-1 flex items-center gap-1",
+            change > 0 ? "text-green-600" : change < 0 ? "text-red-600" : "text-muted-foreground",
+          )}
+        >
           {change > 0 && <ArrowUp className="size-4" />}
           {change < 0 && <ArrowDown className="size-4" />}
           {change !== 0 && (
             <span>
-              {isCurrency ? `$${Math.abs(change).toFixed(2)}` : `${Math.abs(change).toFixed(2)} hrs`} ({percentChange.toFixed(1)}%)
+              {isCurrency
+                ? `$${Math.abs(change).toFixed(2)}`
+                : `${Math.abs(change).toFixed(2)} hrs`}{" "}
+              ({percentChange.toFixed(1)}%)
             </span>
           )}
         </div>
@@ -527,15 +698,14 @@ function ReportsPage() {
         </Select>
 
         <Select
-          value={selectedEmployees.join(",")}
-          onValueChange={(v) => setSelectedEmployees(v ? v.split(",") : [])}
-          multiple // This is a conceptual multiple select, actual implementation might need a custom component
+          value={selectedEmployees[0] ?? "all"}
+          onValueChange={(v) => setSelectedEmployees(v === "all" ? [] : [v])}
         >
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="All Employees" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Employees</SelectItem>
+            <SelectItem value="all">All Employees</SelectItem>
             {employees.map((emp) => (
               <SelectItem key={emp.id} value={emp.id}>
                 {emp.name}
@@ -545,15 +715,14 @@ function ReportsPage() {
         </Select>
 
         <Select
-          value={selectedDepartments.join(",")}
-          onValueChange={(v) => setSelectedDepartments(v ? v.split(",") : [])}
-          multiple // Conceptual multiple select
+          value={selectedDepartments[0] ?? "all"}
+          onValueChange={(v) => setSelectedDepartments(v === "all" ? [] : [v])}
         >
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="All Departments" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Departments</SelectItem>
+            <SelectItem value="all">All Departments</SelectItem>
             {departments.map((dept) => (
               <SelectItem key={dept} value={dept}>
                 {dept}
@@ -654,7 +823,16 @@ function ReportsPage() {
                     <div className="text-sm">{row.employmentType}</div>
                     <div className="text-sm">{row.scheduledHours.toFixed(2)}</div>
                     <div className="text-sm">{row.actualHours.toFixed(2)}</div>
-                    <div className={cn("text-sm", row.differenceHours > 0 ? "text-green-600" : row.differenceHours < 0 ? "text-red-600" : "")}>
+                    <div
+                      className={cn(
+                        "text-sm",
+                        row.differenceHours > 0
+                          ? "text-green-600"
+                          : row.differenceHours < 0
+                            ? "text-red-600"
+                            : "",
+                      )}
+                    >
                       {row.differenceHours.toFixed(2)}
                     </div>
                     <div className="text-sm">{row.overtimeHours.toFixed(2)}</div>
@@ -728,7 +906,9 @@ function ReportsPage() {
                 {renderSummaryCard("Total Overtime Cost", estimatedOvertimeCost, true)}
               </div>
               <div className="bg-card border rounded-xl p-4 shadow-sm">
-                <h3 className="text-lg font-semibold mb-4">Combined Summary — {currentPeriodLabel}</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  Combined Summary — {currentPeriodLabel}
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={reportData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -778,10 +958,34 @@ function ReportsPage() {
           {activeTab === "comparison" && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {renderSummaryCard("Total Hours", comparisonData.totalHours.current, false, comparisonData.totalHours.change, comparisonData.totalHours.percentChange)}
-                {renderSummaryCard("Total Wages", comparisonData.totalWages.current, true, comparisonData.totalWages.change, comparisonData.totalWages.percentChange)}
-                {renderSummaryCard("Avg Hours/Employee", comparisonData.avgHoursPerEmployee.current, false, comparisonData.avgHoursPerEmployee.change, comparisonData.avgHoursPerEmployee.percentChange)}
-                {renderSummaryCard("Total Cost", comparisonData.totalCost.current, true, comparisonData.totalCost.change, comparisonData.totalCost.percentChange)}
+                {renderSummaryCard(
+                  "Total Hours",
+                  comparisonData.totalHours.current,
+                  false,
+                  comparisonData.totalHours.change,
+                  comparisonData.totalHours.percentChange,
+                )}
+                {renderSummaryCard(
+                  "Total Wages",
+                  comparisonData.totalWages.current,
+                  true,
+                  comparisonData.totalWages.change,
+                  comparisonData.totalWages.percentChange,
+                )}
+                {renderSummaryCard(
+                  "Avg Hours/Employee",
+                  comparisonData.avgHoursPerEmployee.current,
+                  false,
+                  comparisonData.avgHoursPerEmployee.change,
+                  comparisonData.avgHoursPerEmployee.percentChange,
+                )}
+                {renderSummaryCard(
+                  "Total Cost",
+                  comparisonData.totalCost.current,
+                  true,
+                  comparisonData.totalCost.change,
+                  comparisonData.totalCost.percentChange,
+                )}
               </div>
               <div className="bg-card border rounded-xl p-4 shadow-sm">
                 <h3 className="text-lg font-semibold mb-4">Comparison — Hours Trend</h3>
@@ -792,8 +996,19 @@ function ReportsPage() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="currentHours" stroke="var(--navy)" name="Current Period Hours" />
-                    <Line type="monotone" dataKey="previousHours" stroke="var(--light-navy-tint)" strokeDasharray="5 5" name="Previous Period Hours" />
+                    <Line
+                      type="monotone"
+                      dataKey="currentHours"
+                      stroke="var(--navy)"
+                      name="Current Period Hours"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="previousHours"
+                      stroke="var(--light-navy-tint)"
+                      strokeDasharray="5 5"
+                      name="Previous Period Hours"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -819,22 +1034,58 @@ function ReportsPage() {
                     <div className="font-medium text-[var(--navy)]">{row.employeeName}</div>
                     <div className="text-sm">{row.currentHours.toFixed(2)}</div>
                     <div className="text-sm">{row.previousHours.toFixed(2)}</div>
-                    <div className={cn("text-sm flex items-center gap-1", row.hoursChange > 0 ? "text-green-600" : row.hoursChange < 0 ? "text-red-600" : "")}>
+                    <div
+                      className={cn(
+                        "text-sm flex items-center gap-1",
+                        row.hoursChange > 0
+                          ? "text-green-600"
+                          : row.hoursChange < 0
+                            ? "text-red-600"
+                            : "",
+                      )}
+                    >
                       {row.hoursChange > 0 && <ArrowUp className="size-3" />}
                       {row.hoursChange < 0 && <ArrowDown className="size-3" />}
                       {row.hoursChange.toFixed(2)}
                     </div>
-                    <div className={cn("text-sm", row.hoursPercentChange > 0 ? "text-green-600" : row.hoursPercentChange < 0 ? "text-red-600" : "")}>
+                    <div
+                      className={cn(
+                        "text-sm",
+                        row.hoursPercentChange > 0
+                          ? "text-green-600"
+                          : row.hoursPercentChange < 0
+                            ? "text-red-600"
+                            : "",
+                      )}
+                    >
                       {row.hoursPercentChange.toFixed(1)}%
                     </div>
                     <div className="text-sm">${row.currentWages.toFixed(2)}</div>
                     <div className="text-sm">${row.previousWages.toFixed(2)}</div>
-                    <div className={cn("text-sm flex items-center gap-1", row.wagesChange > 0 ? "text-green-600" : row.wagesChange < 0 ? "text-red-600" : "")}>
+                    <div
+                      className={cn(
+                        "text-sm flex items-center gap-1",
+                        row.wagesChange > 0
+                          ? "text-green-600"
+                          : row.wagesChange < 0
+                            ? "text-red-600"
+                            : "",
+                      )}
+                    >
                       {row.wagesChange > 0 && <ArrowUp className="size-3" />}
                       {row.wagesChange < 0 && <ArrowDown className="size-3" />}
                       {row.wagesChange.toFixed(2)}
                     </div>
-                    <div className={cn("text-sm", row.wagesPercentChange > 0 ? "text-green-600" : row.wagesPercentChange < 0 ? "text-red-600" : "")}>
+                    <div
+                      className={cn(
+                        "text-sm",
+                        row.wagesPercentChange > 0
+                          ? "text-green-600"
+                          : row.wagesPercentChange < 0
+                            ? "text-red-600"
+                            : "",
+                      )}
+                    >
                       {row.wagesPercentChange.toFixed(1)}%
                     </div>
                   </div>

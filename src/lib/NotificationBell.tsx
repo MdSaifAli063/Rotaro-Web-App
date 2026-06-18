@@ -2,11 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Bell } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 
 type Notification = {
@@ -22,11 +18,11 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   const markAsRead = async () => {
     if (unreadCount === 0) return;
-    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
     if (unreadIds.length === 0) return;
 
     await supabase.from("notifications").update({ is_read: true }).in("id", unreadIds);
-    setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
   };
 
@@ -39,20 +35,27 @@ export function NotificationBell({ userId }: { userId: string }) {
         .order("created_at", { ascending: false })
         .limit(10);
       setNotifications(data || []);
-      setUnreadCount((data || []).filter(n => !n.is_read).length);
+      setUnreadCount((data || []).filter((n) => !n.is_read).length);
     };
 
     fetchNotifications();
 
     const channel = supabase
       .channel(`notifications:${userId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
         (payload) => {
           const newNotification = payload.new as Notification;
           toast.info(newNotification.message);
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-        }
+          setNotifications((prev) => [newNotification, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        },
       )
       .subscribe();
 
@@ -62,11 +65,19 @@ export function NotificationBell({ userId }: { userId: string }) {
   }, [userId]);
 
   return (
-    <Popover onOpenChange={(open) => { if (open) markAsRead(); }}>
+    <Popover
+      onOpenChange={(open) => {
+        if (open) markAsRead();
+      }}
+    >
       <PopoverTrigger asChild>
         <button className="relative p-2 rounded-full hover:bg-gray-100">
           <Bell className="size-5" />
-          {unreadCount > 0 && <div className="absolute top-1 right-1 size-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{unreadCount}</div>}
+          {unreadCount > 0 && (
+            <div className="absolute top-1 right-1 size-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              {unreadCount}
+            </div>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0">
@@ -75,7 +86,7 @@ export function NotificationBell({ userId }: { userId: string }) {
           {notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center p-4">No new notifications.</p>
           ) : (
-            notifications.map(n => (
+            notifications.map((n) => (
               <div key={n.id} className="p-4 border-b last:border-b-0 hover:bg-secondary/50">
                 <p className="text-sm">{n.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">
