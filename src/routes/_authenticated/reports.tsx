@@ -115,14 +115,14 @@ function DateRangePickerComponent({
   onChange: (range: DateRange) => void;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 w-full sm:w-auto">
       <Popover>
         <PopoverTrigger asChild>
           <Button
             id="date"
             variant={"outline"}
             className={cn(
-              "w-[300px] justify-start text-left font-normal",
+              "w-full sm:w-[300px] justify-start text-left font-normal",
               !value.from && "text-muted-foreground",
             )}
           >
@@ -681,11 +681,11 @@ function ReportsPage() {
       <h1 className="text-2xl font-bold text-[var(--navy)]">Reports</h1>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 p-4 border-t-4 border-[var(--navy)] bg-card rounded-lg shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 p-4 border-t-4 border-[var(--navy)] bg-card rounded-lg shadow-sm">
         <DateRangePickerComponent value={dateRange} onChange={setDateRange} />
 
         <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-full sm:w-[150px]">
             <SelectValue placeholder="Group By" />
           </SelectTrigger>
           <SelectContent>
@@ -701,7 +701,7 @@ function ReportsPage() {
           value={selectedEmployees[0] ?? "all"}
           onValueChange={(v) => setSelectedEmployees(v === "all" ? [] : [v])}
         >
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="All Employees" />
           </SelectTrigger>
           <SelectContent>
@@ -718,7 +718,7 @@ function ReportsPage() {
           value={selectedDepartments[0] ?? "all"}
           onValueChange={(v) => setSelectedDepartments(v === "all" ? [] : [v])}
         >
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="All Departments" />
           </SelectTrigger>
           <SelectContent>
@@ -731,16 +731,20 @@ function ReportsPage() {
           </SelectContent>
         </Select>
 
-        <Button onClick={generateReport} disabled={loading} className="gap-2">
+        <Button onClick={generateReport} disabled={loading} className="gap-2 w-full sm:w-auto">
           {loading ? "Generating..." : "Generate Report"}
         </Button>
-        <Button variant="link" onClick={resetFilters} className="text-[var(--navy)]">
+        <Button
+          variant="link"
+          onClick={resetFilters}
+          className="text-[var(--navy)] w-full sm:w-auto"
+        >
           Reset Filters
         </Button>
       </div>
 
       {/* Report Type Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 overflow-x-auto">
         {["hours", "wages", "combined", "comparison"].map((tab) => (
           <button
             key={tab}

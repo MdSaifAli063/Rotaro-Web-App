@@ -153,9 +153,9 @@ function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: s
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-1">
             <Select defaultValue="main">
-              <SelectTrigger className="w-[200px] h-9 rounded-full border-[var(--navy)] text-[var(--navy)] font-medium">
+              <SelectTrigger className="w-full sm:w-[200px] h-9 rounded-full border-[var(--navy)] text-[var(--navy)] font-medium">
                 <MapPin className="size-4 mr-2" />
                 <SelectValue placeholder="Location" />
               </SelectTrigger>
@@ -165,7 +165,7 @@ function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: s
             </Select>
 
             <Select value={viewType} onValueChange={(v: any) => setViewType(v)}>
-              <SelectTrigger className="w-[160px] h-9 rounded-full border-[var(--navy)] text-[var(--navy)] font-medium">
+              <SelectTrigger className="w-full sm:w-[160px] h-9 rounded-full border-[var(--navy)] text-[var(--navy)] font-medium">
                 <Layout className="size-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -176,7 +176,7 @@ function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: s
             </Select>
           </div>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+        <Button onClick={() => setCreateOpen(true)} className="gap-2 w-full sm:w-auto">
           <Plus className="size-4" /> Create new
         </Button>
       </div>

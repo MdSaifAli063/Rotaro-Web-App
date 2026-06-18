@@ -108,8 +108,8 @@ function LeavesPage() {
           {canManage ? "Approve or reject employee leave." : "Your leave history."}
         </p>
       </div>
-      <div className="bg-card border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-card border rounded-xl overflow-x-auto">
+        <table className="w-full min-w-[780px] text-sm">
           <thead className="bg-secondary text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Employee</th>

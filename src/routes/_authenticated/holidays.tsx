@@ -234,9 +234,9 @@ function HolidaysPage() {
       <h1 className="text-2xl font-bold text-[var(--navy)]">Holidays</h1>
 
       {/* Top Controls Bar */}
-      <div className="flex flex-wrap items-center gap-3 p-4 border-t-4 border-[var(--navy)] bg-card rounded-lg shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 p-4 border-t-4 border-[var(--navy)] bg-card rounded-lg shadow-sm">
         <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-full sm:w-[150px]">
             <SelectValue placeholder="Country" />
           </SelectTrigger>
           <SelectContent>
@@ -250,7 +250,7 @@ function HolidaysPage() {
 
         {statesForCountry.length > 0 && (
           <Select value={selectedState} onValueChange={setSelectedState}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-full sm:w-[150px]">
               <SelectValue placeholder="State/Region" />
             </SelectTrigger>
             <SelectContent>
@@ -264,7 +264,7 @@ function HolidaysPage() {
         )}
 
         <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[100px]">
+          <SelectTrigger className="w-full sm:w-[100px]">
             <SelectValue placeholder="Year" />
           </SelectTrigger>
           <SelectContent>
@@ -276,14 +276,22 @@ function HolidaysPage() {
           </SelectContent>
         </Select>
 
-        <Button onClick={handleImportPublicHolidays} disabled={importLoading} className="gap-2">
+        <Button
+          onClick={handleImportPublicHolidays}
+          disabled={importLoading}
+          className="gap-2 w-full sm:w-auto"
+        >
           {importLoading ? "Importing..." : "Import Public Holidays"}
         </Button>
-        <Button variant="outline" onClick={() => setAddCustomOpen(true)} className="gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setAddCustomOpen(true)}
+          className="gap-2 w-full sm:w-auto"
+        >
           <Plus className="size-4" /> Add Custom Holiday
         </Button>
 
-        <div className="ml-auto flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto sm:ml-auto overflow-x-auto">
           <Button
             variant={view === "list" ? "default" : "outline"}
             onClick={() => setView("list")}

@@ -44,7 +44,7 @@ function SettingsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Configure how your business runs.</p>
       </div>
-      <div className="bg-card border rounded-xl p-6 shadow-sm flex items-center justify-between">
+      <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Label className="text-base">Auto-approve leave</Label>
           <p className="text-sm text-muted-foreground mt-1">

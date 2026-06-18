@@ -98,7 +98,7 @@ function ShiftsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Shift Templates</h1>
           <p className="text-sm text-muted-foreground mt-1">Reusable presets for the roster.</p>
@@ -109,7 +109,7 @@ function ShiftsPage() {
               setEditing({ ...empty });
               setOpen(true);
             }}
-            className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+            className="bg-[var(--navy)] hover:bg-[var(--navy-light)] w-full sm:w-auto"
           >
             <Plus className="size-4 mr-2" /> New template
           </Button>
@@ -162,13 +162,13 @@ function ShiftsPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing?.id ? "Edit template" : "New shift template"}</DialogTitle>
           </DialogHeader>
           {editing && (
-            <div className="grid grid-cols-2 gap-4 py-2">
-              <div className="col-span-2 space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+              <div className="sm:col-span-2 space-y-1.5">
                 <Label>Name *</Label>
                 <Input
                   value={editing.name ?? ""}

@@ -180,9 +180,9 @@ function ApplyLeavePage() {
         </Button>
       </div>
 
-      <div className="bg-card border rounded-xl overflow-hidden">
+      <div className="bg-card border rounded-xl overflow-x-auto">
         <div className="px-4 py-3 border-b font-semibold text-sm">History</div>
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-secondary text-left">
             <tr>
               <th className="px-4 py-2 font-medium">Type</th>

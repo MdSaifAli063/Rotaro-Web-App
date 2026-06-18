@@ -181,7 +181,7 @@ function StaffPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Staff</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -196,7 +196,7 @@ function StaffPage() {
       </div>
 
       <div className="bg-card border rounded-xl p-4 flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative flex-1 min-w-0 sm:min-w-[220px] w-full">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -206,7 +206,7 @@ function StaffPage() {
           />
         </div>
         <Select value={filterDept} onValueChange={setFilterDept}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -219,7 +219,7 @@ function StaffPage() {
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -230,8 +230,8 @@ function StaffPage() {
         </Select>
       </div>
 
-      <div className="bg-card border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-card border rounded-xl overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-secondary text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
@@ -295,12 +295,12 @@ function StaffPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing?.id ? "Edit employee" : "Add employee"}</DialogTitle>
           </DialogHeader>
           {editing && (
-            <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
               <Field label="Name *">
                 <Input
                   value={editing.name ?? ""}
