@@ -16,6 +16,8 @@ import {
   LayoutTemplate,
   Menu,
   X,
+  ChevronLeft,
+  ChevronRight,
   User as UserIcon,
 } from "lucide-react";
 import type { Profile } from "@/lib/auth";
@@ -55,6 +57,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = isManager(profile) ? managerNav : employeeNav;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,14 +92,20 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
     navigate({ to: "/auth", replace: true });
   };
 
-  const SidebarBody = (
+  const SidebarBody = ({ collapsed = false }: { collapsed?: boolean }) => (
     <>
-      <div className="px-6 py-6 border-b border-sidebar-border flex items-center gap-2">
+      <div
+        className={`px-4 py-6 border-b border-sidebar-border flex items-center ${
+          collapsed ? "justify-center" : "gap-2"
+        }`}
+      >
         <RotaroMark className="size-8 shrink-0" bg="#FFFFFF" fg="#1E2A45" />
-        <div className="min-w-0">
-          <div className="text-lg font-bold tracking-tight truncate">Rotaro</div>
-          <div className="text-xs opacity-70 capitalize truncate">{profile.role} portal</div>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <div className="text-lg font-bold tracking-tight truncate">Rotaro</div>
+            <div className="text-xs opacity-70 capitalize truncate">{profile.role} portal</div>
+          </div>
+        )}
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-auto">
         {nav.map(({ to, label, icon: Icon }) => {
@@ -105,14 +114,17 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
             <Link
               key={to}
               to={to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
+              title={collapsed ? label : undefined}
+              className={`flex items-center rounded-md text-sm transition-colors ${
+                collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
+              } ${
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "hover:bg-sidebar-accent/60"
               }`}
             >
               <Icon className="size-4 shrink-0" />
-              <span className="truncate">{label}</span>
+              {!collapsed && <span className="truncate">{label}</span>}
             </Link>
           );
         })}
@@ -120,20 +132,28 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
       <div className="border-t border-sidebar-border p-3">
         <Link
           to="/profile"
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent/60"
+          title={collapsed ? profile.name || profile.email : undefined}
+          className={`w-full flex items-center rounded-md text-sm hover:bg-sidebar-accent/60 ${
+            collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2"
+          }`}
         >
           <UserAvatar name={profile.name} email={profile.email} avatarPath={avatarPath} size={32} />
-          <div className="min-w-0 text-left">
-            <div className="font-medium truncate">{profile.name || profile.email}</div>
-            <div className="text-xs opacity-70 truncate">{profile.email}</div>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0 text-left">
+              <div className="font-medium truncate">{profile.name || profile.email}</div>
+              <div className="text-xs opacity-70 truncate">{profile.email}</div>
+            </div>
+          )}
         </Link>
         <button
           onClick={signOut}
-          className="mt-1 w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent/60"
+          title={collapsed ? "Sign out" : undefined}
+          className={`mt-1 w-full flex items-center rounded-md text-sm hover:bg-sidebar-accent/60 ${
+            collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2"
+          }`}
         >
           <LogOut className="size-4" />
-          Sign out
+          {!collapsed && "Sign out"}
         </button>
       </div>
     </>
@@ -142,8 +162,25 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
   return (
     <div className="min-h-screen flex bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 bg-sidebar text-sidebar-foreground flex-col shrink-0">
-        {SidebarBody}
+      <aside
+        className={`hidden lg:flex relative bg-sidebar text-sidebar-foreground flex-col shrink-0 transition-[width] duration-200 ${
+          sidebarCollapsed ? "w-20" : "w-64"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed((value) => !value)}
+          className="absolute -right-3 top-5 z-20 size-9 rounded-md border border-white/25 bg-sidebar/80 text-sidebar-foreground shadow-md backdrop-blur inline-flex items-center justify-center hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? (
+            <ChevronRight className="size-4" />
+          ) : (
+            <ChevronLeft className="size-4" />
+          )}
+        </button>
+        <SidebarBody collapsed={sidebarCollapsed} />
       </aside>
 
       {/* Mobile drawer */}
@@ -162,7 +199,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
             >
               <X className="size-5" />
             </button>
-            {SidebarBody}
+            <SidebarBody />
           </aside>
         </div>
       )}
