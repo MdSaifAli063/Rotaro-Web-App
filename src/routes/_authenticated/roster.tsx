@@ -50,6 +50,8 @@ export const Route = createFileRoute("/_authenticated/roster")({
 // ---------- helpers ----------
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const HOURS = Array.from({ length: 18 }, (_, i) => 5 + i); // 5am..10pm
+const GRID_START_HOUR = 5;
+const GRID_END_HOUR = 23;
 const fmtDate = (d: Date | undefined) => {
   if (!d || isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
@@ -67,9 +69,22 @@ const monday = (d: Date) => {
   return x;
 };
 const parseHM = (s: string) => {
-  const [h, m] = s.split(":").map(Number);
+  const [h, m] = normalizeTime(s).split(":").map(Number);
   return h + (m || 0) / 60;
 };
+const normalizeTime = (value?: string | null) => (value ? value.slice(0, 5) : "");
+const timeToMinutes = (value?: string | null) => {
+  const [h, m] = normalizeTime(value).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+const timeFromMinutes = (minutes: number) => {
+  const clamped = Math.max(GRID_START_HOUR * 60, Math.min(GRID_END_HOUR * 60, minutes));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+const addHoursToTime = (value: string, hours: number) =>
+  timeFromMinutes(timeToMinutes(value) + hours * 60);
 const hoursBetween = (start: string, end: string, brk: number) =>
   Math.max(0, parseHM(end) - parseHM(start) - brk / 60);
 const money = (value: number) =>
@@ -78,9 +93,22 @@ const isPublished = (status: string) => status.toLowerCase() === "published";
 const activeStatus = (status?: string | null) => (status ?? "active").toLowerCase() === "active";
 const shortTime = (value?: string | null) => {
   if (!value) return "--";
-  const [h, m] = value.split(":").map(Number);
+  const [h, m] = normalizeTime(value).split(":").map(Number);
   const suffix = h >= 12 ? "p" : "a";
   return `${h % 12 || 12}:${String(m || 0).padStart(2, "0")}${suffix}`;
+};
+const hourLabel = (hour: number) => {
+  const suffix = hour >= 12 ? "pm" : "am";
+  return `${hour % 12 || 12}${suffix}`;
+};
+const shiftColor = (value?: string | null) => {
+  const key = (value || "other").toLowerCase();
+  if (key.includes("register") || key.includes("front")) return "#16A34A";
+  if (key.includes("stock") || key.includes("kitchen")) return "#DC2626";
+  if (key.includes("floor")) return "#2563EB";
+  if (key.includes("manage") || key.includes("supervisor")) return "#7C3AED";
+  if (key.includes("duty")) return "#0891B2";
+  return "#1E2A45";
 };
 const shiftCost = (shift: Shift, employees: Employee[]) => {
   const emp = employees.find((e) => e.id === shift.employee_id);
@@ -625,12 +653,13 @@ export function RosterEditor({
   const dayHours = sumHours(dayShifts);
   const dayCost = sumCost(dayShifts, employees);
 
-  const openNew = (employeeId: string) => {
+  const openNew = (employeeId: string, startTime = "09:00") => {
+    const start = normalizeTime(startTime);
     setEditing({
       employee_id: employeeId,
       day: dayKey,
-      start_time: "09:00",
-      end_time: "17:00",
+      start_time: start,
+      end_time: addHoursToTime(start, 4),
       break_minutes: 30,
     });
   };
@@ -655,8 +684,8 @@ export function RosterEditor({
       roster_id: rosterId,
       employee_id: editing.employee_id,
       day: editing.day,
-      start_time: editing.start_time,
-      end_time: editing.end_time,
+      start_time: normalizeTime(editing.start_time),
+      end_time: normalizeTime(editing.end_time),
       break_minutes: editing.break_minutes ?? 0,
       total_hours: total,
     };
@@ -1013,25 +1042,43 @@ export function RosterEditor({
           <div className="border rounded-xl bg-card overflow-x-auto">
             <div className="min-w-[900px]">
               {/* hour axis */}
-              <div className="grid grid-cols-[180px_1fr_110px] md:grid-cols-[220px_1fr_120px] border-b bg-secondary/40">
-                <div className="sticky left-0 z-10 bg-secondary/95 px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground border-r">
-                  Staff
-                </div>
-                <div
-                  className="grid text-[10px] uppercase text-muted-foreground"
-                  style={{ gridTemplateColumns: `repeat(${HOURS.length}, minmax(50px, 1fr))` }}
-                >
-                  {HOURS.map((h) => (
-                    <div key={h} className="border-l first:border-l-0 px-2 py-2 text-center">
-                      <div className="font-semibold text-[var(--navy)]">
+              <div className="border-b bg-secondary/40 text-[10px] uppercase text-muted-foreground">
+                <div className="grid grid-cols-[180px_1fr_110px] md:grid-cols-[220px_1fr_120px]">
+                  <div className="sticky left-0 z-10 bg-secondary/95 px-3 py-2 font-semibold tracking-wide border-r">
+                    Staff
+                  </div>
+                  <div
+                    className="grid"
+                    style={{ gridTemplateColumns: `repeat(${HOURS.length}, minmax(50px, 1fr))` }}
+                  >
+                    {HOURS.map((h) => (
+                      <div
+                        key={h}
+                        className="border-l first:border-l-0 px-2 py-2 text-center font-semibold text-[var(--navy)]"
+                      >
                         {dayShifts.filter((shift) => overlaps(shift, h, h + 1)).length}
                       </div>
-                      {h <= 12 ? `${h}a` : `${h - 12}p`}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <div className="px-3 py-2 text-right font-semibold tracking-wide">Total</div>
                 </div>
-                <div className="px-3 py-2 text-right text-xs uppercase tracking-wide text-muted-foreground">
-                  Total
+                <div className="grid grid-cols-[180px_1fr_110px] md:grid-cols-[220px_1fr_120px] border-t bg-white/80">
+                  <div className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold tracking-wide border-r">
+                    Time
+                  </div>
+                  <div
+                    className="grid"
+                    style={{ gridTemplateColumns: `repeat(${HOURS.length}, minmax(50px, 1fr))` }}
+                  >
+                    {HOURS.map((h) => (
+                      <div key={h} className="border-l first:border-l-0 px-2 py-1.5 text-center">
+                        {hourLabel(h)}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-3 py-1.5 text-right font-semibold text-[var(--navy)]">
+                    {dayHours.toFixed(2)}
+                  </div>
                 </div>
               </div>
 
@@ -1076,18 +1123,26 @@ export function RosterEditor({
                         onClick={(e) => {
                           if (readOnly) return;
                           if ((e.target as HTMLElement).closest("[data-shift]")) return;
-                          openNew(emp.id);
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const position = Math.max(
+                            0,
+                            Math.min(1, (e.clientX - rect.left) / rect.width),
+                          );
+                          const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60;
+                          const clickedMinutes =
+                            GRID_START_HOUR * 60 + Math.round((position * gridMinutes) / 15) * 15;
+                          openNew(emp.id, timeFromMinutes(clickedMinutes));
                         }}
                       >
                         {empShifts.map((s) => {
                           if (!s.start_time || !s.end_time) return null;
                           const startH = parseHM(s.start_time);
                           const endH = parseHM(s.end_time);
-                          const first = HOURS[0];
-                          const last = HOURS[HOURS.length - 1] + 1;
-                          const total = last - first;
+                          const first = GRID_START_HOUR;
+                          const total = GRID_END_HOUR - GRID_START_HOUR;
                           const leftPct = Math.max(0, ((startH - first) / total) * 100);
                           const widthPct = Math.max(2, ((endH - startH) / total) * 100);
+                          const role = emp.role || emp.department || "Shift";
                           return (
                             <button
                               key={s.id}
@@ -1098,14 +1153,19 @@ export function RosterEditor({
                                 if (readOnly) return;
                                 setEditing(s);
                               }}
-                              className="absolute top-1 bottom-1 bg-[var(--navy)] text-white text-xs px-2 rounded-md flex flex-col items-start justify-center overflow-hidden hover:bg-[var(--navy-light)]"
-                              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                              className="absolute top-1 bottom-1 text-white text-xs px-2 rounded-md flex flex-col items-start justify-center overflow-hidden shadow-sm brightness-95 hover:brightness-90"
+                              style={{
+                                left: `${leftPct}%`,
+                                width: `${widthPct}%`,
+                                backgroundColor: shiftColor(role),
+                              }}
                             >
                               <span className="truncate font-medium">
-                                {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                                {shortTime(s.start_time)} - {shortTime(s.end_time)} ({role})
                               </span>
                               <span className="truncate opacity-80">
-                                {Number(s.total_hours ?? 0).toFixed(1)}h
+                                {Number(s.total_hours ?? 0).toFixed(1)}h{" "}
+                                {showCost ? money(shiftCost(s, employees)) : ""}
                               </span>
                             </button>
                           );
@@ -1202,7 +1262,7 @@ export function RosterEditor({
                   <Input
                     type="time"
                     step={900}
-                    value={editing.start_time ?? ""}
+                    value={normalizeTime(editing.start_time)}
                     onChange={(e) => setEditing({ ...editing, start_time: e.target.value })}
                   />
                 </div>
@@ -1211,7 +1271,7 @@ export function RosterEditor({
                   <Input
                     type="time"
                     step={900}
-                    value={editing.end_time ?? ""}
+                    value={normalizeTime(editing.end_time)}
                     onChange={(e) => setEditing({ ...editing, end_time: e.target.value })}
                   />
                 </div>
