@@ -28,6 +28,10 @@ import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAttendanceRouteImport } from './routes/_authenticated/attendance'
 import { Route as AuthenticatedApplyLeaveRouteImport } from './routes/_authenticated/apply-leave'
+import { Route as AuthenticatedRosterTemplatesRouteImport } from './routes/_authenticated/roster.templates'
+import { Route as AuthenticatedRosterCreateRouteImport } from './routes/_authenticated/roster.create'
+import { Route as AuthenticatedRosterViewIdRouteImport } from './routes/_authenticated/roster.view.$id'
+import { Route as AuthenticatedRosterEditIdRouteImport } from './routes/_authenticated/roster.edit.$id'
 
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
@@ -123,6 +127,30 @@ const AuthenticatedApplyLeaveRoute = AuthenticatedApplyLeaveRouteImport.update({
   path: '/apply-leave',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRosterTemplatesRoute =
+  AuthenticatedRosterTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AuthenticatedRosterRoute,
+  } as any)
+const AuthenticatedRosterCreateRoute =
+  AuthenticatedRosterCreateRouteImport.update({
+    id: '/create',
+    path: '/create',
+    getParentRoute: () => AuthenticatedRosterRoute,
+  } as any)
+const AuthenticatedRosterViewIdRoute =
+  AuthenticatedRosterViewIdRouteImport.update({
+    id: '/view/$id',
+    path: '/view/$id',
+    getParentRoute: () => AuthenticatedRosterRoute,
+  } as any)
+const AuthenticatedRosterEditIdRoute =
+  AuthenticatedRosterEditIdRouteImport.update({
+    id: '/edit/$id',
+    path: '/edit/$id',
+    getParentRoute: () => AuthenticatedRosterRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -138,11 +166,15 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/roster': typeof AuthenticatedRosterRoute
+  '/roster': typeof AuthenticatedRosterRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
+  '/roster/create': typeof AuthenticatedRosterCreateRoute
+  '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
+  '/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
+  '/roster/view/$id': typeof AuthenticatedRosterViewIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -158,11 +190,15 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/roster': typeof AuthenticatedRosterRoute
+  '/roster': typeof AuthenticatedRosterRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
+  '/roster/create': typeof AuthenticatedRosterCreateRoute
+  '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
+  '/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
+  '/roster/view/$id': typeof AuthenticatedRosterViewIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -180,11 +216,15 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
-  '/_authenticated/roster': typeof AuthenticatedRosterRoute
+  '/_authenticated/roster': typeof AuthenticatedRosterRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/swaps': typeof AuthenticatedSwapsRoute
+  '/_authenticated/roster/create': typeof AuthenticatedRosterCreateRoute
+  '/_authenticated/roster/templates': typeof AuthenticatedRosterTemplatesRoute
+  '/_authenticated/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
+  '/_authenticated/roster/view/$id': typeof AuthenticatedRosterViewIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -207,6 +247,10 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/staff'
     | '/swaps'
+    | '/roster/create'
+    | '/roster/templates'
+    | '/roster/edit/$id'
+    | '/roster/view/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -227,6 +271,10 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/staff'
     | '/swaps'
+    | '/roster/create'
+    | '/roster/templates'
+    | '/roster/edit/$id'
+    | '/roster/view/$id'
   id:
     | '__root__'
     | '/'
@@ -248,6 +296,10 @@ export interface FileRouteTypes {
     | '/_authenticated/shifts'
     | '/_authenticated/staff'
     | '/_authenticated/swaps'
+    | '/_authenticated/roster/create'
+    | '/_authenticated/roster/templates'
+    | '/_authenticated/roster/edit/$id'
+    | '/_authenticated/roster/view/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -393,8 +445,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedApplyLeaveRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/roster/templates': {
+      id: '/_authenticated/roster/templates'
+      path: '/templates'
+      fullPath: '/roster/templates'
+      preLoaderRoute: typeof AuthenticatedRosterTemplatesRouteImport
+      parentRoute: typeof AuthenticatedRosterRoute
+    }
+    '/_authenticated/roster/create': {
+      id: '/_authenticated/roster/create'
+      path: '/create'
+      fullPath: '/roster/create'
+      preLoaderRoute: typeof AuthenticatedRosterCreateRouteImport
+      parentRoute: typeof AuthenticatedRosterRoute
+    }
+    '/_authenticated/roster/view/$id': {
+      id: '/_authenticated/roster/view/$id'
+      path: '/view/$id'
+      fullPath: '/roster/view/$id'
+      preLoaderRoute: typeof AuthenticatedRosterViewIdRouteImport
+      parentRoute: typeof AuthenticatedRosterRoute
+    }
+    '/_authenticated/roster/edit/$id': {
+      id: '/_authenticated/roster/edit/$id'
+      path: '/edit/$id'
+      fullPath: '/roster/edit/$id'
+      preLoaderRoute: typeof AuthenticatedRosterEditIdRouteImport
+      parentRoute: typeof AuthenticatedRosterRoute
+    }
   }
 }
+
+interface AuthenticatedRosterRouteChildren {
+  AuthenticatedRosterCreateRoute: typeof AuthenticatedRosterCreateRoute
+  AuthenticatedRosterTemplatesRoute: typeof AuthenticatedRosterTemplatesRoute
+  AuthenticatedRosterEditIdRoute: typeof AuthenticatedRosterEditIdRoute
+  AuthenticatedRosterViewIdRoute: typeof AuthenticatedRosterViewIdRoute
+}
+
+const AuthenticatedRosterRouteChildren: AuthenticatedRosterRouteChildren = {
+  AuthenticatedRosterCreateRoute: AuthenticatedRosterCreateRoute,
+  AuthenticatedRosterTemplatesRoute: AuthenticatedRosterTemplatesRoute,
+  AuthenticatedRosterEditIdRoute: AuthenticatedRosterEditIdRoute,
+  AuthenticatedRosterViewIdRoute: AuthenticatedRosterViewIdRoute,
+}
+
+const AuthenticatedRosterRouteWithChildren =
+  AuthenticatedRosterRoute._addFileChildren(AuthenticatedRosterRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedApplyLeaveRoute: typeof AuthenticatedApplyLeaveRoute
@@ -406,7 +503,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
-  AuthenticatedRosterRoute: typeof AuthenticatedRosterRoute
+  AuthenticatedRosterRoute: typeof AuthenticatedRosterRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
@@ -423,7 +520,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
-  AuthenticatedRosterRoute: AuthenticatedRosterRoute,
+  AuthenticatedRosterRoute: AuthenticatedRosterRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,

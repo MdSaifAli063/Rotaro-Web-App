@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   Select,
   SelectContent,
@@ -27,7 +29,14 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  GripVertical,
+  LayoutGrid,
+  List,
   Plus,
+  Printer,
+  RotateCcw,
+  RotateCw,
   Save,
   Send,
   Trash2,
@@ -63,6 +72,29 @@ const parseHM = (s: string) => {
 };
 const hoursBetween = (start: string, end: string, brk: number) =>
   Math.max(0, parseHM(end) - parseHM(start) - brk / 60);
+const money = (value: number) =>
+  new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(value);
+const isPublished = (status: string) => status.toLowerCase() === "published";
+const activeStatus = (status?: string | null) => (status ?? "active").toLowerCase() === "active";
+const shortTime = (value?: string | null) => {
+  if (!value) return "--";
+  const [h, m] = value.split(":").map(Number);
+  const suffix = h >= 12 ? "p" : "a";
+  return `${h % 12 || 12}:${String(m || 0).padStart(2, "0")}${suffix}`;
+};
+const shiftCost = (shift: Shift, employees: Employee[]) => {
+  const emp = employees.find((e) => e.id === shift.employee_id);
+  return Number(shift.total_hours ?? 0) * Number(emp?.pay_rate ?? 0);
+};
+const sumHours = (rows: Shift[]) =>
+  rows.reduce((sum, row) => sum + Number(row.total_hours ?? 0), 0);
+const sumCost = (rows: Shift[], employees: Employee[]) =>
+  rows.reduce((sum, row) => sum + shiftCost(row, employees), 0);
+const uniq = (items: string[]) => Array.from(new Set(items.filter(Boolean)));
+const overlaps = (shift: Shift, start: number, end: number) => {
+  if (!shift.start_time || !shift.end_time) return false;
+  return parseHM(shift.start_time) < end && parseHM(shift.end_time) > start;
+};
 const relTime = (d: string) => {
   const diff = (new Date(d).getTime() - Date.now()) / 86400000;
   if (diff > 1) return `in ${Math.round(diff)} days`;
@@ -75,12 +107,23 @@ const relTime = (d: string) => {
 
 type Roster = {
   id: string;
+  business_id?: string;
   week_start: string;
   week_end: string;
   status: string;
+  location?: string | null;
+  created_at?: string;
 };
 
-type Employee = { id: string; name: string; role: string | null; pay_rate: number | null };
+type Employee = {
+  id: string;
+  name: string;
+  email?: string | null;
+  role: string | null;
+  department?: string | null;
+  employment_type?: string | null;
+  pay_rate: number | null;
+};
 
 type Shift = {
   id: string;
@@ -128,17 +171,25 @@ function RosterRoute() {
 // ===================================================================
 // LIST
 // ===================================================================
-function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: string) => void }) {
+export function RosterList({
+  businessId,
+  onOpen,
+  openCreate = false,
+}: {
+  businessId: string;
+  onOpen: (id: string) => void;
+  openCreate?: boolean;
+}) {
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(openCreate);
   const [viewType, setViewType] = useState<"ROSTERS" | "TEMPLATES">("ROSTERS");
 
   const load = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("rosters")
-      .select("id, week_start, week_end, status")
+      .select("id, business_id, week_start, week_end, status, location, created_at")
       .eq("business_id", businessId)
       .order("week_start", { ascending: false });
     setRosters((data ?? []) as Roster[]);
@@ -149,8 +200,27 @@ function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: s
     load();
   }, [businessId]);
 
+  useEffect(() => {
+    setCreateOpen(openCreate);
+  }, [openCreate]);
+
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--navy)]">
+          Roster for the Week beginning{" "}
+          {rosters[0]
+            ? new Date(rosters[0].week_start).toLocaleDateString("en-AU", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })
+            : new Date().toLocaleDateString("en-AU")}
+        </h1>
+        <div className="mt-2 text-sm font-semibold text-[var(--navy)]">
+          &lt;&lt; {rosters[0]?.week_start ?? fmtDate(monday(new Date()))}
+        </div>
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-1">
@@ -181,16 +251,23 @@ function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: s
         </Button>
       </div>
 
-      <div className="bg-[var(--navy)] text-white rounded-t-xl px-5 py-3 font-semibold tracking-wide text-sm">
-        {viewType === "ROSTERS" ? "Current / previous rosters" : "Roster templates"}
+      <div className="bg-[var(--navy)] text-white rounded-t-xl px-5 py-3 font-semibold tracking-wide text-sm flex items-center justify-between gap-3">
+        <span>{viewType === "ROSTERS" ? "Current/Previous Rosters" : "Roster templates"}</span>
+        <Button
+          onClick={() => setCreateOpen(true)}
+          size="sm"
+          className="bg-white/10 text-white hover:bg-white/20"
+        >
+          CREATE NEW <Plus className="ml-1 size-4" />
+        </Button>
       </div>
       <div className="bg-card border border-t-0 rounded-b-xl overflow-hidden -mt-6">
         {/* table header */}
         <div className="hidden md:grid grid-cols-[1fr_1fr_120px_140px_100px] gap-4 px-5 py-3 text-xs uppercase tracking-wide text-muted-foreground border-b bg-secondary/40">
           <div>Start date</div>
           <div>End date</div>
-          <div>Age</div>
-          <div>Status</div>
+          <div>Created</div>
+          <div>Published</div>
           <div className="text-right">Details</div>
         </div>
 
@@ -232,7 +309,7 @@ function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: s
                 </div>
                 <div className="text-sm text-muted-foreground">{relTime(r.week_start)}</div>
                 <div>
-                  {r.status === "Published" ? (
+                  {isPublished(r.status) ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--navy)] text-white text-xs font-medium">
                       <Check className="size-3" /> Published
                     </span>
@@ -242,7 +319,9 @@ function RosterList({ businessId, onOpen }: { businessId: string; onOpen: (id: s
                     </span>
                   )}
                 </div>
-                <div className="md:text-right text-sm font-medium text-[var(--navy)]">View →</div>
+                <div className="md:text-right text-sm font-medium text-[var(--navy)]">
+                  VIEW &gt;
+                </div>
               </button>
             );
           })
@@ -291,7 +370,7 @@ function CreateRosterDialog({
     try {
       const { data: r, error } = await supabase
         .from("rosters")
-        .insert({ business_id: businessId, week_start: start, week_end: end, status: "Draft" })
+        .insert({ business_id: businessId, week_start: start, week_end: end, status: "draft" })
         .select()
         .single();
       if (error || !r) throw error ?? new Error("Failed to create roster");
@@ -430,14 +509,16 @@ function CreateRosterDialog({
 // ===================================================================
 // EDITOR
 // ===================================================================
-function RosterEditor({
+export function RosterEditor({
   rosterId,
   businessId,
   onBack,
+  readOnly = false,
 }: {
   rosterId: string;
   businessId: string;
   onBack: () => void;
+  readOnly?: boolean;
 }) {
   const [roster, setRoster] = useState<Roster | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -446,25 +527,36 @@ function RosterEditor({
   const [holidays, setHolidays] = useState<RosterHoliday[]>([]);
   const [editing, setEditing] = useState<Partial<Shift> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [department, setDepartment] = useState("ALL");
+  const [sortBy, setSortBy] = useState("name-asc");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showCost, setShowCost] = useState(false);
+  const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
+  const [copySource, setCopySource] = useState("");
+  const [allRosters, setAllRosters] = useState<Roster[]>([]);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: r }, { data: emps }, { data: sh }] = await Promise.all([
+    const [{ data: r }, { data: emps }, { data: sh }, { data: rosterRows }] = await Promise.all([
       supabase
         .from("rosters")
-        .select("id, week_start, week_end, status")
+        .select("id, business_id, week_start, week_end, status, location, created_at")
         .eq("id", rosterId)
         .single(),
       supabase
         .from("employees")
-        .select("id, name, role, pay_rate")
+        .select("id, name, email, role, department, employment_type, pay_rate, status")
         .eq("business_id", businessId)
-        .eq("status", "Active")
         .order("name"),
       supabase
         .from("roster_shifts")
         .select("id, roster_id, employee_id, day, start_time, end_time, break_minutes, total_hours")
         .eq("roster_id", rosterId),
+      supabase
+        .from("rosters")
+        .select("id, business_id, week_start, week_end, status, location, created_at")
+        .eq("business_id", businessId)
+        .order("week_start", { ascending: false }),
     ]);
     const { data: fetchedHolidays } = await supabase
       .from("holidays")
@@ -474,9 +566,11 @@ function RosterEditor({
       .lte("holiday_date", r?.week_end);
 
     setRoster(r as Roster | null);
-    setEmployees((emps ?? []) as Employee[]);
+    setEmployees(((emps ?? []) as Employee[]).filter((emp) => activeStatus((emp as any).status)));
     setShifts((sh ?? []) as Shift[]);
     setHolidays((fetchedHolidays ?? []) as RosterHoliday[]);
+    setAllRosters((rosterRows ?? []) as Roster[]);
+    setCopySource(((rosterRows ?? []) as Roster[]).find((item) => item.id !== rosterId)?.id ?? "");
     setLoading(false);
   };
 
@@ -498,11 +592,38 @@ function RosterEditor({
   const dayKey = weekDates[activeDay] ? fmtDate(weekDates[activeDay]) : "";
   const dayShifts = shifts.filter((s) => s.day === dayKey);
 
-  const dayHours = dayShifts.reduce((s, x) => s + Number(x.total_hours ?? 0), 0);
-  const dayCost = dayShifts.reduce((s, x) => {
-    const emp = employees.find((e) => e.id === x.employee_id);
-    return s + Number(x.total_hours ?? 0) * Number(emp?.pay_rate ?? 0);
-  }, 0);
+  const departments = useMemo(
+    () => ["ALL", ...uniq(employees.map((emp) => emp.department || "Unassigned"))],
+    [employees],
+  );
+  const visibleEmployees = useMemo(() => {
+    const rows = employees.filter(
+      (emp) => department === "ALL" || (emp.department || "Unassigned") === department,
+    );
+    return [...rows].sort((a, b) => {
+      if (sortBy === "name-desc") return b.name.localeCompare(a.name);
+      if (sortBy === "department") {
+        return (
+          (a.department || "").localeCompare(b.department || "") || a.name.localeCompare(b.name)
+        );
+      }
+      if (sortBy === "employment") {
+        return (
+          (a.employment_type || "").localeCompare(b.employment_type || "") ||
+          a.name.localeCompare(b.name)
+        );
+      }
+      if (sortBy === "hours") {
+        const ah = sumHours(shifts.filter((shift) => shift.employee_id === a.id));
+        const bh = sumHours(shifts.filter((shift) => shift.employee_id === b.id));
+        return bh - ah;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [department, employees, shifts, sortBy]);
+
+  const dayHours = sumHours(dayShifts);
+  const dayCost = sumCost(dayShifts, employees);
 
   const openNew = (employeeId: string) => {
     setEditing({
@@ -570,10 +691,10 @@ function RosterEditor({
 
   const publish = async () => {
     if (!roster) return;
-    const next = roster.status === "Published" ? "Draft" : "Published";
+    const next = isPublished(roster.status) ? "draft" : "published";
     const { error } = await supabase.from("rosters").update({ status: next }).eq("id", roster.id);
     if (error) return toast.error(error.message);
-    toast.success(next === "Published" ? "Roster published" : "Roster unpublished");
+    toast.success(next === "published" ? "Roster published" : "Roster unpublished");
     load();
   };
 
@@ -583,6 +704,61 @@ function RosterEditor({
     if (error) return toast.error(error.message);
     toast.success("Roster deleted");
     onBack();
+  };
+
+  const copyFromRoster = async () => {
+    if (!roster || !copySource) return;
+    const sourceRoster = allRosters.find((item) => item.id === copySource);
+    if (!sourceRoster) return;
+    if (
+      !confirm(
+        `This will add shifts from week of ${new Date(sourceRoster.week_start).toLocaleDateString(
+          "en-AU",
+        )}. Existing shifts will be kept. Continue?`,
+      )
+    ) {
+      return;
+    }
+    const { data: source } = await supabase
+      .from("roster_shifts")
+      .select("employee_id, day, start_time, end_time, break_minutes, total_hours")
+      .eq("roster_id", sourceRoster.id);
+    const offsetDays = Math.round(
+      (new Date(roster.week_start).getTime() - new Date(sourceRoster.week_start).getTime()) /
+        86400000,
+    );
+    const copies = (source ?? []).map((shift) => ({
+      roster_id: roster.id,
+      employee_id: shift.employee_id,
+      day: fmtDate(addDays(new Date(shift.day), offsetDays)),
+      start_time: shift.start_time,
+      end_time: shift.end_time,
+      break_minutes: shift.break_minutes ?? 0,
+      total_hours: shift.total_hours ?? 0,
+    }));
+    if (!copies.length) return toast.info("No shifts found to copy.");
+    const { error } = await supabase.from("roster_shifts").insert(copies);
+    if (error) return toast.error(error.message);
+    toast.success("Shifts copied");
+    load();
+  };
+
+  const saveAsTemplate = async () => {
+    const name = prompt("Template name");
+    if (!name) return;
+    const firstShift = shifts[0];
+    if (!firstShift) return toast.error("Add at least one shift before saving a template.");
+    const emp = employees.find((item) => item.id === firstShift.employee_id);
+    const { error } = await supabase.from("shift_templates").insert({
+      business_id: businessId,
+      name,
+      department: emp?.department ?? null,
+      start_time: firstShift.start_time ?? "09:00",
+      end_time: firstShift.end_time ?? "17:00",
+      break_minutes: firstShift.break_minutes ?? 30,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Template saved");
   };
 
   if (loading || !roster) {
@@ -612,52 +788,141 @@ function RosterEditor({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold">${dayCost.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{money(dayCost)}</div>
             <div className="text-xs uppercase opacity-80">Total cost for day</div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={deleteRoster}
-            className="bg-transparent text-white border-white/30 hover:bg-white/10 hover:text-white gap-1"
-          >
-            <Trash2 className="size-4" /> Delete
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast.success("Saved")}
-            className="bg-transparent text-white border-white/30 hover:bg-white/10 hover:text-white gap-1"
-          >
-            <Save className="size-4" /> Save
-          </Button>
-          <Button
-            size="sm"
-            onClick={publish}
-            className="bg-white text-[var(--navy)] hover:bg-white/90 gap-1"
-          >
-            <Send className="size-4" /> {roster.status === "Published" ? "Unpublish" : "Publish"}
-          </Button>
+          {readOnly ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                className="bg-transparent text-white border-white/30 hover:bg-white/10 hover:text-white gap-1"
+              >
+                <Printer className="size-4" /> Print
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toast.info("Email sending is not configured yet.")}
+                className="bg-transparent text-white border-white/30 hover:bg-white/10 hover:text-white gap-1"
+              >
+                <Send className="size-4" /> Re-send
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={deleteRoster}
+                className="bg-transparent text-white border-white/30 hover:bg-white/10 hover:text-white gap-1"
+              >
+                <Trash2 className="size-4" /> Delete
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toast.success("Roster saved")}
+                className="bg-transparent text-white border-white/30 hover:bg-white/10 hover:text-white gap-1"
+              >
+                <Save className="size-4" /> Save
+              </Button>
+              <Button
+                size="sm"
+                onClick={publish}
+                className="bg-white text-[var(--navy)] hover:bg-white/90 gap-1"
+              >
+                <Send className="size-4" /> {isPublished(roster.status) ? "Re-publish" : "Publish"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="px-4 sm:px-6 lg:px-8 flex flex-wrap items-center gap-3 text-sm">
-        <span className="px-2 py-1 rounded bg-secondary text-[var(--navy)] text-xs font-medium uppercase tracking-wide">
-          {roster.status}
-        </span>
-        <span className="text-muted-foreground">
-          Week of {new Date(roster.week_start).toLocaleDateString()} –{" "}
-          {new Date(roster.week_end).toLocaleDateString()}
-        </span>
-        <div className="ml-auto">
-          <Button variant="outline" size="sm" onClick={clearDay} className="gap-1">
-            <X className="size-4" /> Clear day
+      {!readOnly && (
+        <div className="px-4 sm:px-6 lg:px-8 flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2 font-medium text-[var(--navy)]">
+            Department:
+            <select
+              value={department}
+              onChange={(event) => setDepartment(event.target.value)}
+              className="h-9 rounded-md border bg-card px-3 text-sm"
+            >
+              {departments.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <select
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value)}
+            className="h-9 rounded-md border bg-card px-3 text-sm"
+          >
+            <option value="name-asc">Name A-Z</option>
+            <option value="name-desc">Name Z-A</option>
+            <option value="department">Department</option>
+            <option value="employment">Employment Type</option>
+            <option value="hours">Hours</option>
+          </select>
+          <Button variant="outline" size="sm" className="gap-1">
+            <GripVertical className="size-4" /> Set Staff Member Order
           </Button>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" defaultChecked /> Roster By Staff Member
+          </label>
+          <span className="px-2 py-1 rounded bg-secondary text-[var(--navy)] text-xs font-medium uppercase tracking-wide">
+            {roster.status}
+          </span>
+          <span className="text-muted-foreground">
+            Week of {new Date(roster.week_start).toLocaleDateString()} –{" "}
+            {new Date(roster.week_end).toLocaleDateString()}
+          </span>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={clearDay} className="gap-1">
+              <X className="size-4" /> Clear day
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => toast.info("Nothing to undo yet.")}
+            >
+              <RotateCcw className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => toast.info("Nothing to redo yet.")}
+            >
+              <RotateCw className="size-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => window.print()}>
+              <Printer className="size-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "grid" ? "default" : "outline"}
+              onClick={() => setViewMode("grid")}
+              className="gap-1"
+            >
+              <LayoutGrid className="size-4" /> Grid
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "list" ? "default" : "outline"}
+              onClick={() => setViewMode("list")}
+              className="gap-1"
+            >
+              <List className="size-4" /> List
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Day tabs */}
       <div className="px-4 sm:px-6 lg:px-8 flex items-center gap-1 overflow-x-auto">
@@ -694,98 +959,215 @@ function RosterEditor({
 
       {/* Grid */}
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="border rounded-xl bg-card overflow-x-auto">
-          <div className="min-w-[900px]">
-            {/* hour axis */}
-            <div className="grid grid-cols-[180px_1fr] border-b bg-secondary/40">
-              <div className="px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground border-r">
-                Staff
-              </div>
-              <div
-                className="grid text-[10px] uppercase text-muted-foreground"
-                style={{ gridTemplateColumns: `repeat(${HOURS.length}, minmax(50px, 1fr))` }}
-              >
-                {HOURS.map((h) => (
-                  <div key={h} className="border-l first:border-l-0 px-2 py-2">
-                    {h <= 12 ? `${h}a` : `${h - 12}p`}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {employees.length === 0 ? (
-              <div className="px-4 py-10 text-sm text-muted-foreground text-center">
-                Add employees on the Staff page to start rostering.
-              </div>
-            ) : (
-              employees.map((emp) => {
-                const empShifts = dayShifts.filter((s) => s.employee_id === emp.id);
-                return (
-                  <div
-                    key={emp.id}
-                    className="grid grid-cols-[180px_1fr] border-b last:border-b-0 min-h-[56px]"
-                  >
-                    <div className="px-3 py-2 border-r">
-                      <div className="font-medium text-sm text-[var(--navy)] truncate">
-                        {emp.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {emp.role || "—"}
-                      </div>
-                    </div>
-                    <div
-                      className="relative cursor-pointer hover:bg-secondary/30"
-                      style={{
-                        backgroundImage:
-                          "repeating-linear-gradient(to right, transparent 0, transparent calc((100%/" +
-                          HOURS.length +
-                          ") - 1px), var(--border) calc((100%/" +
-                          HOURS.length +
-                          ") - 1px), var(--border) calc(100%/" +
-                          HOURS.length +
-                          "))",
-                      }}
-                      onClick={(e) => {
-                        if ((e.target as HTMLElement).closest("[data-shift]")) return;
-                        openNew(emp.id);
-                      }}
-                    >
-                      {empShifts.map((s) => {
-                        if (!s.start_time || !s.end_time) return null;
-                        const startH = parseHM(s.start_time);
-                        const endH = parseHM(s.end_time);
-                        const first = HOURS[0];
-                        const last = HOURS[HOURS.length - 1] + 1;
-                        const total = last - first;
-                        const leftPct = Math.max(0, ((startH - first) / total) * 100);
-                        const widthPct = Math.max(2, ((endH - startH) / total) * 100);
-                        return (
-                          <button
-                            key={s.id}
-                            data-shift
-                            onClick={(ev) => {
-                              ev.stopPropagation();
-                              setEditing(s);
-                            }}
-                            className="absolute top-1 bottom-1 bg-[var(--navy)] text-white text-xs px-2 rounded-md flex flex-col items-start justify-center overflow-hidden hover:bg-[var(--navy-light)]"
-                            style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                          >
-                            <span className="truncate font-medium">
-                              {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
-                            </span>
-                            <span className="truncate opacity-80">
-                              {Number(s.total_hours ?? 0).toFixed(1)}h
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+        {viewMode === "list" ? (
+          <div className="bg-card border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="bg-secondary/40 text-left">
+                <tr>
+                  <th className="px-4 py-3">Employee Name</th>
+                  <th>Date</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Break</th>
+                  <th>Total Hours</th>
+                  <th>Role</th>
+                  <th>Cost</th>
+                  <th className="text-right pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dayShifts.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                      No shifts for this day.
+                    </td>
+                  </tr>
+                ) : (
+                  dayShifts.map((shift) => {
+                    const emp = employees.find((item) => item.id === shift.employee_id);
+                    return (
+                      <tr key={shift.id} className="border-t">
+                        <td className="px-4 py-3 font-semibold text-[var(--navy)]">
+                          {emp?.name ?? "Staff"}
+                        </td>
+                        <td>{shift.day}</td>
+                        <td>{shortTime(shift.start_time)}</td>
+                        <td>{shortTime(shift.end_time)}</td>
+                        <td>{shift.break_minutes ?? 0}m</td>
+                        <td>{Number(shift.total_hours ?? 0).toFixed(2)}</td>
+                        <td>{emp?.role || emp?.department || "Shift"}</td>
+                        <td>{money(shiftCost(shift, employees))}</td>
+                        <td className="text-right pr-4">
+                          <Button variant="outline" size="sm" onClick={() => setEditing(shift)}>
+                            Edit
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
+        ) : (
+          <div className="border rounded-xl bg-card overflow-x-auto">
+            <div className="min-w-[900px]">
+              {/* hour axis */}
+              <div className="grid grid-cols-[180px_1fr_110px] md:grid-cols-[220px_1fr_120px] border-b bg-secondary/40">
+                <div className="sticky left-0 z-10 bg-secondary/95 px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground border-r">
+                  Staff
+                </div>
+                <div
+                  className="grid text-[10px] uppercase text-muted-foreground"
+                  style={{ gridTemplateColumns: `repeat(${HOURS.length}, minmax(50px, 1fr))` }}
+                >
+                  {HOURS.map((h) => (
+                    <div key={h} className="border-l first:border-l-0 px-2 py-2 text-center">
+                      <div className="font-semibold text-[var(--navy)]">
+                        {dayShifts.filter((shift) => overlaps(shift, h, h + 1)).length}
+                      </div>
+                      {h <= 12 ? `${h}a` : `${h - 12}p`}
+                    </div>
+                  ))}
+                </div>
+                <div className="px-3 py-2 text-right text-xs uppercase tracking-wide text-muted-foreground">
+                  Total
+                </div>
+              </div>
+
+              {visibleEmployees.length === 0 ? (
+                <div className="px-4 py-10 text-sm text-muted-foreground text-center">
+                  Add employees on the Staff page to start rostering.
+                </div>
+              ) : (
+                visibleEmployees.map((emp) => {
+                  const empShifts = dayShifts.filter((s) => s.employee_id === emp.id);
+                  const weekShifts = shifts.filter((s) => s.employee_id === emp.id);
+                  const weekHours = sumHours(weekShifts);
+                  const weekCost = weekHours * Number(emp.pay_rate ?? 0);
+                  return (
+                    <div
+                      key={emp.id}
+                      className="grid grid-cols-[180px_1fr_110px] md:grid-cols-[220px_1fr_120px] border-b last:border-b-0 min-h-[60px]"
+                    >
+                      <div className="sticky left-0 z-10 bg-white px-3 py-2 border-r flex items-center gap-2">
+                        <UserAvatar name={emp.name} email={emp.email} size={32} />
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm text-[var(--navy)] truncate">
+                            {emp.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {emp.role || "—"}
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className="relative cursor-pointer hover:bg-secondary/30"
+                        style={{
+                          backgroundImage:
+                            "repeating-linear-gradient(to right, transparent 0, transparent calc((100%/" +
+                            HOURS.length +
+                            ") - 1px), var(--border) calc((100%/" +
+                            HOURS.length +
+                            ") - 1px), var(--border) calc(100%/" +
+                            HOURS.length +
+                            "))",
+                        }}
+                        onClick={(e) => {
+                          if (readOnly) return;
+                          if ((e.target as HTMLElement).closest("[data-shift]")) return;
+                          openNew(emp.id);
+                        }}
+                      >
+                        {empShifts.map((s) => {
+                          if (!s.start_time || !s.end_time) return null;
+                          const startH = parseHM(s.start_time);
+                          const endH = parseHM(s.end_time);
+                          const first = HOURS[0];
+                          const last = HOURS[HOURS.length - 1] + 1;
+                          const total = last - first;
+                          const leftPct = Math.max(0, ((startH - first) / total) * 100);
+                          const widthPct = Math.max(2, ((endH - startH) / total) * 100);
+                          return (
+                            <button
+                              key={s.id}
+                              data-shift
+                              disabled={readOnly}
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                if (readOnly) return;
+                                setEditing(s);
+                              }}
+                              className="absolute top-1 bottom-1 bg-[var(--navy)] text-white text-xs px-2 rounded-md flex flex-col items-start justify-center overflow-hidden hover:bg-[var(--navy-light)]"
+                              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                            >
+                              <span className="truncate font-medium">
+                                {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                              </span>
+                              <span className="truncate opacity-80">
+                                {Number(s.total_hours ?? 0).toFixed(1)}h
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-col justify-center px-3 text-right text-sm font-semibold text-[var(--navy)]">
+                        <span>{weekHours.toFixed(2)}</span>
+                        <span className="text-xs text-muted-foreground">{money(weekCost)}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="px-4 sm:px-6 lg:px-8 grid gap-4 lg:grid-cols-[1fr_360px]">
+        <div className="space-y-2">
+          <Label>Daily Notes</Label>
+          <Textarea
+            rows={4}
+            value={dailyNotes[dayKey] ?? ""}
+            onChange={(event) => setDailyNotes({ ...dailyNotes, [dayKey]: event.target.value })}
+            onBlur={() => toast.success("Daily notes saved locally")}
+          />
         </div>
+        {!readOnly && (
+          <div className="space-y-3 self-end">
+            <label className="flex items-center justify-end gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={showCost}
+                onChange={(event) => setShowCost(event.target.checked)}
+              />
+              Show Cost Per Shift
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={copySource}
+                onChange={(event) => setCopySource(event.target.value)}
+                className="h-10 min-w-0 flex-1 rounded-md border bg-card px-3 text-sm"
+              >
+                <option value="">COPY FROM</option>
+                {allRosters
+                  .filter((item) => item.id !== roster.id)
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      Week of {new Date(item.week_start).toLocaleDateString("en-AU")}
+                    </option>
+                  ))}
+              </select>
+              <Button onClick={copyFromRoster} className="bg-[var(--navy)] text-white">
+                ADD <Plus className="ml-1 size-4" />
+              </Button>
+            </div>
+            <Button variant="outline" className="w-full gap-2" onClick={saveAsTemplate}>
+              <Copy className="size-4" /> Save as Template
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Shift edit dialog */}

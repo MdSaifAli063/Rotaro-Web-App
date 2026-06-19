@@ -19,6 +19,11 @@ import {
   ChevronLeft,
   ChevronRight,
   User as UserIcon,
+  Mail,
+  Calendar,
+  HelpCircle,
+  LayoutGrid,
+  PanelLeftOpen,
 } from "lucide-react";
 import type { Profile } from "@/lib/auth";
 import { isManager } from "@/lib/auth";
@@ -39,6 +44,8 @@ const managerNav = [
   { to: "/roster", label: "Rosters", icon: CalendarDays },
   { to: "/staff", label: "Staff", icon: Users },
   { to: "/leaves", label: "Leave Requests", icon: FileText },
+  { to: "/swaps", label: "Shift Swaps", icon: Repeat },
+  { to: "/attendance", label: "Attendance", icon: ClipboardList },
   { to: "/holidays", label: "Holidays", icon: CalendarCheck },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -220,6 +227,48 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
             </Link>
           </div>
           <div className="flex items-center gap-3 ml-auto">
+            <div className="hidden md:flex items-center gap-1">
+              <button
+                type="button"
+                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Toggle dashboard view"
+                title="Toggle dashboard view"
+              >
+                <LayoutGrid className="size-4" />
+              </button>
+              <Link
+                to="/dashboard"
+                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Messages"
+                title="Messages"
+              >
+                <Mail className="size-4" />
+              </Link>
+              <Link
+                to="/roster"
+                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Calendar"
+                title="Calendar"
+              >
+                <Calendar className="size-4" />
+              </Link>
+              <Link
+                to="/settings"
+                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings className="size-4" />
+              </Link>
+              <Link
+                to="/support"
+                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Help"
+                title="Help"
+              >
+                <HelpCircle className="size-4" />
+              </Link>
+            </div>
             <NotificationBell userId={profile.id} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
