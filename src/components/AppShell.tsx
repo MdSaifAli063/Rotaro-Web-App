@@ -42,6 +42,7 @@ import {
 const managerNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/roster", label: "Rosters", icon: CalendarDays },
+  { to: "/shifts", label: "Shift Templates", icon: LayoutTemplate },
   { to: "/staff", label: "Staff", icon: Users },
   { to: "/leaves", label: "Leave Requests", icon: FileText },
   { to: "/swaps", label: "Shift Swaps", icon: Repeat },
@@ -167,10 +168,10 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="h-screen overflow-hidden flex bg-background">
       {/* Desktop sidebar */}
       <aside
-        className={`hidden lg:flex relative bg-sidebar text-sidebar-foreground flex-col shrink-0 transition-[width] duration-200 ${
+        className={`hidden lg:flex relative h-screen bg-sidebar text-sidebar-foreground flex-col shrink-0 transition-[width] duration-200 ${
           sidebarCollapsed ? "w-20" : "w-64"
         }`}
       >
@@ -211,7 +212,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
         </div>
       )}
 
-      <main className="flex-1 min-w-0 overflow-auto">
+      <main className="flex-1 min-w-0 h-screen overflow-y-auto">
         <header className="h-14 border-b bg-card flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 sticky top-0 z-30">
           <div className="flex items-center gap-2 lg:hidden">
             <button
