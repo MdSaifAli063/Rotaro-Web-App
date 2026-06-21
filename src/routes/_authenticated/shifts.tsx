@@ -27,9 +27,12 @@ type Template = {
   end_time: string;
   break_minutes: number;
   department: string | null;
-  color: string;
-  min_staff_required: number;
+  color: string | null;
+  min_staff_required: number | null;
 };
+
+const COLORS = ["#1E2A45", "#2563EB", "#16A34A", "#DC2626", "#7C3AED", "#0891B2", "#EA580C"];
+const normalizeTime = (value?: string | null) => (value ? value.slice(0, 5) : "");
 
 const empty: Partial<Template> = {
   name: "",
@@ -46,17 +49,36 @@ function ShiftsPage() {
   const [rows, setRows] = useState<Template[]>([]);
   const [editing, setEditing] = useState<Partial<Template> | null>(null);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      setProfile(await fetchProfile());
-      load();
+      const nextProfile = await fetchProfile();
+      setProfile(nextProfile);
+      if (nextProfile?.business_id) {
+        await load(nextProfile.business_id);
+      } else {
+        setLoading(false);
+      }
     })();
   }, []);
 
-  const load = async () => {
-    const { data } = await supabase.from("shift_templates").select("*").order("start_time");
+  const load = async (businessId = profile?.business_id) => {
+    if (!businessId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("shift_templates")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("start_time");
+    if (error) {
+      toast.error(error.message);
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     setRows((data as Template[]) ?? []);
+    setLoading(false);
   };
 
   const canManage = isManager(profile);
@@ -67,15 +89,23 @@ function ShiftsPage() {
       toast.error("Name is required");
       return;
     }
+    if (!editing.start_time || !editing.end_time) {
+      toast.error("Start and end time are required");
+      return;
+    }
+    if (normalizeTime(editing.end_time) <= normalizeTime(editing.start_time)) {
+      toast.error("End time must be after start time");
+      return;
+    }
     const payload: any = {
       business_id: profile.business_id,
-      name: editing.name,
-      start_time: editing.start_time,
-      end_time: editing.end_time,
+      name: editing.name.trim(),
+      start_time: normalizeTime(editing.start_time),
+      end_time: normalizeTime(editing.end_time),
       break_minutes: Number(editing.break_minutes ?? 0),
       department: editing.department || null,
       color: editing.color || "#1E2A45",
-      min_staff_required: Number(editing.min_staff_required ?? 1),
+      min_staff_required: Math.max(1, Number(editing.min_staff_required ?? 1)),
     };
     const res = editing.id
       ? await supabase.from("shift_templates").update(payload).eq("id", editing.id)
@@ -117,27 +147,35 @@ function ShiftsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {rows.length === 0 && (
+        {loading ? (
+          <div className="col-span-full bg-card border rounded-xl p-12 text-center text-sm text-muted-foreground">
+            Loading shift templates...
+          </div>
+        ) : rows.length === 0 ? (
           <div className="col-span-full bg-card border rounded-xl p-12 text-center text-sm text-muted-foreground">
             No shift templates yet.
           </div>
-        )}
+        ) : null}
         {rows.map((t) => (
           <div key={t.id} className="bg-card border rounded-xl p-5 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="size-3 rounded-full" style={{ background: t.color }} />
+                  <span
+                    className="size-3 rounded-full"
+                    style={{ background: t.color ?? "#1E2A45" }}
+                  />
                   <div className="font-semibold">{t.name}</div>
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">
-                  {t.start_time.slice(0, 5)} – {t.end_time.slice(0, 5)} · {t.break_minutes}m break
+                  {normalizeTime(t.start_time)} - {normalizeTime(t.end_time)} - {t.break_minutes}m
+                  break
                 </div>
                 {t.department && (
                   <div className="text-xs text-muted-foreground mt-1">Dept: {t.department}</div>
                 )}
                 <div className="text-xs text-muted-foreground mt-1">
-                  Min staff: {t.min_staff_required}
+                  Min staff: {t.min_staff_required ?? 1}
                 </div>
               </div>
               {canManage && (
@@ -226,6 +264,22 @@ function ShiftsPage() {
                   value={editing.color ?? "#1E2A45"}
                   onChange={(e) => setEditing({ ...editing, color: e.target.value })}
                 />
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Use ${color}`}
+                      className={`size-7 rounded-md border ${
+                        (editing.color ?? "#1E2A45").toLowerCase() === color.toLowerCase()
+                          ? "ring-2 ring-[var(--navy)] ring-offset-2"
+                          : ""
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setEditing({ ...editing, color })}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           )}
