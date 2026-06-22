@@ -19,6 +19,39 @@ type Record = {
   break_start: string | null;
   break_end: string | null;
   status: string | null;
+  total_hours?: number | null;
+};
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+const fmtDate = (value = new Date()) =>
+  value.toLocaleDateString("en-AU", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+const fmtTime = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleTimeString("en-AU", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "-";
+const statusLabel = (value?: string | null) =>
+  (value || "-").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+const breakMinutes = (row: Record) =>
+  row.break_start && row.break_end
+    ? Math.round((new Date(row.break_end).getTime() - new Date(row.break_start).getTime()) / 60000)
+    : 0;
+const workedHours = (
+  row: Record,
+  out = row.check_out_time ? new Date(row.check_out_time) : new Date(),
+) => {
+  if (!row.check_in_time) return 0;
+  let minutes = (out.getTime() - new Date(row.check_in_time).getTime()) / 60000;
+  minutes -= breakMinutes(row);
+  return Math.max(minutes / 60, 0);
 };
 
 function AttendancePage() {
@@ -37,7 +70,7 @@ function AttendancePage() {
 
   const load = async (p: Profile | null) => {
     if (!p) return;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayKey();
 
     if (isManager(p)) {
       const { data } = await supabase
@@ -61,26 +94,43 @@ function AttendancePage() {
         .select("*")
         .eq("employee_id", empId)
         .order("date", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(30);
       setRecords(data ?? []);
-      const t = (data ?? []).find((r: Record) => r.date === todayStr) ?? null;
+      const t =
+        (data ?? []).find(
+          (r: Record) => r.date === todayStr && r.check_in_time && !r.check_out_time,
+        ) ??
+        (data ?? []).find((r: Record) => r.date === todayStr) ??
+        null;
       setToday(t);
     }
   };
 
   const checkIn = async () => {
     if (!myEmpId || !profile?.business_id) return;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("attendance_records").upsert(
-      {
-        business_id: profile.business_id,
-        employee_id: myEmpId,
-        date: todayStr,
-        check_in_time: new Date().toISOString(),
-        status: "checked_in",
-      },
-      { onConflict: "id" } as any,
-    );
+    const todayStr = todayKey();
+    const { data: existing } = await supabase
+      .from("attendance_records")
+      .select("*")
+      .eq("employee_id", myEmpId)
+      .eq("date", todayStr)
+      .is("check_out_time", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing?.check_in_time) {
+      toast.info("You are already checked in");
+      setToday(existing as Record);
+      return;
+    }
+    const { error } = await supabase.from("attendance_records").insert({
+      business_id: profile.business_id,
+      employee_id: myEmpId,
+      date: todayStr,
+      check_in_time: new Date().toISOString(),
+      status: "checked_in",
+    });
     if (error) toast.error(error.message);
     else {
       toast.success("Checked in");
@@ -93,6 +143,16 @@ function AttendancePage() {
     const { error } = await supabase.from("attendance_records").update(patch).eq("id", today.id);
     if (error) toast.error(error.message);
     else load(profile);
+  };
+
+  const checkOut = async () => {
+    if (!today?.check_in_time) return;
+    const out = new Date();
+    await update({
+      check_out_time: out.toISOString(),
+      total_hours: workedHours(today, out),
+      status: "completed",
+    });
   };
 
   if (!profile) return null;
@@ -110,15 +170,11 @@ function AttendancePage() {
         <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-wrap gap-3 items-center justify-between">
           <div>
             <div className="text-xs uppercase text-muted-foreground">Today</div>
-            <div className="font-semibold text-lg">{new Date().toDateString()}</div>
+            <div className="font-semibold text-lg">{fmtDate()}</div>
             {today && (
               <div className="text-sm text-muted-foreground mt-1">
-                {today.check_in_time && (
-                  <>In {new Date(today.check_in_time).toLocaleTimeString()}</>
-                )}
-                {today.check_out_time && (
-                  <> · Out {new Date(today.check_out_time).toLocaleTimeString()}</>
-                )}
+                {today.check_in_time && <>In {fmtTime(today.check_in_time)}</>}
+                {today.check_out_time && <> - Out {fmtTime(today.check_out_time)}</>}
               </div>
             )}
           </div>
@@ -145,12 +201,7 @@ function AttendancePage() {
               </Button>
             )}
             {today?.check_in_time && !today?.check_out_time && (
-              <Button
-                onClick={() =>
-                  update({ check_out_time: new Date().toISOString(), status: "completed" })
-                }
-                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
-              >
+              <Button onClick={checkOut}>
                 <LogOut className="size-4 mr-2" /> Check out
               </Button>
             )}
@@ -179,21 +230,12 @@ function AttendancePage() {
                 records.map((r) => (
                   <tr key={r.id} className="border-t">
                     <td className="px-4 py-3">{r.date}</td>
+                    <td className="px-4 py-3">{fmtTime(r.check_in_time)}</td>
+                    <td className="px-4 py-3">{fmtTime(r.check_out_time)}</td>
                     <td className="px-4 py-3">
-                      {r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : "—"}
+                      {r.break_start && r.break_end ? `${breakMinutes(r)}m` : "-"}
                     </td>
-                    <td className="px-4 py-3">
-                      {r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {r.break_start && r.break_end
-                        ? Math.round(
-                            (new Date(r.break_end).getTime() - new Date(r.break_start).getTime()) /
-                              60000,
-                          ) + "m"
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 capitalize">{r.status ?? "—"}</td>
+                    <td className="px-4 py-3">{statusLabel(r.status)}</td>
                   </tr>
                 ))
               )}
@@ -234,15 +276,11 @@ function AttendancePage() {
               records.map((r) => (
                 <tr key={r.id} className="border-t">
                   <td className="px-4 py-3">{r.date}</td>
-                  <td className="px-4 py-3 font-medium">{r.employees?.name ?? "—"}</td>
-                  <td className="px-4 py-3">{r.employees?.department ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : "—"}
-                  </td>
-                  <td className="px-4 py-3 capitalize">{r.status ?? "—"}</td>
+                  <td className="px-4 py-3 font-medium">{r.employees?.name ?? "-"}</td>
+                  <td className="px-4 py-3">{r.employees?.department ?? "-"}</td>
+                  <td className="px-4 py-3">{fmtTime(r.check_in_time)}</td>
+                  <td className="px-4 py-3">{fmtTime(r.check_out_time)}</td>
+                  <td className="px-4 py-3">{statusLabel(r.status)}</td>
                 </tr>
               ))
             )}

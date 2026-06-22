@@ -580,6 +580,8 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
         .select("*")
         .eq("employee_id", emp.id)
         .eq("date", todayKey)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle(),
       supabase.from("leave_balances").select("*").eq("employee_id", emp.id),
       supabase
@@ -592,7 +594,6 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
         .from("leaves")
         .select("*")
         .eq("employee_id", emp.id)
-        .eq("status", "approved")
         .lte("from_date", weekEndKey)
         .gte("to_date", weekStartKey),
       supabase
@@ -613,7 +614,7 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
     setToday(att);
     setBalances(bal ?? []);
     setWeekShifts(shifts ?? []);
-    setWeekLeaves(leaveRows ?? []);
+    setWeekLeaves((leaveRows ?? []).filter((row) => lower(row.status) === "approved"));
     setHolidays(holidayRows ?? []);
     setNotes(unread ?? []);
   }, [profile.business_id, profile.id, todayKey, weekEndKey, weekStartKey]);
@@ -662,78 +663,92 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
       status: "completed",
     });
   };
+  const displayName = employee?.name || profile.name || profile.email || "there";
+  const firstName = displayName.split(" ")[0] || displayName;
+  const todayLabel = new Date().toLocaleDateString("en-AU", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <section>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--navy)]">
+          Welcome back, {firstName}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{todayLabel}</p>
+      </section>
+
       <section className="rounded-lg bg-[var(--navy)] p-5 text-white shadow-sm">
-        <div className="text-sm uppercase tracking-wide opacity-80">Your Next Shift</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-white/70">
+          Your Next Shift
+        </div>
         {nextShift ? (
           <div className="mt-3">
             <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[var(--navy)]">
               {badge(nextShift.day)}
             </span>
-            <div className="mt-3 text-3xl font-bold">
+            <div className="mt-3 text-2xl font-bold">
               {range(nextShift.start_time, nextShift.end_time)}
             </div>
-            <div className="mt-1 text-sm opacity-85">
-              {nextShift.rosters?.location || "Main location"}{" "}
-              {employee?.role ? `- ${employee.role}` : ""}
+            <div className="mt-1 text-sm text-white/80">
+              {nextShift.rosters?.location || "Main location"}
+              {employee?.role ? ` - ${employee.role}` : ""}
             </div>
           </div>
         ) : (
-          <p className="mt-3 text-lg">No upcoming shifts this week. Contact your manager.</p>
+          <p className="mt-3 text-sm text-white/80">No upcoming shifts. Contact your manager.</p>
         )}
-      </section>
-      <section className="space-y-3 rounded-lg border bg-card p-5 shadow-sm">
-        {today?.check_in_time && (
-          <p className="text-sm font-medium text-[var(--navy)]">
-            Checked in at {time(today.check_in_time)}
-            {today.check_out_time ? ` - Out ${time(today.check_out_time)}` : ""}
-          </p>
-        )}
-        {!today?.check_in_time && (
-          <button
-            disabled={saving}
-            onClick={() =>
-              updateAttendance({ check_in_time: new Date().toISOString(), status: "checked_in" })
-            }
-            className="w-full rounded-md bg-[var(--navy)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            <LogIn className="mr-2 inline size-4" /> Check In
-          </button>
-        )}
-        {today?.check_in_time && !today?.check_out_time && (
-          <div className="grid gap-2 sm:grid-cols-2">
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {!today?.check_in_time && (
             <button
               disabled={saving}
-              onClick={checkOut}
-              className="rounded-md bg-[var(--navy)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              onClick={() =>
+                updateAttendance({ check_in_time: new Date().toISOString(), status: "checked_in" })
+              }
+              className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-[var(--navy)] disabled:opacity-60"
             >
-              <LogOut className="mr-2 inline size-4" /> Check Out
+              <LogIn className="mr-2 inline size-4" /> Check In
             </button>
-            {!today.break_start || today.break_end ? (
-              <button
-                disabled={saving || !!today.break_end}
-                onClick={() => updateAttendance({ break_start: new Date().toISOString() })}
-                className="rounded-md border border-[var(--navy)] px-4 py-3 text-sm font-semibold text-[var(--navy)] disabled:opacity-60"
-              >
-                <Coffee className="mr-2 inline size-4" /> Start Break
-              </button>
-            ) : (
+          )}
+          {today?.check_in_time && !today?.check_out_time && (
+            <>
               <button
                 disabled={saving}
-                onClick={() => updateAttendance({ break_end: new Date().toISOString() })}
-                className="rounded-md border border-[var(--navy)] px-4 py-3 text-sm font-semibold text-[var(--navy)] disabled:opacity-60"
+                onClick={checkOut}
+                className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-[var(--navy)] disabled:opacity-60"
               >
-                <Coffee className="mr-2 inline size-4" /> End Break
+                <LogOut className="mr-2 inline size-4" /> Check Out
               </button>
-            )}
-          </div>
-        )}
-        <p className="text-xs text-muted-foreground">
-          Scheduled:{" "}
-          {nextShift ? range(nextShift.start_time, nextShift.end_time) : "No shift scheduled"}
-        </p>
+              {!today.break_start || today.break_end ? (
+                <button
+                  disabled={saving || !!today.break_end}
+                  onClick={() => updateAttendance({ break_start: new Date().toISOString() })}
+                  className="rounded-md border border-white/40 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  <Coffee className="mr-2 inline size-4" /> Start Break
+                </button>
+              ) : (
+                <button
+                  disabled={saving}
+                  onClick={() => updateAttendance({ break_end: new Date().toISOString() })}
+                  className="rounded-md border border-white/40 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  <Coffee className="mr-2 inline size-4" /> End Break
+                </button>
+              )}
+            </>
+          )}
+          {today?.check_in_time && (
+            <span className="self-center text-sm text-white/75">
+              Checked in at {time(today.check_in_time)}
+              {today.check_out_time ? ` - Out ${time(today.check_out_time)}` : ""}
+            </span>
+          )}
+        </div>
       </section>
       <div className="grid gap-3 md:grid-cols-3">
         {["Annual Leave", "Sick Leave", "Casual Leave"].map((type) => (
@@ -762,7 +777,7 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
         <Action solid to="/apply-leave">
           Apply Leave
         </Action>
-        <Action to="/my-roster">Request Shift Swap</Action>
+        <Action to="/swaps">Request Shift Swap</Action>
         <Action to="/my-roster">View Full Roster</Action>
         <Action to="/attendance">My Attendance</Action>
       </div>
@@ -882,19 +897,24 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   );
 }
 function Balance({ type, row }: { type: string; row?: any }) {
-  const total = Number(row?.total_days ?? 0),
+  const total = Number(row?.total_days ?? defaultLeaveTotal(type)),
     used = Number(row?.used_days ?? 0),
     remain = Math.max(total - used, 0),
     pct = total ? Math.min((used / total) * 100, 100) : 0;
   return (
-    <div className="rounded-lg border bg-card p-4 shadow-sm">
-      <div className="text-sm font-semibold text-[var(--navy)]">{type}</div>
-      <div className="mt-2 text-3xl font-bold text-[var(--navy)]">{remain} days</div>
-      <div className="mt-3 h-2 rounded-full bg-secondary">
+    <div className="rounded-lg border bg-card p-5 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {type}
+      </div>
+      <div className="mt-1 flex items-baseline gap-2 text-[var(--navy)]">
+        <span className="text-3xl font-bold">{remain}</span>
+        <span className="text-sm font-medium">days</span>
+      </div>
+      <div className="mt-4 h-2 rounded-full bg-secondary">
         <div className="h-2 rounded-full bg-[var(--navy)]" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        {used} days used of {total} total
+        {used} used of {total} total
       </p>
     </div>
   );
@@ -906,13 +926,15 @@ function DayCell({ day, shifts, leaves, holidays }: any) {
     h = holidays.find((x: any) => x.holiday_date === k);
   return (
     <div
-      className={`min-h-24 rounded-lg border p-3 text-sm ${k === key(new Date()) ? "border-[var(--navy)]" : ""} ${s ? "bg-[#EEF3F8]" : "bg-white"}`}
+      className={`min-h-[62px] rounded-md border p-2 text-center text-xs ${
+        k === key(new Date()) ? "border-[var(--navy)] bg-[#EEF3F8]" : "bg-white"
+      }`}
     >
       <div className="font-bold text-[var(--navy)]">
         {day.toLocaleDateString("en-AU", { weekday: "short" })}
       </div>
       <div className="text-xs text-muted-foreground">{day.getDate()}</div>
-      <div className="mt-3 font-medium text-[var(--navy)]">
+      <div className="mt-1 font-medium text-[var(--navy)]">
         {l ? "LEAVE" : h ? "PH" : s ? range(s.start_time, s.end_time) : "Off"}
       </div>
     </div>
@@ -980,6 +1002,13 @@ function range(a?: string | null, b?: string | null) {
 }
 function lower(v?: string | null) {
   return String(v ?? "").toLowerCase();
+}
+function defaultLeaveTotal(type: string) {
+  const value = lower(type);
+  if (value.includes("annual")) return 20;
+  if (value.includes("sick")) return 10;
+  if (value.includes("casual")) return 5;
+  return 0;
 }
 function uniq(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));

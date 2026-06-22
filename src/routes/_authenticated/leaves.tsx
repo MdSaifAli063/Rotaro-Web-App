@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -24,29 +24,56 @@ type LeaveRow = {
   leave_type: string;
   from_date: string;
   to_date: string;
+  total_days?: number | null;
   reason: string | null;
   status: string;
   created_at: string;
   employees?: EmployeeSummary | null;
 };
 
+const lower = (value?: string | null) => String(value ?? "").toLowerCase();
+
+const statusLabel = (value?: string | null) =>
+  (value || "pending").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+
+const leaveDays = (row: Pick<LeaveRow, "from_date" | "to_date" | "total_days">) => {
+  if (row.total_days && Number(row.total_days) > 0) return Number(row.total_days);
+  const start = new Date(`${row.from_date}T00:00:00`);
+  const end = new Date(`${row.to_date}T00:00:00`);
+  return Math.max(Math.floor((end.getTime() - start.getTime()) / 86400000) + 1, 1);
+};
+
+const defaultLeaveTotal = (type: string) => {
+  const value = lower(type);
+  if (value.includes("annual")) return 20;
+  if (value.includes("sick")) return 10;
+  if (value.includes("casual")) return 5;
+  return 0;
+};
+
 function LeavesPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [rows, setRows] = useState<LeaveRow[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      const nextProfile = await fetchProfile();
-      setProfile(nextProfile);
-      await load(nextProfile);
-    })();
-  }, []);
-
-  const load = async (nextProfile = profile) => {
+  const load = useCallback(async (nextProfile: Profile | null) => {
     let query = supabase.from("leaves").select("*").order("created_at", { ascending: false });
 
     if (nextProfile?.business_id) {
       query = query.eq("business_id", nextProfile.business_id);
+    }
+
+    if (nextProfile && !isManager(nextProfile)) {
+      const { data: employee, error: employeeError } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", nextProfile.id)
+        .maybeSingle();
+      if (employeeError) {
+        toast.error("Failed to load your employee record: " + employeeError.message);
+        setRows([]);
+        return;
+      }
+      query = employee?.id ? query.eq("employee_id", employee.id) : query.eq("employee_id", "");
     }
 
     const { data: leaves, error } = await query;
@@ -77,9 +104,68 @@ function LeavesPage() {
         employees: employeesById.get(leave.employee_id) ?? null,
       })),
     );
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const nextProfile = await fetchProfile();
+      setProfile(nextProfile);
+      await load(nextProfile);
+    })();
+  }, [load]);
+
+  const adjustLeaveBalance = async (row: LeaveRow, nextStatus: "approved" | "rejected") => {
+    const previousStatus = lower(row.status);
+    const days = leaveDays(row);
+    let delta = 0;
+
+    if (nextStatus === "approved" && previousStatus !== "approved") delta = days;
+    if (nextStatus === "rejected" && previousStatus === "approved") delta = -days;
+    if (!delta) return;
+
+    const { data: balances, error: balanceError } = await supabase
+      .from("leave_balances")
+      .select("*")
+      .eq("business_id", row.business_id)
+      .eq("employee_id", row.employee_id);
+    if (balanceError) throw balanceError;
+
+    const balance = (balances ?? []).find((item) => {
+      const balanceType = lower(item.leave_type);
+      const requestType = lower(row.leave_type);
+      return balanceType.includes(requestType) || requestType.includes(balanceType);
+    });
+
+    if (balance) {
+      const used_days = Math.max(Number(balance.used_days ?? 0) + delta, 0);
+      const { error } = await supabase
+        .from("leave_balances")
+        .update({ used_days })
+        .eq("id", balance.id);
+      if (error) throw error;
+      return;
+    }
+
+    if (delta > 0) {
+      const { error } = await supabase.from("leave_balances").insert({
+        business_id: row.business_id,
+        employee_id: row.employee_id,
+        leave_type: row.leave_type,
+        total_days: defaultLeaveTotal(row.leave_type),
+        used_days: delta,
+      });
+      if (error) throw error;
+    }
   };
 
-  const decide = async (row: LeaveRow, status: "Approved" | "Rejected") => {
+  const decide = async (row: LeaveRow, status: "approved" | "rejected") => {
+    try {
+      await adjustLeaveBalance(row, status);
+    } catch (error: any) {
+      toast.error("Failed to update leave balance: " + (error.message ?? "Unknown error"));
+      return;
+    }
+
     const { error } = await supabase.from("leaves").update({ status }).eq("id", row.id);
     if (error) {
       toast.error(error.message);
@@ -89,17 +175,17 @@ function LeavesPage() {
       await notify({
         userId: row.employees.user_id,
         businessId: profile?.business_id,
-        type: "leave_" + status.toLowerCase(),
-        message: `Your ${row.leave_type} leave was ${status.toLowerCase()}.`,
+        type: "leave_" + status,
+        message: `Your ${row.leave_type} leave was ${status}.`,
+        relatedId: row.id,
       });
     }
-    toast.success(`Leave ${status.toLowerCase()}`);
-    load();
+    toast.success(`Leave ${status}`);
+    load(profile);
   };
 
   if (!profile) return null;
   const canManage = isManager(profile);
-
   return (
     <div className="space-y-6">
       <div>
@@ -131,36 +217,36 @@ function LeavesPage() {
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-4 py-3 font-medium">{r.employees?.name ?? "—"}</td>
+                  <td className="px-4 py-3 font-medium">{r.employees?.name ?? "-"}</td>
                   <td className="px-4 py-3 capitalize">{r.leave_type}</td>
                   <td className="px-4 py-3">{r.from_date}</td>
                   <td className="px-4 py-3">{r.to_date}</td>
                   <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">
-                    {r.reason ?? "—"}
+                    {r.reason ?? "-"}
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
-                        r.status === "Pending"
+                        lower(r.status) === "pending"
                           ? "bg-secondary text-[var(--navy)]"
-                          : r.status === "Approved"
+                          : lower(r.status) === "approved"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {r.status}
+                      {statusLabel(r.status)}
                     </span>
                   </td>
                   {canManage && (
                     <td className="px-4 py-3 text-right">
-                      {r.status === "Pending" && (
+                      {lower(r.status) === "pending" && (
                         <div className="flex gap-2 justify-end">
-                          <Button size="sm" variant="outline" onClick={() => decide(r, "Rejected")}>
+                          <Button size="sm" variant="outline" onClick={() => decide(r, "rejected")}>
                             Reject
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => decide(r, "Approved")}
+                            onClick={() => decide(r, "approved")}
                             className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
                           >
                             Approve

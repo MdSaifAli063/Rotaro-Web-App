@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -14,23 +14,55 @@ function SwapsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [rows, setRows] = useState<any[]>([]);
 
+  const load = useCallback(async (nextProfile: Profile | null) => {
+    if (!nextProfile) return;
+    let query = supabase
+      .from("shift_swaps")
+      .select(
+        "*, requester:employees!shift_swaps_requester_employee_id_fkey(name, department, user_id), target:employees!shift_swaps_target_employee_id_fkey(name, department, user_id)",
+      )
+      .order("created_at", { ascending: false });
+
+    if (nextProfile.business_id) {
+      query = query.eq("business_id", nextProfile.business_id);
+    }
+
+    if (!isManager(nextProfile)) {
+      const { data: employee, error: employeeError } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", nextProfile.id)
+        .maybeSingle();
+      if (employeeError) {
+        toast.error("Failed to load your employee record: " + employeeError.message);
+        setRows([]);
+        return;
+      }
+      if (!employee?.id) {
+        setRows([]);
+        return;
+      }
+      query = query.or(
+        `requester_employee_id.eq.${employee.id},target_employee_id.eq.${employee.id}`,
+      );
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      toast.error("Failed to load shift swaps: " + error.message);
+      setRows([]);
+      return;
+    }
+    setRows(data ?? []);
+  }, []);
+
   useEffect(() => {
     (async () => {
       const p = await fetchProfile();
       setProfile(p);
-      load();
+      await load(p);
     })();
-  }, []);
-
-  const load = async () => {
-    const { data } = await supabase
-      .from("shift_swaps")
-      .select(
-        "*, requester:requester_employee_id(name, department), target:target_employee_id(name, department, user_id)",
-      )
-      .order("created_at", { ascending: false });
-    setRows(data ?? []);
-  };
+  }, [load]);
 
   const decide = async (row: any, status: "approved" | "rejected") => {
     const { error } = await supabase.from("shift_swaps").update({ status }).eq("id", row.id);
@@ -63,7 +95,7 @@ function SwapsPage() {
         message: `Your shift swap request was ${status}.`,
       });
     toast.success(`Swap ${status}`);
-    load();
+    load(profile);
   };
 
   if (!profile) return null;
@@ -101,9 +133,9 @@ function SwapsPage() {
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-4 py-3 font-medium">{r.requester?.name ?? "—"}</td>
-                  <td className="px-4 py-3">{r.target?.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.note ?? "—"}</td>
+                  <td className="px-4 py-3 font-medium">{r.requester?.name ?? "-"}</td>
+                  <td className="px-4 py-3">{r.target?.name ?? "-"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{r.note ?? "-"}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs px-2 py-1 rounded-full capitalize ${

@@ -22,6 +22,23 @@ export const Route = createFileRoute("/_authenticated/apply-leave")({
 
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
+const defaultLeaveTotal = (type: string) => {
+  const value = type.toLowerCase();
+  if (value.includes("annual")) return 20;
+  if (value.includes("sick")) return 10;
+  if (value.includes("casual")) return 5;
+  return 0;
+};
+
+const leaveDays = (from: string, to: string) => {
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+};
+
+const statusLabel = (value?: string | null) =>
+  (value || "pending").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+
 function ApplyLeavePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [empId, setEmpId] = useState<string | null>(null);
@@ -69,6 +86,11 @@ function ApplyLeavePage() {
       toast.error("Pick dates");
       return;
     }
+    const totalDays = leaveDays(form.from_date, form.to_date);
+    if (totalDays < 1) {
+      toast.error("The end date must be on or after the start date");
+      return;
+    }
     // check auto-approve settings
     const { data: settings } = await supabase
       .from("settings")
@@ -86,8 +108,9 @@ function ApplyLeavePage() {
         leave_type: form.leave_type,
         from_date: form.from_date,
         to_date: form.to_date,
+        total_days: totalDays,
         reason: form.reason || null,
-        status: autoApprove ? "Approved" : "Pending",
+        status: autoApprove ? "approved" : "pending",
       })
       .select("id")
       .single();
@@ -95,11 +118,51 @@ function ApplyLeavePage() {
       toast.error(error.message);
       return;
     }
+    if (autoApprove) {
+      const { data: balanceRows, error: balanceError } = await supabase
+        .from("leave_balances")
+        .select("*")
+        .eq("business_id", profile.business_id)
+        .eq("employee_id", empId);
+      if (balanceError) {
+        toast.error("Leave saved, but balance could not be updated: " + balanceError.message);
+      } else {
+        const balance = (balanceRows ?? []).find((item) => {
+          const balanceType = String(item.leave_type).toLowerCase();
+          const requestType = form.leave_type.toLowerCase();
+          return balanceType.includes(requestType) || requestType.includes(balanceType);
+        });
+        if (balance) {
+          const { error: updateBalanceError } = await supabase
+            .from("leave_balances")
+            .update({ used_days: Number(balance.used_days ?? 0) + totalDays })
+            .eq("id", balance.id);
+          if (updateBalanceError) {
+            toast.error(
+              "Leave saved, but balance could not be updated: " + updateBalanceError.message,
+            );
+          }
+        } else {
+          const { error: insertBalanceError } = await supabase.from("leave_balances").insert({
+            business_id: profile.business_id,
+            employee_id: empId,
+            leave_type: form.leave_type,
+            total_days: defaultLeaveTotal(form.leave_type),
+            used_days: totalDays,
+          });
+          if (insertBalanceError) {
+            toast.error(
+              "Leave saved, but balance could not be created: " + insertBalanceError.message,
+            );
+          }
+        }
+      }
+    }
     try {
       await notifyManagers({
         businessId: profile.business_id,
         type: "leave_requested",
-        message: `${empName} requested ${form.leave_type} leave (${form.from_date} to ${form.to_date}).`,
+        message: `${empName} requested ${form.leave_type} leave (${form.from_date} to ${form.to_date}, ${totalDays} day${totalDays === 1 ? "" : "s"}).`,
         relatedId: leave.id,
       });
     } catch (notifyError) {
@@ -108,13 +171,17 @@ function ApplyLeavePage() {
     }
     toast.success(autoApprove ? "Leave auto-approved" : "Leave request submitted");
     setForm({ leave_type: "Annual", from_date: "", to_date: "", reason: "" });
-    const { data: hist } = await supabase
-      .from("leaves")
-      .select("*")
-      .eq("employee_id", empId)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    const [{ data: hist }, { data: bal }] = await Promise.all([
+      supabase
+        .from("leaves")
+        .select("*")
+        .eq("employee_id", empId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase.from("leave_balances").select("*").eq("employee_id", empId),
+    ]);
     setHistory(hist ?? []);
+    setBalances(bal ?? []);
   };
 
   return (
@@ -126,13 +193,19 @@ function ApplyLeavePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {LEAVE_TYPES.map((t) => {
-          const b = balances.find((x: any) => x.leave_type === t);
-          const remaining = b ? Number(b.total_days) - Number(b.used_days) : 0;
+          const b = balances.find((x: any) =>
+            String(x.leave_type).toLowerCase().includes(t.toLowerCase()),
+          );
+          const total = Number(b?.total_days ?? defaultLeaveTotal(t));
+          const used = Number(b?.used_days ?? 0);
+          const remaining = Math.max(total - used, 0);
           return (
             <div key={t} className="bg-card border rounded-xl p-4 shadow-sm">
               <div className="text-xs uppercase text-muted-foreground">{t}</div>
               <div className="text-2xl font-semibold text-[var(--navy)] mt-1">{remaining}</div>
-              <div className="text-xs text-muted-foreground">days remaining</div>
+              <div className="text-xs text-muted-foreground">
+                {used} used of {total} total
+              </div>
             </div>
           );
         })}
@@ -217,14 +290,14 @@ function ApplyLeavePage() {
                   <td className="px-4 py-2">
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
-                        r.status === "Pending"
+                        String(r.status).toLowerCase() === "pending"
                           ? "bg-secondary text-[var(--navy)]"
-                          : r.status === "Approved"
+                          : String(r.status).toLowerCase() === "approved"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {r.status}
+                      {statusLabel(r.status)}
                     </span>
                   </td>
                 </tr>
