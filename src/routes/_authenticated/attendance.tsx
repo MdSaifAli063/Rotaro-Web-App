@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { Clock, LogIn, LogOut, Coffee } from "lucide-react";
+import { notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/attendance")({
   component: AttendancePage,
@@ -58,6 +59,7 @@ function AttendancePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [records, setRecords] = useState<any[]>([]);
   const [myEmpId, setMyEmpId] = useState<string | null>(null);
+  const [myEmpName, setMyEmpName] = useState<string>("");
   const [today, setToday] = useState<Record | null>(null);
 
   useEffect(() => {
@@ -82,11 +84,12 @@ function AttendancePage() {
     } else {
       const { data: emp } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, name")
         .eq("user_id", p.id)
         .maybeSingle();
       const empId = emp?.id ?? null;
       setMyEmpId(empId);
+      setMyEmpName(emp?.name ?? p.name ?? "Employee");
       if (!empId) return;
 
       const { data } = await supabase
@@ -124,35 +127,60 @@ function AttendancePage() {
       setToday(existing as Record);
       return;
     }
-    const { error } = await supabase.from("attendance_records").insert({
-      business_id: profile.business_id,
-      employee_id: myEmpId,
-      date: todayStr,
-      check_in_time: new Date().toISOString(),
-      status: "checked_in",
-    });
+    const checkedInAt = new Date();
+    const { data: inserted, error } = await supabase
+      .from("attendance_records")
+      .insert({
+        business_id: profile.business_id,
+        employee_id: myEmpId,
+        date: todayStr,
+        check_in_time: checkedInAt.toISOString(),
+        status: "checked_in",
+      })
+      .select("id")
+      .single();
     if (error) toast.error(error.message);
     else {
+      await notifyManagers({
+        businessId: profile.business_id,
+        type: "attendance_checked_in",
+        message: `${myEmpName} checked in at ${fmtTime(checkedInAt.toISOString())}.`,
+        relatedId: inserted.id,
+      }).catch((notifyError) => console.error(notifyError));
       toast.success("Checked in");
       load(profile);
     }
   };
 
-  const update = async (patch: Partial<Record>) => {
+  const update = async (patch: Partial<Record>, onSuccess?: () => Promise<void> | void) => {
     if (!today) return;
     const { error } = await supabase.from("attendance_records").update(patch).eq("id", today.id);
     if (error) toast.error(error.message);
-    else load(profile);
+    else {
+      await onSuccess?.();
+      load(profile);
+    }
   };
 
   const checkOut = async () => {
     if (!today?.check_in_time) return;
     const out = new Date();
-    await update({
-      check_out_time: out.toISOString(),
-      total_hours: workedHours(today, out),
-      status: "completed",
-    });
+    await update(
+      {
+        check_out_time: out.toISOString(),
+        total_hours: workedHours(today, out),
+        status: "completed",
+      },
+      async () => {
+        if (!profile?.business_id) return;
+        await notifyManagers({
+          businessId: profile.business_id,
+          type: "attendance_checked_out",
+          message: `${myEmpName} checked out at ${fmtTime(out.toISOString())}.`,
+          relatedId: today.id,
+        }).catch((notifyError) => console.error(notifyError));
+      },
+    );
   };
 
   if (!profile) return null;
@@ -187,7 +215,18 @@ function AttendancePage() {
             {today?.check_in_time && !today?.break_start && !today?.check_out_time && (
               <Button
                 variant="outline"
-                onClick={() => update({ break_start: new Date().toISOString() })}
+                onClick={() => {
+                  const breakStartedAt = new Date();
+                  update({ break_start: breakStartedAt.toISOString() }, async () => {
+                    if (!profile?.business_id || !today) return;
+                    await notifyManagers({
+                      businessId: profile.business_id,
+                      type: "attendance_break_started",
+                      message: `${myEmpName} started a break at ${fmtTime(breakStartedAt.toISOString())}.`,
+                      relatedId: today.id,
+                    }).catch((notifyError) => console.error(notifyError));
+                  });
+                }}
               >
                 <Coffee className="size-4 mr-2" /> Start break
               </Button>
@@ -195,7 +234,18 @@ function AttendancePage() {
             {today?.break_start && !today?.break_end && (
               <Button
                 variant="outline"
-                onClick={() => update({ break_end: new Date().toISOString() })}
+                onClick={() => {
+                  const breakEndedAt = new Date();
+                  update({ break_end: breakEndedAt.toISOString() }, async () => {
+                    if (!profile?.business_id || !today) return;
+                    await notifyManagers({
+                      businessId: profile.business_id,
+                      type: "attendance_break_ended",
+                      message: `${myEmpName} ended a break at ${fmtTime(breakEndedAt.toISOString())}.`,
+                      relatedId: today.id,
+                    }).catch((notifyError) => console.error(notifyError));
+                  });
+                }}
               >
                 <Coffee className="size-4 mr-2" /> End break
               </Button>
