@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -648,7 +649,40 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
       : await supabase.from("attendance_records").insert(payload as any);
     setSaving(false);
     if (error) toast.error(error.message);
-    else load();
+    else {
+      if (profile.business_id) {
+        const employeeName = employee.name || profile.name || "Employee";
+        const notification = patch.check_in_time
+          ? {
+              type: "attendance_checked_in",
+              message: `${employeeName} checked in at ${time(patch.check_in_time)}.`,
+            }
+          : patch.break_start
+            ? {
+                type: "attendance_break_started",
+                message: `${employeeName} started a break at ${time(patch.break_start)}.`,
+              }
+            : patch.break_end
+              ? {
+                  type: "attendance_break_ended",
+                  message: `${employeeName} ended a break at ${time(patch.break_end)}.`,
+                }
+              : patch.check_out_time
+                ? {
+                    type: "attendance_checked_out",
+                    message: `${employeeName} checked out at ${time(patch.check_out_time)}.`,
+                  }
+                : null;
+        if (notification) {
+          await notifyManagers({
+            businessId: profile.business_id,
+            ...notification,
+            relatedId: today?.id,
+          }).catch((notifyError) => console.error(notifyError));
+        }
+      }
+      load();
+    }
   };
   const checkOut = async () => {
     if (!today?.check_in_time) return;
