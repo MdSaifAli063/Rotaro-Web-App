@@ -114,6 +114,37 @@ function LeavesPage() {
     })();
   }, [load]);
 
+  useEffect(() => {
+    if (!profile?.business_id) return;
+    const channel = supabase
+      .channel(`leaves:${profile.business_id}:${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leaves",
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        () => load(profile),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leave_balances",
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        () => load(profile),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [load, profile]);
+
   const adjustLeaveBalance = async (row: LeaveRow, nextStatus: "approved" | "rejected") => {
     const previousStatus = lower(row.status);
     const days = leaveDays(row);
