@@ -113,6 +113,7 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
   const [mode, setMode] = useState<Mode>("cost");
   const [store, setStore] = useState("all");
   const [depts, setDepts] = useState<string[]>([]);
+  const [deptMenuOpen, setDeptMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const today = useMemo(() => key(new Date()), []);
@@ -286,19 +287,31 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
   ).map(([name, value]) => ({ name, value }));
   const activeStaff = employees.filter((e) => lower(e.status || "active") === "active").length;
   const clockedIn = attendance.filter((a) => a.check_in_time && !a.check_out_time).length;
+  const selectedDeptCount = (depts.length ? depts : allDepts).length;
+  const selectedDeptLabel =
+    selectedDeptCount === allDepts.length
+      ? `All selected (${allDepts.length})`
+      : `${selectedDeptCount} selected`;
 
   return (
-    <div className="space-y-5">
-      <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-        <div className="grid gap-3 bg-[var(--navy)] px-4 py-3 text-white md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm font-medium sm:flex-row sm:items-center">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--navy)]">Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Live overview of {business?.name || "your business"}.
+        </p>
+      </div>
+
+      <div className="rounded-lg bg-[var(--navy)] px-4 py-3 text-white shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-white/75 sm:flex-row sm:items-center">
             Store:
             <select
               value={store}
               onChange={(e) => setStore(e.target.value)}
-              className="h-9 rounded-md bg-white px-3 text-[var(--navy)]"
+              className="h-9 min-w-[220px] rounded-md border-0 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-[var(--navy)] shadow-sm"
             >
-              <option value="all">All stores</option>
+              <option value="all">{business?.name || "All stores"}</option>
               {stores.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -306,22 +319,48 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
               ))}
             </select>
           </label>
-          <div className="flex flex-col gap-2 text-sm font-medium sm:flex-row sm:items-center sm:justify-end">
+          <div className="relative flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-white/75 sm:flex-row sm:items-center sm:justify-end">
             Department:
-            <div className="flex flex-wrap gap-2 rounded-md bg-white/10 p-1">
-              {allDepts.map((dept) => (
-                <button
-                  key={dept}
-                  type="button"
-                  onClick={() => toggle(dept, depts, setDepts, allDepts)}
-                  className={`rounded px-2.5 py-1 text-xs ${depts.includes(dept) ? "bg-white text-[var(--navy)]" : "bg-white/10 text-white"}`}
-                >
-                  {dept}
-                </button>
-              ))}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDeptMenuOpen((open) => !open)}
+                className="h-9 min-w-[160px] rounded-md bg-white px-3 text-left text-sm font-semibold normal-case tracking-normal text-[var(--navy)] shadow-sm"
+              >
+                {selectedDeptLabel}
+              </button>
+              {deptMenuOpen && (
+                <div className="absolute right-0 top-11 z-40 w-64 rounded-md border bg-white p-3 text-[var(--navy)] shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => setDepts(allDepts)}
+                    className="mb-2 text-xs underline underline-offset-2 hover:text-[var(--navy-light)]"
+                  >
+                    Select all
+                  </button>
+                  <div className="space-y-2">
+                    {allDepts.map((dept) => (
+                      <label key={dept} className="flex items-center gap-2 text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          checked={(depts.length ? depts : allDepts).includes(dept)}
+                          onChange={() =>
+                            toggle(dept, depts.length ? depts : allDepts, setDepts, allDepts)
+                          }
+                          className="size-4 accent-[var(--navy)]"
+                        />
+                        <span>{dept}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
+      </div>
+
+      <div>
         <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
           <TodayPanel
             loading={loading}
