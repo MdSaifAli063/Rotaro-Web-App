@@ -57,7 +57,7 @@ const employeeNav = [
   { to: "/my-roster", label: "My Roster", icon: CalendarDays },
   { to: "/apply-leave", label: "Apply Leave", icon: FileText },
   { to: "/attendance", label: "My Attendance", icon: Clock4 },
-  { to: "/profile", label: "My Profile", icon: UserIcon },
+  { to: "/swaps", label: "Shift Swaps", icon: Repeat },
 ];
 
 export function AppShell({ children, profile }: { children: ReactNode; profile: Profile }) {
