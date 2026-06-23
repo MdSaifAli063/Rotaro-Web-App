@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Download, Loader2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -12,38 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
-import {
-  Calendar as CalendarIcon,
-  List,
-  Plus,
-  Trash2,
-  Check,
-  X,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  format,
-  isSameDay,
-  startOfMonth,
-  endOfMonth,
-  addMonths,
-  subMonths,
-  addDays,
-} from "date-fns";
-import { cn } from "@/lib/utils";
-import { COUNTRIES, STATES_BY_COUNTRY } from "@/lib/constants"; // Assuming these constants exist
+import { supabase } from "@/integrations/supabase/client";
+import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/holidays")({
   component: HolidaysPage,
@@ -56,64 +28,147 @@ type Holiday = {
   holiday_name: string;
   country: string | null;
   state: string | null;
+  plant?: string | null;
   is_national: boolean;
   is_paid: boolean;
   is_custom: boolean;
+  source?: string | null;
   created_at: string;
 };
 
-// Assuming these constants exist or defining them here for now
+type AddForm = {
+  holiday_date: string;
+  holiday_name: string;
+  is_national: boolean;
+  plant: string;
+  is_paid: boolean;
+};
+
+type CsvRow = {
+  holiday_date: string;
+  holiday_name: string;
+  plant: string | null;
+  is_national: boolean;
+};
+
+type SortKey = "holiday_date" | "holiday_name";
+
+const NAVY = "var(--navy)";
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - 2 + i); // Current year +/- 2
+const COMMON_COUNTRIES = "AU, NZ, US, GB, IN, CA";
+const DEFAULT_CSV =
+  "2025-12-25,Christmas,,Y\n2025-01-01,New Year's Day,,Y\n2025-04-25,ANZAC Day,,Y";
+const allPlantsValue = "__all_plants__";
 
 function HolidaysPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
-  const [importLoading, setImportLoading] = useState(false);
-  const [addCustomOpen, setAddCustomOpen] = useState(false);
-  const [view, setView] = useState<"list" | "calendar">("list");
-
-  const [selectedCountry, setSelectedCountry] = useState("AU");
-  const [selectedState, setSelectedState] = useState("NSW"); // Default to NSW for AU
-  const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
-
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  const [saving, setSaving] = useState(false);
+  const [importingNager, setImportingNager] = useState(false);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [year, setYear] = useState(CURRENT_YEAR);
+  const [country, setCountry] = useState("AU");
+  const [markPaid, setMarkPaid] = useState(true);
+  const [csvPaid, setCsvPaid] = useState(true);
+  const [csvText, setCsvText] = useState("");
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>("holiday_date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [visibleRows, setVisibleRows] = useState(30);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<AddForm>({
+    holiday_date: "",
+    holiday_name: "",
+    is_national: true,
+    plant: "",
+    is_paid: true,
+  });
 
   useEffect(() => {
-    fetchProfile().then(setProfile);
+    (async () => {
+      const nextProfile = await fetchProfile();
+      setProfile(nextProfile);
+    })();
   }, []);
 
-  const loadHolidays = async () => {
+  const loadHolidays = useCallback(async () => {
     if (!profile?.business_id) return;
     setLoading(true);
     const { data, error } = await supabase
       .from("holidays")
       .select("*")
       .eq("business_id", profile.business_id)
+      .gte("holiday_date", `${year}-01-01`)
+      .lte("holiday_date", `${year}-12-31`)
       .order("holiday_date", { ascending: true });
 
     if (error) {
       toast.error("Failed to load holidays: " + error.message);
       setHolidays([]);
     } else {
-      setHolidays(data || []);
+      setHolidays((data ?? []) as Holiday[]);
     }
     setLoading(false);
-  };
+  }, [profile?.business_id, year]);
 
   useEffect(() => {
-    if (profile?.business_id) {
-      loadHolidays();
-    }
-  }, [profile?.business_id]);
+    if (profile?.business_id) loadHolidays();
+  }, [loadHolidays, profile?.business_id]);
 
-  // All hooks must be called unconditionally at the top level
-  const filteredHolidays = useMemo(() => {
-    return holidays.filter(
-      (h) => new Date(h.holiday_date).getFullYear() === parseInt(selectedYear),
-    );
-  }, [holidays, selectedYear]);
+  useEffect(() => {
+    if (!profile?.business_id) return;
+    const channel = supabase
+      .channel(`holidays:${profile.business_id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "holidays",
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        loadHolidays,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadHolidays, profile?.business_id]);
+
+  const plants = useMemo(() => {
+    const values = new Set<string>();
+    holidays.forEach((holiday) => {
+      if (holiday.plant) values.add(holiday.plant);
+    });
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [holidays]);
+
+  const years = useMemo(() => {
+    const values = new Set<number>([
+      CURRENT_YEAR - 1,
+      CURRENT_YEAR,
+      CURRENT_YEAR + 1,
+      CURRENT_YEAR + 2,
+      year,
+    ]);
+    holidays.forEach((holiday) => values.add(Number(holiday.holiday_date.slice(0, 4))));
+    return Array.from(values).sort((a, b) => a - b);
+  }, [holidays, year]);
+
+  const sortedHolidays = useMemo(() => {
+    return [...holidays].sort((a, b) => {
+      const left = String(a[sortKey] ?? "");
+      const right = String(b[sortKey] ?? "");
+      const result = left.localeCompare(right);
+      return sortDir === "asc" ? result : -result;
+    });
+  }, [holidays, sortDir, sortKey]);
+
+  const visibleHolidays = sortedHolidays.slice(0, visibleRows);
 
   if (!profile) return null;
   if (!isManager(profile)) {
@@ -124,572 +179,673 @@ function HolidaysPage() {
     );
   }
 
-  const handleImportPublicHolidays = async () => {
-    if (!profile?.business_id) {
-      toast.error("Business ID not found.");
+  const validateHoliday = () => {
+    const errors: Record<string, string> = {};
+    if (!isValidDate(form.holiday_date))
+      errors.holiday_date = "Enter a valid date between 2000 and 2100.";
+    if (form.holiday_name.trim().length < 2)
+      errors.holiday_name = "Holiday name must be at least 2 characters.";
+    if (form.holiday_name.trim().length > 150)
+      errors.holiday_name = "Holiday name must be 150 characters or less.";
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const addHoliday = async () => {
+    if (!profile.business_id || !validateHoliday()) return;
+    setSaving(true);
+    const duplicate = await findDuplicate(
+      profile.business_id,
+      form.holiday_date,
+      form.holiday_name,
+    );
+    if (duplicate) {
+      setFieldErrors({ holiday_name: `This holiday already exists for ${form.holiday_date}.` });
+      toast.error(`This holiday already exists for ${form.holiday_date}.`);
+      setSaving(false);
       return;
     }
-    setImportLoading(true);
+
+    const { error } = await supabase.from("holidays").insert({
+      business_id: profile.business_id,
+      holiday_date: form.holiday_date,
+      holiday_name: form.holiday_name.trim(),
+      country: country.toUpperCase(),
+      state: null,
+      plant: form.is_national ? null : form.plant || null,
+      is_national: form.is_national,
+      is_paid: form.is_paid,
+      is_custom: true,
+      source: "manual",
+    } as any);
+
+    setSaving(false);
+    if (error) {
+      toast.error(readableError(error.message));
+      return;
+    }
+    toast.success("Holiday added");
+    setForm({ holiday_date: "", holiday_name: "", is_national: true, plant: "", is_paid: true });
+    loadHolidays();
+  };
+
+  const importNager = async () => {
+    if (!profile.business_id) return;
+    const nextCountry = country.trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(nextCountry)) {
+      toast.error("Country must be a 2-letter ISO code.");
+      return;
+    }
+    if (year < 2000 || year > 2100) {
+      toast.error("Year must be between 2000 and 2100.");
+      return;
+    }
+
+    setImportingNager(true);
     try {
-      const apiUrl = `https://date.nager.at/api/v3/PublicHolidays/${selectedYear}/${selectedCountry}`;
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 12000);
+      const response = await fetch(
+        `https://date.nager.at/api/v3/PublicHolidays/${year}/${nextCountry}`,
+        {
+          signal: controller.signal,
+        },
+      );
+      window.clearTimeout(timer);
+      if (!response.ok)
+        throw new Error("Could not reach the holidays API. Please try again later.");
+      const rows = await response.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        toast.info(`No holidays found for ${nextCountry} ${year}. Check country code.`);
+        return;
       }
-      const publicHolidays = await response.json();
 
-      const holidaysToInsert = publicHolidays
-        .filter((h: any) => {
-          // Filter for national holidays or state-specific holidays matching selected state
-          return (
-            h.global || h.states.some((s: any) => s.iso === `${selectedCountry}-${selectedState}`)
-          );
-        })
-        .map((h: any) => ({
-          business_id: profile.business_id,
-          holiday_date: h.date,
-          holiday_name: h.name,
-          country: selectedCountry,
-          state: h.global ? null : selectedState, // If global, state is null
-          is_national: h.global,
-          is_paid: true, // Default public holidays to paid
-          is_custom: false,
-        }));
-
-      // Check for existing public holidays for this year/country/state
-      const { data: existingPublicHolidays } = await supabase
+      const payload = rows.map((row: any) => ({
+        business_id: profile.business_id,
+        holiday_date: row.date,
+        holiday_name: row.localName || row.name,
+        country: nextCountry,
+        state: null,
+        plant: null,
+        is_national: row.global ?? row.national ?? true,
+        is_paid: markPaid,
+        is_custom: false,
+        source: "nager_api",
+      }));
+      const { error } = await supabase
         .from("holidays")
-        .select("id")
-        .eq("business_id", profile.business_id)
-        .eq("country", selectedCountry)
-        .eq("is_custom", false)
-        .gte("holiday_date", `${selectedYear}-01-01`)
-        .lte("holiday_date", `${selectedYear}-12-31`);
-
-      if (existingPublicHolidays && existingPublicHolidays.length > 0) {
-        if (
-          !confirm(
-            "Holidays already imported for this period. Re-import will replace existing public holidays. Continue?",
-          )
-        ) {
-          setImportLoading(false);
-          return;
-        }
-        // Delete existing public holidays before re-inserting
-        await supabase
-          .from("holidays")
-          .delete()
-          .eq("business_id", profile.business_id)
-          .eq("country", selectedCountry)
-          .eq("is_custom", false)
-          .gte("holiday_date", `${selectedYear}-01-01`)
-          .lte("holiday_date", `${selectedYear}-12-31`);
-      }
-
-      const { error: insertError } = await supabase.from("holidays").insert(holidaysToInsert);
-
-      if (insertError) {
-        throw new Error("Failed to insert holidays: " + insertError.message);
-      }
-
-      toast.success(`${holidaysToInsert.length} public holidays imported successfully.`);
+        .upsert(payload as any, { onConflict: "business_id,holiday_date,holiday_name" });
+      if (error) throw error;
+      toast.success(`${payload.length} holidays imported for ${nextCountry} ${year}`);
       loadHolidays();
-    } catch (e: any) {
+    } catch (error: any) {
       toast.error(
-        e.message || "Could not fetch holidays. Please check your connection and try again.",
+        error.name === "AbortError"
+          ? "Connection error. Please check your internet connection."
+          : readableError(error.message),
       );
     } finally {
-      setImportLoading(false);
+      setImportingNager(false);
     }
   };
 
-  const handleTogglePaid = async (holidayId: string, isPaid: boolean) => {
+  const importCsv = async () => {
+    if (!profile.business_id) return;
+    const parsed = parseCsv(csvText);
+    setCsvErrors(parsed.errors);
+    if (parsed.errors.length) {
+      toast.error(`CSV has ${parsed.errors.length} error${parsed.errors.length === 1 ? "" : "s"}.`);
+      return;
+    }
+    if (!parsed.rows.length) {
+      toast.error("Paste at least one holiday row.");
+      return;
+    }
+    setImportingCsv(true);
+    const payload = parsed.rows.map((row) => ({
+      business_id: profile.business_id,
+      ...row,
+      country: country.toUpperCase(),
+      state: null,
+      is_paid: csvPaid,
+      is_custom: true,
+      source: "csv_import",
+    }));
     const { error } = await supabase
       .from("holidays")
-      .update({ is_paid: isPaid })
-      .eq("id", holidayId);
+      .upsert(payload as any, { onConflict: "business_id,holiday_date,holiday_name" });
+    setImportingCsv(false);
     if (error) {
-      toast.error("Failed to update holiday status: " + error.message);
-    } else {
-      toast.success("Holiday status updated.");
+      toast.error(readableError(error.message));
+      return;
+    }
+    toast.success(`${payload.length} holidays imported successfully`);
+    setCsvText("");
+    loadHolidays();
+  };
+
+  const togglePaid = async (holiday: Holiday) => {
+    setTogglingId(holiday.id);
+    const { error } = await supabase
+      .from("holidays")
+      .update({ is_paid: !holiday.is_paid } as any)
+      .eq("id", holiday.id)
+      .eq("business_id", profile.business_id ?? "");
+    setTogglingId(null);
+    if (error) toast.error("Failed to update holiday: " + error.message);
+    else loadHolidays();
+  };
+
+  const deleteHoliday = async (holiday: Holiday) => {
+    setDeletingId(holiday.id);
+    const { error } = await supabase
+      .from("holidays")
+      .delete()
+      .eq("id", holiday.id)
+      .eq("business_id", profile.business_id ?? "");
+    setDeletingId(null);
+    setConfirmDeleteId(null);
+    if (error) toast.error("Failed to delete holiday: " + error.message);
+    else {
+      toast.success("Holiday deleted");
       loadHolidays();
     }
   };
 
-  const handleDeleteHoliday = async (holidayId: string) => {
-    if (!confirm("Delete this holiday? This cannot be undone.")) return;
-    const { error } = await supabase.from("holidays").delete().eq("id", holidayId);
-    if (error) {
-      toast.error("Failed to delete holiday: " + error.message);
-    } else {
-      toast.success("Holiday deleted.");
-      loadHolidays();
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((old) => (old === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
     }
   };
-
-  const statesForCountry = STATES_BY_COUNTRY[selectedCountry] || [];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[var(--navy)]">Holidays</h1>
+      <header className="space-y-2">
+        <div className="text-sm text-muted-foreground">
+          <span className="text-[var(--navy)]">Operations</span> /{" "}
+          <span className="font-semibold text-[var(--navy)]">Holidays</span>
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Holidays</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage public holidays, imports, and location-specific dates.
+          </p>
+        </div>
+      </header>
 
-      {/* Top Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 p-4 border-t-4 border-[var(--navy)] bg-card rounded-lg shadow-sm">
-        <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <SelectValue placeholder="Country" />
-          </SelectTrigger>
-          <SelectContent>
-            {COUNTRIES.map((c) => (
-              <SelectItem key={c.code} value={c.code}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[var(--navy)]">Add Holiday</h2>
+          <div className="mt-4 grid gap-4">
+            <Field label="Date" error={fieldErrors.holiday_date}>
+              <Input
+                type="date"
+                value={form.holiday_date}
+                onChange={(e) => setForm({ ...form, holiday_date: e.target.value })}
+              />
+            </Field>
+            <Field label="Holiday Name" error={fieldErrors.holiday_name}>
+              <Input
+                value={form.holiday_name}
+                maxLength={150}
+                onChange={(e) => setForm({ ...form, holiday_name: e.target.value })}
+                placeholder="Christmas Day"
+              />
+            </Field>
+            <CheckRow
+              checked={form.is_national}
+              onCheckedChange={(checked) =>
+                setForm({ ...form, is_national: checked, plant: checked ? "" : form.plant })
+              }
+              label="National holiday"
+            />
+            {!form.is_national && (
+              <Field label="Plant">
+                <Select
+                  value={form.plant || allPlantsValue}
+                  onValueChange={(value) =>
+                    setForm({ ...form, plant: value === allPlantsValue ? "" : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All plants" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={allPlantsValue}>All plants</SelectItem>
+                    {plants.map((plant) => (
+                      <SelectItem key={plant} value={plant}>
+                        {plant}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            <CheckRow
+              checked={form.is_paid}
+              onCheckedChange={(checked) => setForm({ ...form, is_paid: checked })}
+              label="Paid holiday"
+            />
+            <Button
+              onClick={addHoliday}
+              disabled={saving}
+              className="w-full bg-[var(--navy)] text-white hover:bg-[var(--navy-light)] sm:w-fit"
+            >
+              {saving ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 size-4" />
+              )}{" "}
+              Add
+            </Button>
+          </div>
+        </section>
 
-        {statesForCountry.length > 0 && (
-          <Select value={selectedState} onValueChange={setSelectedState}>
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="State/Region" />
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[var(--navy)]">
+            Import public holidays (Nager API)
+          </h2>
+          <div className="mt-4 grid gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <Field label="Country">
+                <Input
+                  className="w-full sm:w-24"
+                  value={country}
+                  maxLength={2}
+                  onChange={(e) => setCountry(e.target.value.toUpperCase())}
+                />
+              </Field>
+              <YearStepper year={year} setYear={setYear} />
+              <CheckRow checked={markPaid} onCheckedChange={setMarkPaid} label="Mark as paid" />
+            </div>
+            <Button
+              variant="outline"
+              onClick={importNager}
+              disabled={importingNager}
+              className="w-full border-[var(--navy)] text-[var(--navy)] sm:w-fit"
+            >
+              {importingNager && <Loader2 className="mr-2 size-4 animate-spin" />} Fetch {year}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Common codes: {COMMON_COUNTRIES}.{" "}
+              <a
+                className="font-medium text-[var(--navy)] underline"
+                href="https://date.nager.at/Country"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View all supported countries
+              </a>
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--navy)]">Bulk Import (CSV)</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Format: date,name,plant_code,national(Y/N)
+            </p>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">2025-12-25,Christmas,,Y</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadTemplate}
+            className="border-[var(--navy)] text-[var(--navy)]"
+          >
+            <Download className="mr-2 size-4" /> Download CSV Template
+          </Button>
+        </div>
+        <Textarea
+          className="mt-4 min-h-32 font-mono"
+          value={csvText}
+          onChange={(e) => setCsvText(e.target.value)}
+          placeholder={DEFAULT_CSV}
+        />
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CheckRow
+            checked={csvPaid}
+            onCheckedChange={setCsvPaid}
+            label="Mark imported rows as paid"
+          />
+          <Button
+            onClick={importCsv}
+            disabled={importingCsv}
+            className="w-full bg-[var(--navy)] text-white hover:bg-[var(--navy-light)] sm:w-fit"
+          >
+            {importingCsv && <Loader2 className="mr-2 size-4 animate-spin" />} Import
+          </Button>
+        </div>
+        {csvErrors.length > 0 && <ErrorList errors={csvErrors} />}
+      </section>
+
+      <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-bold text-[var(--navy)]">Holidays {year}</h2>
+          <Select
+            value={String(year)}
+            onValueChange={(value) => {
+              setYear(Number(value));
+              setVisibleRows(30);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {statesForCountry.map((s) => (
-                <SelectItem key={s.code} value={s.code}>
-                  {s.name}
+              {years.map((item) => (
+                <SelectItem key={item} value={String(item)}>
+                  {item}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="max-h-[600px] overflow-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="sticky top-0 bg-secondary text-left">
+              <tr>
+                <SortableHeader
+                  label="Date"
+                  active={sortKey === "holiday_date"}
+                  dir={sortDir}
+                  onClick={() => toggleSort("holiday_date")}
+                />
+                <SortableHeader
+                  label="Name"
+                  active={sortKey === "holiday_name"}
+                  dir={sortDir}
+                  onClick={() => toggleSort("holiday_name")}
+                />
+                <th className="px-4 py-3 font-medium">Plant</th>
+                <th className="px-4 py-3 font-medium">National</th>
+                <th className="px-4 py-3 font-medium">Paid</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <SkeletonRows />
+              ) : visibleHolidays.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                    No holidays found for {year}. Import public holidays or add a custom holiday
+                    above.
+                  </td>
+                </tr>
+              ) : (
+                visibleHolidays.map((holiday) => (
+                  <tr key={holiday.id} className="border-t hover:bg-[#F3F6FA]">
+                    <td className="sticky left-0 bg-inherit px-4 py-3 font-medium text-[var(--navy)]">
+                      {holiday.holiday_date}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-[var(--navy)]">
+                      {holiday.holiday_name}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{holiday.plant || "-"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {holiday.is_national ? "Yes" : "No"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        className="font-medium text-[var(--navy)] disabled:opacity-50"
+                        disabled={togglingId === holiday.id}
+                        onClick={() => togglePaid(holiday)}
+                      >
+                        {togglingId === holiday.id
+                          ? "Saving..."
+                          : holiday.is_paid
+                            ? "Paid"
+                            : "Unpaid"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {confirmDeleteId === holiday.id ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Delete?</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-600 text-red-600"
+                            disabled={deletingId === holiday.id}
+                            onClick={() => deleteHoliday(holiday)}
+                          >
+                            Delete
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </span>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setConfirmDeleteId(holiday.id)}
+                          aria-label={`Delete ${holiday.holiday_name}`}
+                        >
+                          <Trash2 className="size-4 text-red-600" />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {visibleRows < sortedHolidays.length && (
+          <div className="border-t p-4 text-center">
+            <Button
+              variant="outline"
+              onClick={() => setVisibleRows((old) => old + 30)}
+              className="border-[var(--navy)] text-[var(--navy)]"
+            >
+              Load more
+            </Button>
+          </div>
         )}
-
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-full sm:w-[100px]">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {YEARS.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Button
-          onClick={handleImportPublicHolidays}
-          disabled={importLoading}
-          className="gap-2 w-full sm:w-auto"
-        >
-          {importLoading ? "Importing..." : "Import Public Holidays"}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setAddCustomOpen(true)}
-          className="gap-2 w-full sm:w-auto"
-        >
-          <Plus className="size-4" /> Add Custom Holiday
-        </Button>
-
-        <div className="flex gap-2 w-full sm:w-auto sm:ml-auto overflow-x-auto">
-          <Button
-            variant={view === "list" ? "default" : "outline"}
-            onClick={() => setView("list")}
-            className={cn(
-              "gap-2",
-              view === "list"
-                ? "bg-[var(--navy)] text-white"
-                : "text-[var(--navy)] border-[var(--navy)] hover:bg-secondary",
-            )}
-          >
-            <List className="size-4" /> List View
-          </Button>
-          <Button
-            variant={view === "calendar" ? "default" : "outline"}
-            onClick={() => setView("calendar")}
-            className={cn(
-              "gap-2",
-              view === "calendar"
-                ? "bg-[var(--navy)] text-white"
-                : "text-[var(--navy)] border-[var(--navy)] hover:bg-secondary",
-            )}
-          >
-            <CalendarIcon className="size-4" /> Calendar View
-          </Button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="text-center text-muted-foreground py-10">Loading holidays...</div>
-      ) : filteredHolidays.length === 0 ? (
-        <div className="text-center text-muted-foreground py-10">
-          No holidays imported yet. Use the "Import Public Holidays" button above to fetch public
-          holidays.
-        </div>
-      ) : view === "list" ? (
-        <HolidayListView
-          holidays={filteredHolidays}
-          onTogglePaid={handleTogglePaid}
-          onDelete={handleDeleteHoliday}
-        />
-      ) : (
-        <HolidayCalendarView
-          holidays={filteredHolidays}
-          currentMonth={currentMonth}
-          setCurrentMonth={setCurrentMonth}
-        />
-      )}
-
-      <AddCustomHolidayDialog
-        open={addCustomOpen}
-        onOpenChange={setAddCustomOpen}
-        businessId={profile.business_id}
-        onSave={loadHolidays}
-        countryCode={selectedCountry}
-        statesForCountry={statesForCountry}
-      />
+      </section>
     </div>
   );
 }
 
-// ===================================================================
-// LIST VIEW COMPONENT
-// ===================================================================
-function HolidayListView({
-  holidays,
-  onTogglePaid,
-  onDelete,
+function Field({
+  label,
+  error,
+  children,
 }: {
-  holidays: Holiday[];
-  onTogglePaid: (id: string, isPaid: boolean) => void;
-  onDelete: (id: string) => void;
+  label: string;
+  error?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-      <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_100px_100px] gap-4 px-5 py-3 text-xs uppercase tracking-wide text-muted-foreground border-b bg-secondary/40">
-        <div>Date</div>
-        <div>Day</div>
-        <div>Holiday Name</div>
-        <div>Type</div>
-        <div>State</div>
-        <div className="text-right">Paid</div>
-        <div className="text-right">Actions</div>
-      </div>
-      {holidays.map((h, idx) => (
-        <div
-          key={h.id}
-          className={`grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_100px_100px] gap-1 md:gap-4 px-5 py-4 border-b last:border-b-0 ${
-            idx % 2 === 1 ? "bg-secondary/20" : ""
-          }`}
+    <div className="space-y-1.5">
+      <Label className="text-xs font-bold uppercase tracking-wide text-[var(--navy)]/75">
+        {label}
+      </Label>
+      {children}
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function CheckRow({
+  checked,
+  onCheckedChange,
+  label,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm font-medium text-[var(--navy)]">
+      <Checkbox checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} />
+      {label}
+    </label>
+  );
+}
+
+function YearStepper({ year, setYear }: { year: number; setYear: (year: number) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-bold uppercase tracking-wide text-[var(--navy)]/75">
+        Year
+      </Label>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setYear(Math.max(2000, year - 1))}
         >
-          <div className="font-medium text-[var(--navy)]">
-            {format(new Date(h.holiday_date), "dd MMM yyyy")}
-          </div>
-          <div className="text-sm">{format(new Date(h.holiday_date), "EEEE")}</div>
-          <div className="text-sm">{h.holiday_name}</div>
-          <div className="text-sm">{h.is_custom ? "Custom" : "Public"}</div>
-          <div className="text-sm">{h.is_national ? "National" : h.state || "N/A"}</div>
-          <div className="flex justify-end items-center">
-            <Switch
-              checked={h.is_paid}
-              onCheckedChange={(checked) => onTogglePaid(h.id, checked)}
-              aria-label={`Toggle ${h.holiday_name} as paid`}
-            />
-          </div>
-          <div className="flex justify-end items-center">
-            <Button variant="ghost" size="icon" onClick={() => onDelete(h.id)}>
-              <Trash2 className="size-4 text-red-500" />
-            </Button>
-          </div>
-        </div>
+          -
+        </Button>
+        <Input
+          className="w-24 text-center"
+          value={year}
+          onChange={(e) => setYear(Number(e.target.value) || CURRENT_YEAR)}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setYear(Math.min(2100, year + 1))}
+        >
+          +
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SortableHeader({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  dir: "asc" | "desc";
+  onClick: () => void;
+}) {
+  return (
+    <th className="px-4 py-3 font-medium">
+      <button className="text-left text-[var(--navy)]" onClick={onClick}>
+        {label}
+        {active ? ` ${dir === "asc" ? "?" : "?"}` : ""}
+      </button>
+    </th>
+  );
+}
+
+function SkeletonRows() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <tr key={index} className="border-t">
+          <td colSpan={6} className="px-4 py-3">
+            <div className="h-5 animate-pulse rounded bg-secondary" />
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
+function ErrorList({ errors }: { errors: string[] }) {
+  return (
+    <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <div className="font-semibold">Errors found:</div>
+      {errors.map((error) => (
+        <div key={error}>- {error}</div>
       ))}
     </div>
   );
 }
 
-// ===================================================================
-// CALENDAR VIEW COMPONENT
-// ===================================================================
-function HolidayCalendarView({
-  holidays,
-  currentMonth,
-  setCurrentMonth,
-}: {
-  holidays: Holiday[];
-  currentMonth: Date;
-  setCurrentMonth: (d: Date) => void;
-}) {
-  const daysInMonth = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    const dates: Date[] = [];
-    let current = start;
-    while (current <= end) {
-      dates.push(current);
-      current = addDays(current, 1);
-    }
-    return dates;
-  }, [currentMonth]);
+async function findDuplicate(businessId: string, date: string, name: string) {
+  const { data } = await supabase
+    .from("holidays")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("holiday_date", date)
+    .ilike("holiday_name", name.trim())
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
 
-  const firstDayOfMonth = startOfMonth(currentMonth);
-  const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 for Sunday, 1 for Monday
-
-  const emptyCellsStart = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1; // Adjust for Monday start
-
-  const allDays = useMemo(() => {
-    const days: Array<Date | null> = [];
-    for (let i = 0; i < emptyCellsStart; i++) {
-      days.push(null); // Placeholder for days before the 1st
-    }
-    daysInMonth.forEach((d) => days.push(d));
-    return days;
-  }, [daysInMonth, emptyCellsStart]);
-
-  const holidaysByDate = useMemo(() => {
-    return holidays.reduce(
-      (acc, h) => {
-        const dateKey = format(new Date(h.holiday_date), "yyyy-MM-dd");
-        if (!acc[dateKey]) {
-          acc[dateKey] = [];
-        }
-        acc[dateKey].push(h);
-        return acc;
-      },
-      {} as Record<string, Holiday[]>,
-    );
-  }, [holidays]);
-
+function isValidDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00`);
+  const year = date.getFullYear();
   return (
-    <div className="bg-card border rounded-xl shadow-sm p-4">
-      <div className="flex items-center justify-between mb-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-        >
-          <ChevronLeft className="size-5" />
-        </Button>
-        <h2 className="text-lg font-semibold">{format(currentMonth, "MMMM yyyy")}</h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-        >
-          <ChevronRight className="size-5" />
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground mb-2">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-          <div key={day}>{day}</div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-1">
-        {allDays.map((day, index) => {
-          const dateKey = day ? format(day, "yyyy-MM-dd") : "";
-          const dayHolidays = holidaysByDate[dateKey] || [];
-          const isWeekend = day && (day.getDay() === 0 || day.getDay() === 6); // 0 for Sunday, 6 for Saturday
-
-          return (
-            <div
-              key={index}
-              className={cn(
-                "relative h-24 p-1 text-sm rounded-md overflow-hidden",
-                isWeekend && "bg-secondary/30",
-                !day && "bg-transparent",
-              )}
-            >
-              {day && (
-                <>
-                  <div
-                    className={cn(
-                      "absolute top-1 right-1 size-6 flex items-center justify-center rounded-full",
-                      dayHolidays.length > 0 && "bg-[var(--navy)] text-white",
-                    )}
-                  >
-                    {format(day, "d")}
-                  </div>
-                  {dayHolidays.length > 0 && (
-                    <div className="absolute bottom-1 left-1 right-1 text-xs text-white text-center truncate">
-                      {dayHolidays[0].holiday_name}
-                    </div>
-                  )}
-                  {dayHolidays.length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <div className="absolute inset-0 cursor-pointer" />
-                      </PopoverTrigger>
-                      <PopoverContent className="p-2 text-sm">
-                        <div className="font-semibold mb-1">{format(day, "dd MMMM yyyy")}</div>
-                        {dayHolidays.map((h) => (
-                          <div key={h.id} className="flex items-center gap-2">
-                            <span className="font-medium">{h.holiday_name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              ({h.is_paid ? "Paid" : "Unpaid"})
-                            </span>
-                          </div>
-                        ))}
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    !Number.isNaN(date.getTime()) &&
+    year >= 2000 &&
+    year <= 2100 &&
+    value === date.toISOString().slice(0, 10)
   );
 }
 
-// ===================================================================
-// ADD CUSTOM HOLIDAY DIALOG
-// ===================================================================
-function AddCustomHolidayDialog({
-  open,
-  onOpenChange,
-  businessId,
-  onSave,
-  countryCode,
-  statesForCountry,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  businessId: string | null;
-  onSave: () => void;
-  countryCode: string;
-  statesForCountry: { code: string; name: string }[];
-}) {
-  const [holidayName, setHolidayName] = useState("");
-  const [holidayDate, setHolidayDate] = useState<Date | undefined>(undefined);
-  const [isPaid, setIsPaid] = useState(true);
-  const [stateSpecific, setStateSpecific] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const resetForm = () => {
-    setHolidayName("");
-    setHolidayDate(undefined);
-    setIsPaid(true);
-    setStateSpecific(null);
-  };
-
-  useEffect(() => {
-    if (!open) resetForm();
-  }, [open]);
-
-  const handleSaveCustomHoliday = async () => {
-    if (!holidayName || !holidayDate) {
-      toast.error("Holiday Name and Date are required.");
+function parseCsv(text: string): { rows: CsvRow[]; errors: string[] } {
+  const rows: CsvRow[] = [];
+  const errors: string[] = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    const lineNo = index + 1;
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+    const parts = trimmed.split(",").map((part) => part.trim());
+    if (parts.length < 2) {
+      errors.push(`Line ${lineNo}: Expected date and name`);
       return;
     }
-    if (!businessId) {
-      toast.error("Business ID not found.");
-      return;
+    const [holiday_date, holiday_name, plant = "", national = "Y"] = parts;
+    if (!isValidDate(holiday_date)) errors.push(`Line ${lineNo}: Invalid date format`);
+    if (!holiday_name) errors.push(`Line ${lineNo}: Name is required`);
+    const nationalParsed = parseNational(national);
+    if (nationalParsed === null) errors.push(`Line ${lineNo}: National must be Y or N`);
+    if (isValidDate(holiday_date) && holiday_name && nationalParsed !== null) {
+      rows.push({ holiday_date, holiday_name, plant: plant || null, is_national: nationalParsed });
     }
+  });
+  return { rows, errors };
+}
 
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("holidays").insert({
-        business_id: businessId,
-        holiday_name: holidayName,
-        holiday_date: format(holidayDate, "yyyy-MM-dd"),
-        country: countryCode,
-        state: stateSpecific,
-        is_national: !stateSpecific, // If stateSpecific is null, it's national for the selected country
-        is_paid: isPaid,
-        is_custom: true,
-      });
+function parseNational(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || ["y", "yes", "1"].includes(normalized)) return true;
+  if (["n", "no", "0"].includes(normalized)) return false;
+  return null;
+}
 
-      if (error) {
-        throw new Error("Failed to add custom holiday: " + error.message);
-      }
+function downloadTemplate() {
+  const csv =
+    "date,name,plant_code,national(Y/N)\n2025-12-25,Christmas,,Y\n2025-01-01,New Year's Day,,Y";
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "holidays-template.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
-      toast.success("Custom holiday added successfully.");
-      onSave();
-      onOpenChange(false);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to add custom holiday.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Custom Holiday</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="holidayName">Holiday Name*</Label>
-            <Input
-              id="holidayName"
-              value={holidayName}
-              onChange={(e) => setHolidayName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="holidayDate">Date*</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !holidayDate && "text-muted-foreground",
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {holidayDate ? format(holidayDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={holidayDate}
-                  onSelect={setHolidayDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div className="flex items-center justify-between space-x-2">
-            <Label htmlFor="isPaid">Paid Holiday</Label>
-            <Switch id="isPaid" checked={isPaid} onCheckedChange={setIsPaid} />
-          </div>
-          {statesForCountry.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="stateSpecific">State Specific (optional)</Label>
-              <Select
-                value={stateSpecific || ""}
-                onValueChange={(v) => setStateSpecific(v || null)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select state (leave blank for national)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">National (all states)</SelectItem>
-                  {statesForCountry.map((s) => (
-                    <SelectItem key={s.code} value={s.code}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSaveCustomHoliday} disabled={saving}>
-            {saving ? "Saving..." : "Save Holiday"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+function readableError(message?: string) {
+  if (!message) return "Something went wrong. Please try again.";
+  if (message.includes("duplicate") || message.includes("unique"))
+    return "This holiday already exists for that date.";
+  if (message.toLowerCase().includes("failed to fetch"))
+    return "Connection error. Please check your internet connection.";
+  return message;
 }
