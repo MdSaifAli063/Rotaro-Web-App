@@ -26,6 +26,10 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const next =
+    typeof window !== "undefined"
+      ? (new URLSearchParams(window.location.search).get("next") ?? undefined)
+      : undefined;
 
   // Fire-and-forget: seed demo data once so the demo accounts work.
   useEffect(() => {
@@ -47,7 +51,7 @@ function AuthPage() {
         password: "Demo1234!",
       });
       if (error) throw error;
-      navigate({ to: "/dashboard" });
+      navigate({ to: next || "/dashboard" });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Demo login failed");
     } finally {
@@ -74,7 +78,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      navigate({ to: "/dashboard" });
+      navigate({ to: next || "/dashboard" });
     } catch (err: any) {
       toast.error(err.message ?? "Something went wrong");
     } finally {

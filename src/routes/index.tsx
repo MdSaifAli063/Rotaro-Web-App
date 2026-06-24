@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { RotaroMark } from "@/components/RotaroMark";
+import { useSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -61,13 +62,6 @@ const NAV = [
 ];
 
 function Landing() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
-    });
-  }, [navigate]);
-
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -83,6 +77,7 @@ function Landing() {
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const { user } = useSession();
   return (
     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
@@ -112,15 +107,23 @@ export function SiteHeader() {
           )}
         </nav>
         <div className="flex items-center gap-2">
-          <Link
-            to="/auth"
-            className="hidden sm:inline-block text-sm font-medium text-[var(--navy)] hover:opacity-70 px-2"
-          >
-            Staff Login
-          </Link>
-          <Link to="/auth" className="hidden sm:inline-block">
-            <Button className="rounded-full px-5">Get Started</Button>
-          </Link>
+          {user ? (
+            <Link to="/dashboard" className="hidden sm:inline-block">
+              <Button className="rounded-full px-5">Open workspace</Button>
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/auth"
+                className="hidden sm:inline-block text-sm font-medium text-[var(--navy)] hover:opacity-70 px-2"
+              >
+                Staff Login
+              </Link>
+              <Link to="/auth" className="hidden sm:inline-block">
+                <Button className="rounded-full px-5">Get Started</Button>
+              </Link>
+            </>
+          )}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -180,12 +183,20 @@ export function SiteHeader() {
               ),
             )}
             <div className="pt-3 border-t border-border flex flex-col gap-2">
-              <Link to="/auth" className="text-sm font-medium text-[var(--navy)] py-2">
-                Staff Login
-              </Link>
-              <Link to="/auth">
-                <Button className="w-full rounded-full">Get Started</Button>
-              </Link>
+              {user ? (
+                <Link to="/dashboard">
+                  <Button className="w-full rounded-full">Open workspace</Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth" className="text-sm font-medium text-[var(--navy)] py-2">
+                    Staff Login
+                  </Link>
+                  <Link to="/auth">
+                    <Button className="w-full rounded-full">Get Started</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
