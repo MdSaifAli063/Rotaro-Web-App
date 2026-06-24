@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
@@ -163,6 +163,28 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    const applyPrefs = () => {
+      if (typeof window === "undefined") return;
+      const language = window.localStorage.getItem("rotaro-language") ?? "en";
+      document.documentElement.dataset.theme = "light";
+      document.documentElement.lang = language;
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "rotaro-language") applyPrefs();
+    };
+    const onPrefsChanged = () => applyPrefs();
+
+    applyPrefs();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("rotaro-settings-changed", onPrefsChanged);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("rotaro-settings-changed", onPrefsChanged);
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
