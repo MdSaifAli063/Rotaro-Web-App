@@ -268,7 +268,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
                 <Settings className="size-4" />
               </Link>
               <Link
-                to="/support"
+                to="/help-center"
                 className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Help"
                 title="Help"
