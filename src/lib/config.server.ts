@@ -19,8 +19,21 @@ import process from "node:process";
 export function getServerConfig() {
   return {
     nodeEnv: process.env.NODE_ENV,
-    // Add server-only values here, e.g.:
-    //   databaseUrl: process.env.DATABASE_URL,
-    //   stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    billing: {
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+      stripeProMonthlyPriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID,
+      stripeProAnnualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
+      stripeBusinessMonthlyPriceId: process.env.STRIPE_BUSINESS_MONTHLY_PRICE_ID,
+      stripeBusinessAnnualPriceId: process.env.STRIPE_BUSINESS_ANNUAL_PRICE_ID,
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
+      razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+      razorpayProMonthlyPlanId: process.env.RAZORPAY_PRO_MONTHLY_PLAN_ID,
+      razorpayProAnnualPlanId: process.env.RAZORPAY_PRO_ANNUAL_PLAN_ID,
+      razorpayBusinessMonthlyPlanId: process.env.RAZORPAY_BUSINESS_MONTHLY_PLAN_ID,
+      razorpayBusinessAnnualPlanId: process.env.RAZORPAY_BUSINESS_ANNUAL_PLAN_ID,
+    },
   };
 }
