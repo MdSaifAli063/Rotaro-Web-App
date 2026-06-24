@@ -60,6 +60,7 @@ type SettingsBlob = {
   };
   integrations: {
     stripe_billing_url: string;
+    razorpay_billing_url: string;
     smtp_enabled: boolean;
     smtp_host: string;
     smtp_port: number;
@@ -118,6 +119,7 @@ const defaultSettings = (): SettingsBlob => ({
   },
   integrations: {
     stripe_billing_url: "",
+    razorpay_billing_url: "",
     smtp_enabled: false,
     smtp_host: "",
     smtp_port: 587,
@@ -430,6 +432,7 @@ function SettingsPage() {
           <TabsTrigger value="company">Company Information</TabsTrigger>
           <TabsTrigger value="general">General Information</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="language">Language</TabsTrigger>
@@ -692,6 +695,63 @@ function SettingsPage() {
           </SettingsCard>
         </TabsContent>
 
+        <TabsContent value="billing" className="space-y-4">
+          <SettingsCard
+            title="Billing"
+            description="Manage plan links, provider setup, and subscription access."
+            icon={CreditCard}
+            action={
+              <Link
+                to="/billing"
+                className="inline-flex items-center gap-2 rounded-md bg-[var(--navy)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--navy-light)]"
+              >
+                Open billing
+                <ArrowUpRight className="size-4" />
+              </Link>
+            }
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border bg-[#F8FAFD] p-4">
+                <div className="text-sm font-semibold text-[var(--navy)]">Plan control</div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Rotaro will hand off to your Stripe or Razorpay billing link after sign-in.
+                </p>
+                <div className="mt-4">
+                  <Link
+                    to="/pricing"
+                    className="inline-flex items-center gap-2 rounded-md border border-[var(--navy)] px-4 py-2 text-sm font-medium text-[var(--navy)] hover:bg-secondary"
+                  >
+                    View pricing
+                    <ArrowUpRight className="size-4" />
+                  </Link>
+                </div>
+              </div>
+              <div className="rounded-xl border bg-[#F8FAFD] p-4">
+                <div className="text-sm font-semibold text-[var(--navy)]">Provider status</div>
+                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  <div>
+                    Stripe checkout URL:{" "}
+                    {prefs.integrations.stripe_billing_url ? "Configured" : "Not set"}
+                  </div>
+                  <div>
+                    Razorpay checkout URL:{" "}
+                    {prefs.integrations.razorpay_billing_url ? "Configured" : "Not set"}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Link
+                    to="/billing"
+                    className="inline-flex items-center gap-2 rounded-md bg-[var(--navy)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--navy-light)]"
+                  >
+                    Manage subscription
+                    <ArrowUpRight className="size-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </SettingsCard>
+        </TabsContent>
+
         <TabsContent value="security" className="space-y-4">
           <SettingsCard
             title="Security"
@@ -769,13 +829,6 @@ function SettingsPage() {
             }
           >
             <div className="grid gap-4 md:grid-cols-2">
-              <SettingField label="Stripe billing URL" className="md:col-span-2">
-                <Input
-                  value={prefs.integrations.stripe_billing_url}
-                  onChange={(e) => updateIntegration("stripe_billing_url", e.target.value)}
-                  placeholder="https://billing.stripe.com/..."
-                />
-              </SettingField>
               <SwitchRow
                 title="SMTP email enabled"
                 description="Server-side email for alerts and notifications."
@@ -817,21 +870,6 @@ function SettingsPage() {
                   onChange={(e) => updateIntegration("webhook_url", e.target.value)}
                 />
               </SettingField>
-              <div className="md:col-span-2 rounded-xl border bg-[#F8FAFD] p-4 text-sm text-muted-foreground">
-                <div className="font-medium text-[var(--navy)]">Billing shortcut</div>
-                <p className="mt-1">
-                  Use the button below to jump to your plan and subscription details.
-                </p>
-                <div className="mt-3">
-                  <Link
-                    to="/pricing"
-                    className="inline-flex items-center gap-2 rounded-md bg-[var(--navy)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--navy-light)]"
-                  >
-                    <CreditCard className="size-4" />
-                    Billing and subscription
-                  </Link>
-                </div>
-              </div>
             </div>
           </SettingsCard>
         </TabsContent>
