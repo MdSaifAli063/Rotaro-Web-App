@@ -25,6 +25,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMyRosterRouteImport } from './routes/_authenticated/my-roster'
 import { Route as AuthenticatedLeavesRouteImport } from './routes/_authenticated/leaves'
 import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
+import { Route as AuthenticatedHelpCenterRouteImport } from './routes/_authenticated/help-center'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedAttendanceRouteImport } from './routes/_authenticated/attendance'
@@ -113,6 +114,11 @@ const AuthenticatedHolidaysRoute = AuthenticatedHolidaysRouteImport.update({
   path: '/holidays',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHelpCenterRoute = AuthenticatedHelpCenterRouteImport.update({
+  id: '/help-center',
+  path: '/help-center',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/attendance': typeof AuthenticatedAttendanceRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/help-center': typeof AuthenticatedHelpCenterRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leaves': typeof AuthenticatedLeavesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/attendance': typeof AuthenticatedAttendanceRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/help-center': typeof AuthenticatedHelpCenterRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leaves': typeof AuthenticatedLeavesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/_authenticated/attendance': typeof AuthenticatedAttendanceRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/help-center': typeof AuthenticatedHelpCenterRoute
   '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
   '/_authenticated/leaves': typeof AuthenticatedLeavesRoute
   '/_authenticated/my-roster': typeof AuthenticatedMyRosterRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/billing'
     | '/dashboard'
+    | '/help-center'
     | '/holidays'
     | '/leaves'
     | '/my-roster'
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/billing'
     | '/dashboard'
+    | '/help-center'
     | '/holidays'
     | '/leaves'
     | '/my-roster'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/_authenticated/attendance'
     | '/_authenticated/billing'
     | '/_authenticated/dashboard'
+    | '/_authenticated/help-center'
     | '/_authenticated/holidays'
     | '/_authenticated/leaves'
     | '/_authenticated/my-roster'
@@ -436,6 +448,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHolidaysRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/help-center': {
+      id: '/_authenticated/help-center'
+      path: '/help-center'
+      fullPath: '/help-center'
+      preLoaderRoute: typeof AuthenticatedHelpCenterRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -517,6 +536,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAttendanceRoute: typeof AuthenticatedAttendanceRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedHelpCenterRoute: typeof AuthenticatedHelpCenterRoute
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedLeavesRoute: typeof AuthenticatedLeavesRoute
   AuthenticatedMyRosterRoute: typeof AuthenticatedMyRosterRoute
@@ -535,6 +555,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAttendanceRoute: AuthenticatedAttendanceRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedHelpCenterRoute: AuthenticatedHelpCenterRoute,
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedLeavesRoute: AuthenticatedLeavesRoute,
   AuthenticatedMyRosterRoute: AuthenticatedMyRosterRoute,
