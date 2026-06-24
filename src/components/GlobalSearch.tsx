@@ -98,6 +98,13 @@ const managerShortcuts: SearchResult[] = [
     category: "employee",
     to: "/staff",
   },
+  {
+    id: "billing",
+    title: "Billing",
+    subtitle: "Plan, payment, and invoices",
+    category: "analytic",
+    to: "/billing",
+  },
 ];
 
 const employeeShortcuts: SearchResult[] = [

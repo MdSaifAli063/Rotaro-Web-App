@@ -14,6 +14,7 @@ import {
   Clock4,
   Repeat,
   LayoutTemplate,
+  CreditCard,
   Menu,
   X,
   ChevronLeft,
@@ -50,6 +51,7 @@ const managerNav = [
   { to: "/attendance", label: "Attendance", icon: ClipboardList },
   { to: "/holidays", label: "Holidays", icon: CalendarCheck },
   { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/billing", label: "Billing", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
