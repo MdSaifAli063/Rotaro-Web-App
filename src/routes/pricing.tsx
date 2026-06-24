@@ -1,26 +1,27 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { ArrowRight, Check, Sparkles, Users2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { SiteFooter, SiteHeader } from "./index";
+import { fetchProfile, useSession } from "@/lib/auth";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { SiteHeader, SiteFooter } from "./index";
-import { Check, Minus, Users2 } from "lucide-react";
+  createBillingCheckout,
+  type BillingCycle,
+  type BillingPlanKey,
+  type BillingProvider,
+} from "@/lib/api/billing.functions";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
-      { title: "Pricing — Rotaro" },
+      { title: "Pricing - Rotaro" },
       {
         name: "description",
         content:
           "Simple, transparent pricing for Rotaro workforce scheduling. Start free and scale as your team grows.",
       },
-      { property: "og:title", content: "Pricing — Rotaro" },
+      { property: "og:title", content: "Pricing - Rotaro" },
       { property: "og:url", content: "/pricing" },
     ],
     links: [{ rel: "canonical", href: "/pricing" }],
@@ -28,83 +29,91 @@ export const Route = createFileRoute("/pricing")({
   component: PricingPage,
 });
 
-const TIER_LABELS = ["1–9", "10–24", "25–49", "50–99", "100+"];
-
 function PricingPage() {
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+  const [provider, setProvider] = useState<BillingProvider>("stripe");
+  const [pendingPlan, setPendingPlan] = useState<BillingPlanKey | null>(null);
+  const { user } = useSession();
+  const navigate = useNavigate();
+
+  const startCheckout = async (planKey: BillingPlanKey) => {
+    if (!user) {
+      navigate({ to: "/auth", search: { next: "/billing" } });
+      return;
+    }
+
+    try {
+      setPendingPlan(planKey);
+      const profile = await fetchProfile();
+      if (!profile?.business_id) throw new Error("We could not find your business account.");
+
+      const result = await createBillingCheckout({
+        data: {
+          provider,
+          planKey,
+          billingCycle,
+          origin: window.location.origin,
+          businessId: profile.business_id,
+          customerEmail: user.email ?? undefined,
+          customerName: user.user_metadata?.name ?? undefined,
+        },
+      });
+
+      window.location.assign(result.url);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Unable to start checkout.");
+    } finally {
+      setPendingPlan(null);
+    }
+  };
+
+  const openStarter = () => {
+    if (user) {
+      navigate({ to: "/dashboard" });
+      return;
+    }
+    navigate({ to: "/auth", search: { next: "/billing" } });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <PricingHero />
-      <UserSlider />
-      <PricingTiers />
-      <Comparison />
-      <FAQ />
-      <BottomCTA />
+      <main>
+        <Hero />
+        <PricingControls
+          billingCycle={billingCycle}
+          setBillingCycle={setBillingCycle}
+          provider={provider}
+          setProvider={setProvider}
+        />
+        <PricingCards
+          billingCycle={billingCycle}
+          pendingPlan={pendingPlan}
+          onStarter={openStarter}
+          onSubscribe={startCheckout}
+        />
+        <SupportStrip />
+      </main>
       <SiteFooter />
     </div>
   );
 }
 
-function PricingHero() {
+function Hero() {
   return (
-    <>
-      <section className="relative bg-secondary overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 py-20 grid md:grid-cols-2 items-center gap-10 relative z-10">
-          <h1 className="text-5xl md:text-6xl font-bold text-[var(--navy)]">Our Pricing</h1>
-          <div className="hidden md:flex justify-end">
-            <div className="size-56 rounded-2xl bg-white border border-border flex items-center justify-center">
-              <Users2 className="size-24 text-[var(--navy)]" strokeWidth={1.4} />
-            </div>
-          </div>
-        </div>
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 h-16 bg-background"
-          style={{ clipPath: "polygon(0 100%, 100% 40%, 100% 100%)" }}
-        />
-      </section>
-      <section className="bg-background">
-        <div className="max-w-3xl mx-auto px-6 py-20 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-[var(--navy)]">
-            Workforce management software that fits your business
-          </h2>
-          <p className="text-muted-foreground mt-5">
-            Get everything you need to manage rosters, leave, attendance and reporting — all in one
-            place. Start with a free trial and see how easy it is to get up and running.
+    <section className="bg-secondary border-b border-border">
+      <div className="max-w-7xl mx-auto px-6 py-16 md:py-20 grid gap-10 md:grid-cols-[1.4fr_0.8fr] items-center">
+        <div className="space-y-5">
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--navy)]">
+            Simple, transparent pricing
+          </h1>
+          <p className="max-w-2xl text-base md:text-lg text-[var(--navy)]/75">
+            Start free. Upgrade when you need publish, reports, PDF extract, and finance tools.
           </p>
-          <Link to="/auth" className="inline-block mt-8">
-            <Button size="lg" className="rounded-full px-8">
-              Start Free Trial
-            </Button>
-          </Link>
         </div>
-      </section>
-    </>
-  );
-}
-
-function UserSlider() {
-  const [val, setVal] = useState([0]);
-  return (
-    <section className="bg-secondary">
-      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
-        <h2 className="text-3xl md:text-4xl font-bold text-[var(--navy)]">What's included?</h2>
-        <h3 className="text-lg font-semibold text-[var(--navy)] mt-8">
-          How many employees do you have?
-        </h3>
-        <p className="text-sm text-muted-foreground mt-2 max-w-2xl mx-auto">
-          An employee is anyone who will be rostered, have their attendance tracked, or whose leave
-          is managed using Rotaro.
-        </p>
-        <div className="mt-10 max-w-2xl mx-auto">
-          <div className="text-left mb-3 text-[var(--navy)] font-semibold">
-            {TIER_LABELS[val[0]]}
-          </div>
-          <Slider value={val} onValueChange={setVal} max={4} step={1} />
-          <div className="flex justify-between text-xs text-muted-foreground mt-3">
-            {TIER_LABELS.map((t) => (
-              <span key={t}>{t}</span>
-            ))}
+        <div className="hidden md:flex justify-end">
+          <div className="size-56 rounded-3xl bg-white border border-border shadow-sm flex items-center justify-center">
+            <Users2 className="size-24 text-[var(--navy)]" strokeWidth={1.6} />
           </div>
         </div>
       </div>
@@ -112,320 +121,245 @@ function UserSlider() {
   );
 }
 
-function PricingTiers() {
-  const plans = [
-    {
-      name: "Starter",
-      subtitle: "Roster & Attendance",
-      price: "$0",
-      sub: "Free for up to 5 employees",
-      cta: "Get Started Free",
-      ctaVariant: "outline" as const,
-      featured: false,
-      features: [
-        "Roster creation & publishing (weekly view)",
-        "Employee management (basic)",
-        "Leave requests & approval",
-        "Attendance check-in/out",
-        "1 location",
-      ],
-    },
-    {
-      name: "Professional",
-      subtitle: "Roster, Leave & Shift Management",
-      price: "$49",
-      sub: "per month / per location",
-      cta: "Start Free Trial",
-      ctaVariant: "secondary" as const,
-      featured: true,
-      features: [
-        "Everything in Starter",
-        "Weekly + Monthly roster views",
-        "Shift management & templates",
-        "Shift swap requests & approvals",
-        "Leave balances & auto-approve",
-        "Notifications (late check-in, early check-out, long break)",
-        "Up to 25 employees",
-        "Up to 3 locations",
-      ],
-    },
-    {
-      name: "Business",
-      subtitle: "Full Workforce Management + Reports",
-      price: "$89",
-      sub: "per month / per location",
-      cta: "Contact Sales",
-      ctaVariant: "outline" as const,
-      featured: false,
-      features: [
-        "Everything in Professional",
-        "Unlimited employees & locations",
-        "Advanced reports (hours, wages, comparison)",
-        "Holiday import (state & country specific)",
-        "Staff shortage alerts & dashboards",
-        "Multi-level permission roles",
-        "Priority support",
-      ],
-    },
-  ];
-
+function PricingControls({
+  billingCycle,
+  setBillingCycle,
+  provider,
+  setProvider,
+}: {
+  billingCycle: BillingCycle;
+  setBillingCycle: (value: BillingCycle) => void;
+  provider: BillingProvider;
+  setProvider: (value: BillingProvider) => void;
+}) {
   return (
     <section className="bg-background">
-      <div className="max-w-7xl mx-auto px-6 py-20 grid md:grid-cols-3 gap-6 items-stretch">
-        {plans.map((p) => {
-          const featured = p.featured;
-          return (
-            <div
-              key={p.name}
-              className={`relative rounded-2xl border p-8 flex flex-col ${
-                featured
-                  ? "bg-[var(--navy)] text-white border-[var(--navy)] shadow-lg md:-translate-y-3"
-                  : "bg-card border-border shadow-sm"
+      <div className="max-w-7xl mx-auto px-6 pt-12 text-center">
+        <div className="inline-flex rounded-full border bg-card p-1 shadow-sm">
+          {(["monthly", "annual"] as const).map((cycle) => (
+            <button
+              key={cycle}
+              type="button"
+              onClick={() => setBillingCycle(cycle)}
+              className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
+                billingCycle === cycle
+                  ? "bg-[var(--navy)] text-white shadow-sm"
+                  : "text-[var(--navy)] hover:bg-secondary"
               }`}
             >
-              {featured && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-[var(--navy)] text-xs font-bold px-3 py-1 rounded-full border border-[var(--navy)]">
-                  MOST POPULAR
+              {cycle === "monthly" ? "Monthly" : "Annual"}
+              {cycle === "annual" && (
+                <span className="ml-2 rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                  Save 17%
                 </span>
               )}
-              <h3
-                className={`text-2xl font-bold ${featured ? "text-white" : "text-[var(--navy)]"}`}
-              >
-                {p.name}
-              </h3>
-              <p className={`text-sm mt-1 ${featured ? "text-white/80" : "text-muted-foreground"}`}>
-                {p.subtitle}
-              </p>
-              <div className="mt-6">
-                <div
-                  className={`text-5xl font-bold ${featured ? "text-white" : "text-[var(--navy)]"}`}
-                >
-                  {p.price}
-                </div>
-                <div
-                  className={`text-xs mt-1 ${featured ? "text-white/80" : "text-muted-foreground"}`}
-                >
-                  {p.sub}
-                </div>
-              </div>
-              <ul className="mt-6 space-y-3 flex-1">
-                {p.features.map((f) => (
-                  <li key={f} className="flex gap-2 text-sm">
-                    <Check
-                      className={`size-4 shrink-0 mt-0.5 ${featured ? "text-white" : "text-[var(--navy)]"}`}
-                    />
-                    <span className={featured ? "text-white/90" : "text-foreground"}>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-8">
-                <Link to="/auth">
-                  <Button
-                    className={`w-full rounded-full ${
-                      featured ? "bg-white text-[var(--navy)] hover:bg-white/90" : ""
-                    }`}
-                    variant={featured ? "default" : "outline"}
-                  >
-                    {p.cta}
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
+            </button>
+          ))}
+        </div>
 
-type Cell = boolean | string;
-type Row = { label: string; cells: [Cell, Cell, Cell] };
-type Category = { title: string; rows: Row[] };
-
-const COMPARE: Category[] = [
-  {
-    title: "Roster & Scheduling",
-    rows: [
-      { label: "Weekly roster grid (15-min increments)", cells: [true, true, true] },
-      { label: "Monthly calendar view", cells: [false, true, true] },
-      { label: "Shift templates", cells: [false, true, true] },
-      { label: "Create from previous roster", cells: [false, true, true] },
-      { label: "Publish & send to employees", cells: [true, true, true] },
-    ],
-  },
-  {
-    title: "Leave & Attendance",
-    rows: [
-      { label: "Leave requests & approvals", cells: [true, true, true] },
-      { label: "Auto-approve leave", cells: [false, true, true] },
-      { label: "Leave balances", cells: [false, true, true] },
-      { label: "Shift swap requests", cells: [false, true, true] },
-      { label: "Check-in / check-out tracking", cells: [true, true, true] },
-      { label: "Break tracking", cells: [true, true, true] },
-    ],
-  },
-  {
-    title: "Notifications & Alerts",
-    rows: [
-      { label: "Late check-in alerts", cells: [false, true, true] },
-      { label: "Early check-out alerts", cells: [false, true, true] },
-      { label: "Long break alerts", cells: [false, true, true] },
-      { label: "Staff shortage alerts", cells: [false, false, true] },
-    ],
-  },
-  {
-    title: "Reports",
-    rows: [
-      { label: "Hours report", cells: [false, true, true] },
-      { label: "Wages report", cells: [false, false, true] },
-      { label: "Comparison reports", cells: [false, false, true] },
-      { label: "Export to Excel/PDF", cells: [false, true, true] },
-    ],
-  },
-  {
-    title: "Holidays & Compliance",
-    rows: [
-      { label: "Country/state holiday import", cells: [false, true, true] },
-      { label: "Paid/unpaid holiday marking", cells: [false, true, true] },
-    ],
-  },
-  {
-    title: "Support & Access",
-    rows: [
-      { label: "Email support", cells: [true, true, true] },
-      { label: "Priority support", cells: [false, false, true] },
-      { label: "Multi-level permissions", cells: [false, true, true] },
-      { label: "Number of locations", cells: ["1", "Up to 3", "Unlimited"] },
-      { label: "Number of employees", cells: ["Up to 5", "Up to 25", "Unlimited"] },
-    ],
-  },
-];
-
-function Comparison() {
-  const defaultOpen = useMemo(() => COMPARE.map((c) => c.title), []);
-  return (
-    <section className="bg-secondary">
-      <div className="max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-3xl md:text-4xl font-bold text-[var(--navy)] text-center">
-          Compare plans
-        </h2>
-        <div className="mt-10 bg-card rounded-2xl border border-border overflow-hidden">
-          <div className="grid grid-cols-4 bg-[var(--navy)] text-white text-sm font-semibold sticky top-16 z-10">
-            <div className="p-4">Feature</div>
-            <div className="p-4 text-center">Starter</div>
-            <div className="p-4 text-center">Professional</div>
-            <div className="p-4 text-center">Business</div>
-          </div>
-          <Accordion type="multiple" defaultValue={defaultOpen} className="w-full">
-            {COMPARE.map((cat) => (
-              <AccordionItem key={cat.title} value={cat.title} className="border-b border-border">
-                <AccordionTrigger className="px-4 py-4 text-[var(--navy)] font-bold hover:no-underline">
-                  {cat.title}
-                </AccordionTrigger>
-                <AccordionContent className="p-0">
-                  <div className="divide-y divide-border">
-                    {cat.rows.map((r) => (
-                      <div key={r.label} className="grid grid-cols-4 items-center text-sm">
-                        <div className="p-4 text-foreground">{r.label}</div>
-                        {r.cells.map((c, i) => (
-                          <div key={i} className="p-4 flex justify-center">
-                            {typeof c === "string" ? (
-                              <span className="text-[var(--navy)] font-medium">{c}</span>
-                            ) : c ? (
-                              <Check className="size-5 text-[var(--navy)]" />
-                            ) : (
-                              <Minus className="size-5 text-muted-foreground/50" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+        <div className="mt-8 flex items-center justify-center gap-3 text-sm text-[var(--navy)]/80">
+          <span className="font-medium">Pay with:</span>
+          {(["stripe", "razorpay"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setProvider(item)}
+              className={`rounded-lg border px-5 py-2 font-medium transition ${
+                provider === item
+                  ? "border-[var(--navy)] bg-white text-[var(--navy)] shadow-sm"
+                  : "border-border bg-background text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              {item === "stripe" ? "Stripe" : "Razorpay"}
+            </button>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-function FAQ() {
-  const items = [
-    {
-      q: "What happens if I exceed my employee limit?",
-      a: "We'll notify you and help you upgrade to a plan that fits your team — no service interruption.",
-    },
-    {
-      q: "Can I change plans at any time?",
-      a: "Yes, you can upgrade or downgrade anytime. Changes take effect at the start of your next billing cycle.",
-    },
-    { q: "Is there a free trial?", a: "Yes — every paid plan includes a 14-day free trial." },
-    {
-      q: "Do I need a credit card to start?",
-      a: "No credit card is required to start your trial.",
-    },
-    {
-      q: "What happens to my data if I cancel?",
-      a: "Your data is retained for 30 days after cancellation so you can export it or reactivate without losing anything.",
-    },
-    {
-      q: "Can I manage multiple locations on one plan?",
-      a: "Yes. Professional supports up to 3 locations, and Business supports unlimited locations.",
-    },
-  ];
+function PricingCards({
+  billingCycle,
+  pendingPlan,
+  onStarter,
+  onSubscribe,
+}: {
+  billingCycle: BillingCycle;
+  pendingPlan: BillingPlanKey | null;
+  onStarter: () => void;
+  onSubscribe: (planKey: BillingPlanKey) => void;
+}) {
+  const plans = useMemo(
+    () => [
+      {
+        key: "starter" as const,
+        name: "Starter",
+        price: "Free",
+        priceNote: "Up to 5 employees",
+        features: [
+          "Up to 5 employees",
+          "1 location",
+          "Basic roster (create + view)",
+          "Email support",
+        ],
+        cta: "Get started",
+        featured: false,
+      },
+      {
+        key: "professional" as const,
+        name: "Professional",
+        price: billingCycle === "monthly" ? "$29/mo" : "$290/yr",
+        priceNote: billingCycle === "monthly" ? "per month" : "per year",
+        features: [
+          "Up to 25 employees",
+          "3 locations",
+          "Full roster (create, publish, send, download)",
+          "All reports (hours, wages, comparison)",
+          "Holiday import",
+          "Leave management",
+          "PDF extractor",
+          "Priority email support",
+        ],
+        cta: "Subscribe",
+        featured: true,
+      },
+      {
+        key: "business" as const,
+        name: "Business",
+        price: billingCycle === "monthly" ? "$79/mo" : "$790/yr",
+        priceNote: billingCycle === "monthly" ? "per month" : "per year",
+        features: [
+          "Unlimited employees & locations",
+          "Everything in Professional",
+          "Finance organiser",
+          "Email-to-extract",
+          "Roster -> Finance data feed",
+          "Custom holiday setup",
+          "Phone + priority support",
+          "Early access to new features",
+        ],
+        cta: "Subscribe",
+        featured: false,
+      },
+    ],
+    [billingCycle],
+  );
+
   return (
     <section className="bg-background">
-      <div className="max-w-3xl mx-auto px-6 py-20">
-        <h2 className="text-3xl md:text-4xl font-bold text-[var(--navy)] text-center">
-          Frequently Asked Questions
-        </h2>
-        <Accordion type="single" collapsible className="mt-10">
-          {items.map((it) => (
-            <AccordionItem key={it.q} value={it.q} className="border-b border-border">
-              <AccordionTrigger className="text-left text-[var(--navy)] font-semibold hover:no-underline">
-                {it.q}
-              </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground">{it.a}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+      <div className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+        <div className="grid gap-6 lg:grid-cols-3">
+          {plans.map((plan) => {
+            const isFeatured = plan.featured;
+            const isPending = pendingPlan === plan.key;
+            return (
+              <div
+                key={plan.key}
+                className={`relative rounded-3xl border p-8 flex flex-col ${
+                  isFeatured
+                    ? "border-[var(--navy)] bg-white shadow-[0_10px_40px_rgba(28,39,72,0.10)]"
+                    : "border-border bg-card shadow-sm"
+                }`}
+              >
+                {isFeatured && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[var(--navy)] px-3 py-1 text-xs font-bold text-white shadow-sm">
+                    Most popular
+                  </span>
+                )}
+
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-bold text-[var(--navy)]">{plan.name}</h2>
+                  <p className="text-sm text-muted-foreground">Reusable presets for the roster.</p>
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex items-end gap-1">
+                    <span className="text-5xl font-extrabold tracking-tight text-[var(--navy)]">
+                      {plan.price}
+                    </span>
+                    {plan.key !== "starter" && (
+                      <span className="pb-1 text-base text-muted-foreground">{plan.priceNote}</span>
+                    )}
+                  </div>
+                  {plan.key === "starter" && (
+                    <p className="mt-2 text-sm text-muted-foreground">{plan.priceNote}</p>
+                  )}
+                </div>
+
+                <ul className="mt-8 space-y-3 flex-1">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-3 text-sm text-foreground">
+                      <Check className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-8">
+                  {plan.key === "starter" ? (
+                    <Button
+                      type="button"
+                      onClick={onStarter}
+                      variant="outline"
+                      className="h-12 w-full rounded-xl border-border text-[var(--navy)] hover:bg-secondary"
+                    >
+                      {plan.cta}
+                      <ArrowRight className="ml-2 size-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={() => onSubscribe(plan.key)}
+                      disabled={isPending}
+                      className={`h-12 w-full rounded-xl ${
+                        isFeatured
+                          ? "bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+                          : "bg-white text-[var(--navy)] border border-[var(--navy)] hover:bg-secondary"
+                      }`}
+                    >
+                      {isPending ? "Opening..." : plan.cta}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-10 rounded-2xl border bg-secondary px-6 py-5 text-sm text-[var(--navy)]/75">
+          <div className="flex items-start gap-3">
+            <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--navy)]" />
+            <p>
+              Your subscription opens in the selected provider's hosted checkout, then Rotaro
+              updates Billing after payment. Stripe returns straight back to Rotaro; Razorpay opens
+              its hosted subscription flow.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 
-function BottomCTA() {
+function SupportStrip() {
   return (
     <section className="bg-[var(--navy)] text-white">
-      <div className="max-w-3xl mx-auto px-6 py-20 text-center">
-        <h2 className="text-3xl md:text-4xl font-bold">
-          Ready to simplify your workforce management?
-        </h2>
-        <p className="mt-4 text-white/80">
-          Join Australian businesses using Rotaro to manage rosters, leave, and attendance with
-          ease.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link to="/auth">
-            <Button
-              size="lg"
-              className="rounded-full bg-white text-[var(--navy)] hover:bg-white/90 px-8"
-            >
-              Start Free Trial
-            </Button>
-          </Link>
-          <Link to="/">
-            <Button
-              size="lg"
-              variant="outline"
-              className="rounded-full px-8 bg-transparent border-white text-white hover:bg-white hover:text-[var(--navy)]"
-            >
-              Request a Demo
-            </Button>
-          </Link>
+      <div className="max-w-7xl mx-auto px-6 py-14 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Need help choosing a plan?</h2>
+          <p className="mt-2 text-white/75">
+            Your workspace can keep running while billing is connected and activated.
+          </p>
         </div>
+        <Link to="/settings" className="inline-flex">
+          <Button
+            variant="outline"
+            className="rounded-xl border-white/20 bg-transparent text-white hover:bg-white hover:text-[var(--navy)]"
+          >
+            Open settings
+          </Button>
+        </Link>
       </div>
     </section>
   );
