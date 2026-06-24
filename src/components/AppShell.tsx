@@ -30,6 +30,7 @@ import { isManager } from "@/lib/auth";
 import { NotificationBell } from "@/components/NotificationBell";
 import { RotaroMark } from "@/components/RotaroMark";
 import { UserAvatar } from "@/components/UserAvatar";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -227,7 +228,10 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
               <span className="font-bold text-[var(--navy)]">Rotaro</span>
             </Link>
           </div>
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+            <div className="hidden xl:block">
+              <GlobalSearch profile={profile} />
+            </div>
             <div className="hidden md:flex items-center gap-1">
               <button
                 type="button"
