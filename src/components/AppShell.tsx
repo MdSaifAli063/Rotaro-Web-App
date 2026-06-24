@@ -179,7 +179,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
         <button
           type="button"
           onClick={() => setSidebarCollapsed((value) => !value)}
-          className="absolute -right-3 top-5 z-20 size-9 rounded-md border border-white/25 bg-sidebar/80 text-sidebar-foreground shadow-md backdrop-blur inline-flex items-center justify-center hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+          className="absolute -right-3 top-5 z-20 inline-flex size-9 items-center justify-center rounded-md border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
