@@ -26,6 +26,7 @@ import { Route as AuthenticatedMyRosterRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedLeavesRouteImport } from './routes/_authenticated/leaves'
 import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedAttendanceRouteImport } from './routes/_authenticated/attendance'
 import { Route as AuthenticatedApplyLeaveRouteImport } from './routes/_authenticated/apply-leave'
 import { Route as AuthenticatedRosterTemplatesRouteImport } from './routes/_authenticated/roster.templates'
@@ -117,6 +118,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAttendanceRoute = AuthenticatedAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leaves': typeof AuthenticatedLeavesRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leaves': typeof AuthenticatedLeavesRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/_authenticated/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/_authenticated/attendance': typeof AuthenticatedAttendanceRoute
+  '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
   '/_authenticated/leaves': typeof AuthenticatedLeavesRoute
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/apply-leave'
     | '/attendance'
+    | '/billing'
     | '/dashboard'
     | '/holidays'
     | '/leaves'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/apply-leave'
     | '/attendance'
+    | '/billing'
     | '/dashboard'
     | '/holidays'
     | '/leaves'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/_authenticated/apply-leave'
     | '/_authenticated/attendance'
+    | '/_authenticated/billing'
     | '/_authenticated/dashboard'
     | '/_authenticated/holidays'
     | '/_authenticated/leaves'
@@ -431,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/billing': {
+      id: '/_authenticated/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof AuthenticatedBillingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/attendance': {
       id: '/_authenticated/attendance'
       path: '/attendance'
@@ -496,6 +515,7 @@ const AuthenticatedRosterRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedApplyLeaveRoute: typeof AuthenticatedApplyLeaveRoute
   AuthenticatedAttendanceRoute: typeof AuthenticatedAttendanceRoute
+  AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedLeavesRoute: typeof AuthenticatedLeavesRoute
@@ -513,6 +533,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedApplyLeaveRoute: AuthenticatedApplyLeaveRoute,
   AuthenticatedAttendanceRoute: AuthenticatedAttendanceRoute,
+  AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedLeavesRoute: AuthenticatedLeavesRoute,
