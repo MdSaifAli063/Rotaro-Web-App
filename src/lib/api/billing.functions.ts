@@ -92,7 +92,7 @@ export const getBillingProviderStatus = createServerFn({ method: "GET" }).handle
 );
 
 export const createBillingCheckout = createServerFn({ method: "POST" })
-  .inputValidator(checkoutInputSchema)
+  .validator(checkoutInputSchema)
   .handler(async ({ data }) => {
     const config = getServerConfig();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -256,7 +256,7 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
   });
 
 export const finalizeStripeBillingCheckout = createServerFn({ method: "POST" })
-  .inputValidator(stripeFinalizeInputSchema)
+  .validator(stripeFinalizeInputSchema)
   .handler(async ({ data }) => {
     const config = getServerConfig();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
