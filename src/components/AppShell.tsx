@@ -25,6 +25,7 @@ import {
   Calculator,
   HelpCircle,
   LayoutGrid,
+  MoreHorizontal,
 } from "lucide-react";
 import type { Profile } from "@/lib/auth";
 import { isManager } from "@/lib/auth";
@@ -61,6 +62,16 @@ const employeeNav = [
   { to: "/apply-leave", label: "Apply Leave", icon: FileText },
   { to: "/attendance", label: "My Attendance", icon: Clock4 },
   { to: "/swaps", label: "Shift Swaps", icon: Repeat },
+  { to: "/settings", label: "Settings", icon: Settings },
+];
+
+const headerTools = [
+  { to: "/workspace", label: "Workspace", icon: LayoutGrid },
+  { to: "/messages", label: "Messages", icon: Mail },
+  { to: "/calendar", label: "Calendar", icon: Calendar },
+  { to: "/calculator", label: "Calculator", icon: Calculator },
+  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/help-center", label: "Help", icon: HelpCircle },
 ];
 
 export function AppShell({ children, profile }: { children: ReactNode; profile: Profile }) {
@@ -171,10 +182,10 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
   );
 
   return (
-    <div className="h-screen overflow-hidden flex bg-background">
+    <div className="flex h-svh overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <aside
-        className={`hidden lg:flex relative h-screen bg-sidebar text-sidebar-foreground flex-col shrink-0 transition-[width] duration-200 ${
+        className={`relative hidden h-svh shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex ${
           sidebarCollapsed ? "w-20" : "w-64"
         }`}
       >
@@ -215,8 +226,8 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
         </div>
       )}
 
-      <main className="flex-1 min-w-0 h-screen overflow-y-auto">
-        <header className="h-14 border-b bg-card flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 sticky top-0 z-30">
+      <main className="h-svh min-w-0 flex-1 overflow-y-auto">
+        <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b bg-card px-3 py-2 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 lg:hidden">
             <button
               onClick={() => setMobileOpen(true)}
@@ -230,60 +241,45 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
               <span className="font-bold text-[var(--navy)]">Rotaro</span>
             </Link>
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2">
             <div className="hidden xl:block">
               <GlobalSearch profile={profile} />
             </div>
             <div className="hidden md:flex items-center gap-1">
-              <Link
-                to="/workspace"
-                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Workspace"
-                title="Workspace"
-              >
-                <LayoutGrid className="size-4" />
-              </Link>
-              <Link
-                to="/messages"
-                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Messages"
-                title="Messages"
-              >
-                <Mail className="size-4" />
-              </Link>
-              <Link
-                to="/calendar"
-                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Calendar"
-                title="Calendar"
-              >
-                <Calendar className="size-4" />
-              </Link>
-              <Link
-                to="/calculator"
-                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Calculator"
-                title="Calculator"
-              >
-                <Calculator className="size-4" />
-              </Link>
-              <Link
-                to="/settings"
-                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Settings"
-                title="Settings"
-              >
-                <Settings className="size-4" />
-              </Link>
-              <Link
-                to="/help-center"
-                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Help"
-                title="Help"
-              >
-                <HelpCircle className="size-4" />
-              </Link>
+              {headerTools.map(({ to, label, icon: Icon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={label}
+                  title={label}
+                >
+                  <Icon className="size-4" />
+                </Link>
+              ))}
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+                  aria-label="Open tools"
+                >
+                  <MoreHorizontal className="size-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>Tools</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {headerTools.map(({ to, label, icon: Icon }) => (
+                  <DropdownMenuItem key={to} asChild>
+                    <Link to={to} className="cursor-pointer">
+                      <Icon className="size-4" />
+                      {label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <NotificationBell userId={profile.id} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -330,7 +326,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
             </DropdownMenu>
           </div>
         </header>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">{children}</div>
+        <div className="mx-auto max-w-7xl px-3 py-5 sm:px-6 sm:py-8 lg:px-8">{children}</div>
       </main>
     </div>
   );

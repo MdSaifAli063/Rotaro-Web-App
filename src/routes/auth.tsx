@@ -87,7 +87,7 @@ function AuthPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4">
+    <div className="relative flex min-h-svh items-center justify-center px-3 py-6 sm:px-4">
       <div className="auth-angle" />
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
@@ -97,7 +97,7 @@ function AuthPage() {
           </div>
           <p className="text-muted-foreground text-sm mt-1">Workforce scheduling made simple.</p>
         </div>
-        <div className="bg-card border rounded-xl shadow-sm p-8">
+        <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold mb-1">
             {mode === "signin" ? "Please sign in" : "Create your account"}
           </h2>

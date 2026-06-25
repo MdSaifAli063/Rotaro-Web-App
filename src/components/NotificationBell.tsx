@@ -124,7 +124,11 @@ export function NotificationBell({ userId }: { userId: string }) {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[22rem] rounded-2xl border p-0 shadow-xl">
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className="w-[calc(100vw-1rem)] max-w-[22rem] rounded-2xl border p-0 shadow-xl"
+      >
         <div className="flex items-center justify-between border-b px-4 py-4">
           <div className="text-lg font-semibold text-[var(--navy)]">Notification</div>
           <PopoverPrimitive.Close asChild>
@@ -137,16 +141,16 @@ export function NotificationBell({ userId }: { userId: string }) {
         <div className="px-4 pt-3">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
             <TabsList className="grid h-12 w-full grid-cols-3 rounded-2xl bg-[#EEF2F8] p-1">
-              <TabsTrigger value="all" className="rounded-xl text-sm">
-                <Inbox className="mr-2 size-4" />
+              <TabsTrigger value="all" className="rounded-xl px-2 text-xs sm:text-sm">
+                <Inbox className="mr-1 size-4 sm:mr-2" />
                 All
               </TabsTrigger>
-              <TabsTrigger value="mention" className="rounded-xl text-sm">
-                <AtSign className="mr-2 size-4" />
+              <TabsTrigger value="mention" className="rounded-xl px-2 text-xs sm:text-sm">
+                <AtSign className="mr-1 size-4 sm:mr-2" />
                 Mention
               </TabsTrigger>
-              <TabsTrigger value="reminder" className="rounded-xl text-sm">
-                <BellRing className="mr-2 size-4" />
+              <TabsTrigger value="reminder" className="rounded-xl px-2 text-xs sm:text-sm">
+                <BellRing className="mr-1 size-4 sm:mr-2" />
                 Reminder
               </TabsTrigger>
             </TabsList>
