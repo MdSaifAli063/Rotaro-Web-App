@@ -404,6 +404,64 @@ export type Database = {
           },
         ];
       };
+      messages: {
+        Row: {
+          body: string;
+          business_id: string;
+          created_at: string;
+          id: string;
+          is_read: boolean;
+          recipient_id: string;
+          sender_id: string;
+          subject: string;
+          updated_at: string;
+        };
+        Insert: {
+          body: string;
+          business_id: string;
+          created_at?: string;
+          id?: string;
+          is_read?: boolean;
+          recipient_id: string;
+          sender_id: string;
+          subject?: string;
+          updated_at?: string;
+        };
+        Update: {
+          body?: string;
+          business_id?: string;
+          created_at?: string;
+          id?: string;
+          is_read?: boolean;
+          recipient_id?: string;
+          sender_id?: string;
+          subject?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "messages_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_recipient_id_fkey";
+            columns: ["recipient_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;

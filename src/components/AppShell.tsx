@@ -244,7 +244,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
                 <LayoutGrid className="size-4" />
               </button>
               <Link
-                to="/dashboard"
+                to="/messages"
                 className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Messages"
                 title="Messages"

@@ -23,6 +23,7 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMyRosterRouteImport } from './routes/_authenticated/my-roster'
+import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedLeavesRouteImport } from './routes/_authenticated/leaves'
 import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
 import { Route as AuthenticatedHelpCenterRouteImport } from './routes/_authenticated/help-center'
@@ -105,6 +106,11 @@ const AuthenticatedMyRosterRoute = AuthenticatedMyRosterRouteImport.update({
   path: '/my-roster',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLeavesRoute = AuthenticatedLeavesRouteImport.update({
   id: '/leaves',
   path: '/leaves',
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/help-center': typeof AuthenticatedHelpCenterRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leaves': typeof AuthenticatedLeavesRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/help-center': typeof AuthenticatedHelpCenterRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leaves': typeof AuthenticatedLeavesRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/_authenticated/help-center': typeof AuthenticatedHelpCenterRoute
   '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
   '/_authenticated/leaves': typeof AuthenticatedLeavesRoute
+  '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/my-roster': typeof AuthenticatedMyRosterRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -268,6 +277,7 @@ export interface FileRouteTypes {
     | '/help-center'
     | '/holidays'
     | '/leaves'
+    | '/messages'
     | '/my-roster'
     | '/onboarding'
     | '/profile'
@@ -295,6 +305,7 @@ export interface FileRouteTypes {
     | '/help-center'
     | '/holidays'
     | '/leaves'
+    | '/messages'
     | '/my-roster'
     | '/onboarding'
     | '/profile'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/_authenticated/help-center'
     | '/_authenticated/holidays'
     | '/_authenticated/leaves'
+    | '/_authenticated/messages'
     | '/_authenticated/my-roster'
     | '/_authenticated/onboarding'
     | '/_authenticated/profile'
@@ -446,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMyRosterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/messages': {
+      id: '/_authenticated/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AuthenticatedMessagesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/leaves': {
       id: '/_authenticated/leaves'
       path: '/leaves'
@@ -559,6 +578,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHelpCenterRoute: typeof AuthenticatedHelpCenterRoute
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedLeavesRoute: typeof AuthenticatedLeavesRoute
+  AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedMyRosterRoute: typeof AuthenticatedMyRosterRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
@@ -579,6 +599,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHelpCenterRoute: AuthenticatedHelpCenterRoute,
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedLeavesRoute: AuthenticatedLeavesRoute,
+  AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedMyRosterRoute: AuthenticatedMyRosterRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
