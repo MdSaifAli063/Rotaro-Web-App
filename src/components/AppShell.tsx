@@ -22,9 +22,9 @@ import {
   User as UserIcon,
   Mail,
   Calendar,
+  Calculator,
   HelpCircle,
   LayoutGrid,
-  PanelLeftOpen,
 } from "lucide-react";
 import type { Profile } from "@/lib/auth";
 import { isManager } from "@/lib/auth";
@@ -258,6 +258,14 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
                 title="Calendar"
               >
                 <Calendar className="size-4" />
+              </Link>
+              <Link
+                to="/calculator"
+                className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Calculator"
+                title="Calculator"
+              >
+                <Calculator className="size-4" />
               </Link>
               <Link
                 to="/settings"
