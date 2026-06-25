@@ -823,7 +823,7 @@ export function RosterEditor({
 
       {/* Page title + store/dept selectors (matches reference top row) */}
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--navy)] truncate">
               Roster for the Week beginning {weekStartLabel}
@@ -839,11 +839,11 @@ export function RosterEditor({
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <div className="bg-white border rounded-md px-3 py-1.5 text-sm text-[var(--navy)] min-w-[180px]">
+          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-none sm:flex sm:flex-wrap sm:items-center sm:shrink-0">
+            <div className="min-w-0 rounded-md border bg-white px-3 py-1.5 text-sm text-[var(--navy)] sm:min-w-[180px]">
               {businessName || "Business"}
             </div>
-            <div className="bg-white border rounded-md px-3 py-1.5 text-sm text-[var(--navy)]">
+            <div className="rounded-md border bg-white px-3 py-1.5 text-sm text-[var(--navy)]">
               ROSTER
             </div>
           </div>
@@ -932,7 +932,7 @@ export function RosterEditor({
             Roster By Staff Member
           </label>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:ml-auto">
             <Button
               variant="outline"
               size="sm"
@@ -1187,49 +1187,53 @@ export function RosterEditor({
           </div>
         ) : (
           // LIST view
-          <div className="border rounded-xl bg-card overflow-hidden">
-            <div className="grid grid-cols-[1fr_120px_120px_120px_120px_60px] text-xs uppercase tracking-wide text-muted-foreground bg-secondary/40 border-b px-4 py-2">
-              <div>Staff</div>
-              <div>Start</div>
-              <div>End</div>
-              <div>Hours</div>
-              <div>Cost</div>
-              <div />
-            </div>
-            {dayShifts.length === 0 ? (
-              <div className="px-4 py-10 text-sm text-muted-foreground text-center">
-                No shifts on this day yet.
+          <div className="overflow-x-auto rounded-xl border bg-card">
+            <div className="min-w-[720px]">
+              <div className="grid grid-cols-[1fr_120px_120px_120px_120px_60px] border-b bg-secondary/40 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground">
+                <div>Staff</div>
+                <div>Start</div>
+                <div>End</div>
+                <div>Hours</div>
+                <div>Cost</div>
+                <div />
               </div>
-            ) : (
-              dayShifts.map((s) => {
-                const emp = employees.find((e) => e.id === s.employee_id);
-                const hrs = Number(s.total_hours ?? 0);
-                const cost = hrs * Number(emp?.pay_rate ?? 0);
-                return (
-                  <div
-                    key={s.id}
-                    className="grid grid-cols-[1fr_120px_120px_120px_120px_60px] items-center px-4 py-2 border-b last:border-b-0 text-sm"
-                  >
-                    <div className="font-medium text-[var(--navy)] truncate">
-                      {emp?.name ?? "—"}
-                      <span className="text-xs text-muted-foreground ml-2">{emp?.department}</span>
+              {dayShifts.length === 0 ? (
+                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  No shifts on this day yet.
+                </div>
+              ) : (
+                dayShifts.map((s) => {
+                  const emp = employees.find((e) => e.id === s.employee_id);
+                  const hrs = Number(s.total_hours ?? 0);
+                  const cost = hrs * Number(emp?.pay_rate ?? 0);
+                  return (
+                    <div
+                      key={s.id}
+                      className="grid grid-cols-[1fr_120px_120px_120px_120px_60px] items-center border-b px-4 py-2 text-sm last:border-b-0"
+                    >
+                      <div className="truncate font-medium text-[var(--navy)]">
+                        {emp?.name ?? "—"}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {emp?.department}
+                        </span>
+                      </div>
+                      <div>{s.start_time ? fmt12(s.start_time.slice(0, 5)) : "—"}</div>
+                      <div>{s.end_time ? fmt12(s.end_time.slice(0, 5)) : "—"}</div>
+                      <div>{hrs.toFixed(2)}</div>
+                      <div>{fmtAUD(cost)}</div>
+                      <div className="text-right">
+                        <button
+                          className="text-xs text-[var(--navy)] hover:underline"
+                          onClick={() => setEditing(s)}
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </div>
-                    <div>{s.start_time ? fmt12(s.start_time.slice(0, 5)) : "—"}</div>
-                    <div>{s.end_time ? fmt12(s.end_time.slice(0, 5)) : "—"}</div>
-                    <div>{hrs.toFixed(2)}</div>
-                    <div>{fmtAUD(cost)}</div>
-                    <div className="text-right">
-                      <button
-                        className="text-xs text-[var(--navy)] hover:underline"
-                        onClick={() => setEditing(s)}
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
       </div>

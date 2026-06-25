@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { findEmployeeForUser } from "@/lib/employee";
 import { notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -305,12 +306,12 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
 
       <div className="rounded-lg bg-[var(--navy)] px-4 py-3 text-white shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-white/75 sm:flex-row sm:items-center">
+          <label className="flex w-full flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-white/75 sm:w-auto sm:flex-row sm:items-center">
             Store:
             <select
               value={store}
               onChange={(e) => setStore(e.target.value)}
-              className="h-9 min-w-[220px] rounded-md border-0 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-[var(--navy)] shadow-sm"
+              className="h-9 w-full min-w-0 rounded-md border-0 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-[var(--navy)] shadow-sm sm:min-w-[220px]"
             >
               <option value="all">{business?.name || "All stores"}</option>
               {stores.map((s) => (
@@ -320,18 +321,18 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
               ))}
             </select>
           </label>
-          <div className="relative flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-white/75 sm:flex-row sm:items-center sm:justify-end">
+          <div className="relative flex w-full flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-white/75 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             Department:
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setDeptMenuOpen((open) => !open)}
-                className="h-9 min-w-[160px] rounded-md bg-white px-3 text-left text-sm font-semibold normal-case tracking-normal text-[var(--navy)] shadow-sm"
+                className="h-9 w-full min-w-0 rounded-md bg-white px-3 text-left text-sm font-semibold normal-case tracking-normal text-[var(--navy)] shadow-sm sm:min-w-[160px]"
               >
                 {selectedDeptLabel}
               </button>
               {deptMenuOpen && (
-                <div className="absolute right-0 top-11 z-40 w-64 rounded-md border bg-white p-3 text-[var(--navy)] shadow-lg">
+                <div className="absolute left-0 top-11 z-40 w-full min-w-[16rem] rounded-md border bg-white p-3 text-[var(--navy)] shadow-lg sm:left-auto sm:right-0 sm:w-64">
                   <button
                     type="button"
                     onClick={() => setDepts(allDepts)}
@@ -551,11 +552,7 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
   const weekEndKey = useMemo(() => key(weekEnd), [weekEnd]);
 
   const load = useCallback(async () => {
-    const { data: emp } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("user_id", profile.id)
-      .maybeSingle();
+    const { employee: emp } = await findEmployeeForUser<Emp>(profile.id, "*");
     if (!emp) return;
     setEmployee(emp as Emp);
     const [

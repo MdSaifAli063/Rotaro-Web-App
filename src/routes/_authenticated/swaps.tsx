@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { findEmployeeForUser } from "@/lib/employee";
 import { notify } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/swaps")({
@@ -28,11 +29,10 @@ function SwapsPage() {
     }
 
     if (!isManager(nextProfile)) {
-      const { data: employee, error: employeeError } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("user_id", nextProfile.id)
-        .maybeSingle();
+      const { employee, error: employeeError } = await findEmployeeForUser<{ id: string }>(
+        nextProfile.id,
+        "id",
+      );
       if (employeeError) {
         toast.error("Failed to load your employee record: " + employeeError.message);
         setRows([]);

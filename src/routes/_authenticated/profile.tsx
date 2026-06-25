@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { UserAvatar, useSignedAvatarUrl } from "@/components/UserAvatar";
+import { findEmployeeForUser } from "@/lib/employee";
 import {
   Select,
   SelectContent,
@@ -213,11 +214,11 @@ function ProfilePage() {
       }
     }
     if (p.role === "employee") {
-      const { data: emp } = await supabase
-        .from("employees")
-        .select("id, employee_code, department, role, employment_type, start_date, skills")
-        .eq("user_id", auth.user.id)
-        .maybeSingle();
+      const { employee: emp, error: empError } = await findEmployeeForUser<EmployeeRow>(
+        auth.user.id,
+        "id, employee_code, department, role, employment_type, start_date, skills",
+      );
+      if (empError) toast.error("Failed to load employee details: " + empError.message);
       if (emp) setEmployee(emp as unknown as EmployeeRow);
     }
     setLoading(false);
@@ -225,7 +226,6 @@ function ProfilePage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const memberSince = useMemo(() => {

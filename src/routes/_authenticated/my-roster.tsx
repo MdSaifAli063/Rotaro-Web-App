@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, type Profile } from "@/lib/auth";
+import { findEmployeeForUser } from "@/lib/employee";
 import { notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/my-roster")({
@@ -181,11 +182,10 @@ function MyRosterPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, business_id, employee_code, name, department, role, user_id")
-        .eq("user_id", nextProfile.id)
-        .maybeSingle();
+      const { employee: data, error } = await findEmployeeForUser<EmployeeRow>(
+        nextProfile.id,
+        "id, business_id, employee_code, name, department, role, user_id",
+      );
 
       if (error) toast.error("Failed to load employee profile: " + error.message);
       if (!data) {

@@ -51,6 +51,7 @@ type ActivityNotificationKey =
 type SettingsBlob = {
   theme: ThemeMode;
   language: LanguageCode;
+  date_format: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
   notifications: Record<GeneralNotificationKey | ActivityNotificationKey, boolean>;
   security: {
     two_factor: boolean;
@@ -98,6 +99,7 @@ const languageLabels: Record<LanguageCode, string> = {
 const defaultSettings = (): SettingsBlob => ({
   theme: "light",
   language: "en",
+  date_format: "DD/MM/YYYY",
   notifications: {
     system_announcements: true,
     holiday_announcements: true,
@@ -155,7 +157,7 @@ function SettingsPage() {
 
   const [prefs, setPrefs] = useState<SettingsBlob>(defaultSettings());
 
-  const isEmployer = useMemo(
+  const canManageWorkspace = useMemo(
     () => profile?.role === "employer" || profile?.role === "manager",
     [profile],
   );
@@ -165,6 +167,23 @@ function SettingsPage() {
     (async () => {
       const nextProfile = await fetchProfile();
       setProfile(nextProfile);
+      if (!nextProfile) {
+        setLoading(false);
+        return;
+      }
+      if (nextProfile && !isManager(nextProfile)) setTab("general");
+      const { data: profilePrefs } = await supabase
+        .from("profiles")
+        .select("notification_preferences")
+        .eq("id", nextProfile.id)
+        .maybeSingle();
+
+      const personalPrefs = mergePrefs(
+        defaultSettings(),
+        profilePrefs?.notification_preferences as Partial<SettingsBlob> | null,
+      );
+      setPrefs(personalPrefs);
+
       if (!nextProfile?.business_id) {
         setLoading(false);
         return;
@@ -209,7 +228,7 @@ function SettingsPage() {
         );
       }
 
-      if (settings) {
+      if (settings && isManager(nextProfile)) {
         setAutoApproveLeave(!!settings.auto_approve_leave);
         setAutoApproveByType((settings.auto_approve_by_type as Record<string, boolean>) ?? {});
         setPrefs(
@@ -271,21 +290,37 @@ function SettingsPage() {
     toast.success("General settings saved");
   };
 
+  const saveEmployeeGeneral = async () => {
+    await savePrefs({ date_format: prefs.date_format }, "General settings saved");
+  };
+
   const savePrefs = async (
     patch: Partial<SettingsBlob>,
     toastMessage: string,
     storageKeys?: { language?: LanguageCode },
   ) => {
-    if (!businessId) return;
+    if (!profile) return;
     const next = mergePrefs(prefs, patch);
     setPrefs(next);
     setSaving("prefs");
-    const { error } = await supabase.from("settings").upsert({
-      business_id: businessId,
-      auto_approve_leave: autoApproveLeave,
-      auto_approve_by_type: autoApproveByType,
-      notification_settings: next,
-    });
+    if (isManager(profile) && !businessId && !profile.business_id) {
+      setSaving(null);
+      toast.error("Business settings are not available yet.");
+      return;
+    }
+
+    const { error } = isManager(profile)
+      ? await supabase.from("settings").upsert({
+          business_id: (businessId ?? profile.business_id) as string,
+          auto_approve_leave: autoApproveLeave,
+          auto_approve_by_type: autoApproveByType,
+          notification_settings: next,
+        })
+      : await supabase
+          .from("profiles")
+          .update({ notification_preferences: next })
+          .eq("id", profile.id);
+
     setSaving(null);
     if (error) return toast.error(error.message);
     if (storageKeys?.language) localStorage.setItem("rotaro-language", storageKeys.language);
@@ -295,6 +330,13 @@ function SettingsPage() {
 
   const saveNotifications = async () => {
     await savePrefs({ notifications: prefs.notifications }, "Notification settings saved");
+  };
+
+  const clearNotifications = async () => {
+    const cleared = Object.fromEntries(
+      Object.keys(defaultSettings().notifications).map((key) => [key, false]),
+    ) as SettingsBlob["notifications"];
+    await savePrefs({ notifications: cleared }, "Notification settings cleared");
   };
 
   const saveSecurity = async () => {
@@ -370,14 +412,6 @@ function SettingsPage() {
     );
   }
 
-  if (!isManager(profile)) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        You do not have permission to edit settings.
-      </div>
-    );
-  }
-
   const updateNotification = (
     key: GeneralNotificationKey | ActivityNotificationKey,
     value: boolean,
@@ -429,12 +463,12 @@ function SettingsPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 rounded-xl border bg-white p-1.5 shadow-sm">
-          <TabsTrigger value="company">Company Information</TabsTrigger>
+          {canManageWorkspace && <TabsTrigger value="company">Company Information</TabsTrigger>}
           <TabsTrigger value="general">General Information</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
+          {canManageWorkspace && <TabsTrigger value="billing">Billing</TabsTrigger>}
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          {canManageWorkspace && <TabsTrigger value="integrations">Integrations</TabsTrigger>}
           <TabsTrigger value="language">Language</TabsTrigger>
         </TabsList>
 
@@ -502,76 +536,129 @@ function SettingsPage() {
             icon={WandSparkles}
             action={
               <Button
-                onClick={saveGeneral}
-                disabled={saving === "general"}
+                onClick={canManageWorkspace ? saveGeneral : saveEmployeeGeneral}
+                disabled={saving === "general" || saving === "prefs"}
                 className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
               >
-                {saving === "general" && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {(saving === "general" || saving === "prefs") && (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                )}
                 Save
               </Button>
             }
           >
-            <div className="grid gap-4">
-              <SwitchRow
-                title="Auto-approve leave requests"
-                description="When enabled, new leave requests can be approved automatically."
-                checked={autoApproveLeave}
-                onCheckedChange={setAutoApproveLeave}
-              />
-              <div className="grid gap-4 md:grid-cols-2">
-                <SettingField label="Open time">
-                  <Input
-                    type="time"
-                    value={openTime}
-                    onChange={(e) => setOpenTime(e.target.value)}
-                  />
-                </SettingField>
-                <SettingField label="Close time">
-                  <Input
-                    type="time"
-                    value={closeTime}
-                    onChange={(e) => setCloseTime(e.target.value)}
-                  />
-                </SettingField>
-                <SettingField label="Timezone">
-                  <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} />
-                </SettingField>
-                <SettingField label="Minimum age">
-                  <Input
-                    type="number"
-                    min={0}
-                    value={minAge}
-                    onChange={(e) => setMinAge(e.target.value)}
-                  />
-                </SettingField>
-                <SettingField label="Employment types" className="md:col-span-2">
-                  <Input
-                    value={employmentTypesText}
-                    onChange={(e) => setEmploymentTypesText(e.target.value)}
-                    placeholder="Full-time, Part-time, Casual"
-                  />
-                </SettingField>
-              </div>
-
-              <div className="rounded-xl border bg-[#F8FAFD] p-4">
-                <div className="mb-3 text-sm font-semibold text-[var(--navy)]">
-                  Auto-approve by leave type
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {autoApproveOptions.map((option) => (
-                    <SwitchRow
-                      key={option.key}
-                      title={option.label}
-                      description={`Auto-approve ${option.label.toLowerCase()} leave`}
-                      checked={option.enabled}
-                      onCheckedChange={(checked) =>
-                        setAutoApproveByType((current) => ({ ...current, [option.label]: checked }))
-                      }
+            {canManageWorkspace ? (
+              <div className="grid gap-4">
+                <SwitchRow
+                  title="Auto-approve leave requests"
+                  description="When enabled, new leave requests can be approved automatically."
+                  checked={autoApproveLeave}
+                  onCheckedChange={setAutoApproveLeave}
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <SettingField label="Open time">
+                    <Input
+                      type="time"
+                      value={openTime}
+                      onChange={(e) => setOpenTime(e.target.value)}
                     />
-                  ))}
+                  </SettingField>
+                  <SettingField label="Close time">
+                    <Input
+                      type="time"
+                      value={closeTime}
+                      onChange={(e) => setCloseTime(e.target.value)}
+                    />
+                  </SettingField>
+                  <SettingField label="Timezone">
+                    <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} />
+                  </SettingField>
+                  <SettingField label="Minimum age">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={minAge}
+                      onChange={(e) => setMinAge(e.target.value)}
+                    />
+                  </SettingField>
+                  <SettingField label="Employment types" className="md:col-span-2">
+                    <Input
+                      value={employmentTypesText}
+                      onChange={(e) => setEmploymentTypesText(e.target.value)}
+                      placeholder="Full-time, Part-time, Casual"
+                    />
+                  </SettingField>
+                </div>
+
+                <div className="rounded-xl border bg-[#F8FAFD] p-4">
+                  <div className="mb-3 text-sm font-semibold text-[var(--navy)]">
+                    Auto-approve by leave type
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {autoApproveOptions.map((option) => (
+                      <SwitchRow
+                        key={option.key}
+                        title={option.label}
+                        description={`Auto-approve ${option.label.toLowerCase()} leave`}
+                        checked={option.enabled}
+                        onCheckedChange={(checked) =>
+                          setAutoApproveByType((current) => ({
+                            ...current,
+                            [option.label]: checked,
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid gap-6">
+                <div className="grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--navy)]">Date format</div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      How dates appear in lists and exports.
+                    </p>
+                  </div>
+                  <Select
+                    value={prefs.date_format}
+                    onValueChange={(value) =>
+                      setPrefs((prev) => ({
+                        ...prev,
+                        date_format: value as SettingsBlob["date_format"],
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                      <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                      <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-4 border-t pt-5 md:grid-cols-[260px_minmax(0,1fr)]">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--navy)]">Profile</div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Update your name and account details.
+                    </p>
+                  </div>
+                  <div>
+                    <Link
+                      to="/profile"
+                      className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium text-[var(--navy)] hover:bg-secondary"
+                    >
+                      Open profile
+                      <ArrowUpRight className="size-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </SettingsCard>
         </TabsContent>
 
@@ -692,6 +779,23 @@ function SettingsPage() {
                 </div>
               </div>
             </div>
+
+            <div className="rounded-xl border bg-[#F8FAFD] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  In-app: saved. Email: SMTP optional - set EMAIL_ENABLED on server for email
+                  alerts.
+                </p>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={clearNotifications}
+                  disabled={saving === "prefs"}
+                >
+                  Clear all
+                </Button>
+              </div>
+            </div>
           </SettingsCard>
         </TabsContent>
 
@@ -758,48 +862,78 @@ function SettingsPage() {
             description="Account access and session information."
             icon={Shield}
             action={
-              <Button
-                onClick={saveSecurity}
-                disabled={saving === "prefs"}
-                className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-              >
-                {saving === "prefs" && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Save
-              </Button>
+              canManageWorkspace ? (
+                <Button
+                  onClick={saveSecurity}
+                  disabled={saving === "prefs"}
+                  className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+                >
+                  {saving === "prefs" && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  Save
+                </Button>
+              ) : undefined
             }
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <ReadOnlyField label="Signed in as" value={profile.email} />
-              <ReadOnlyField label="Role" value={profile.role.toUpperCase()} />
-              <SettingField label="Session timeout (minutes)">
-                <Input
-                  type="number"
-                  min={5}
-                  value={prefs.security.session_timeout_minutes}
-                  onChange={(e) => updateSecurity("session_timeout_minutes", e.target.value)}
-                />
-              </SettingField>
-              <SettingField label="Password rotation days">
-                <Input
-                  type="number"
-                  min={0}
-                  value={prefs.security.password_rotation_days}
-                  onChange={(e) => updateSecurity("password_rotation_days", e.target.value)}
-                />
-              </SettingField>
-              <SwitchRow
-                title="Require strong password"
-                description="Encourage longer passwords with symbols and numbers."
-                checked={prefs.security.strong_password_required}
-                onCheckedChange={(checked) => updateSecurity("strong_password_required", checked)}
-              />
-              <SwitchRow
-                title="Two-factor authentication"
-                description="Mark 2FA as enabled for this workspace."
-                checked={prefs.security.two_factor}
-                onCheckedChange={(checked) => updateSecurity("two_factor", checked)}
-              />
-              <div className="md:col-span-2">
+            <div className="grid gap-5">
+              <div className="grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--navy)]">Signed in as</div>
+                  <p className="mt-1 text-sm text-muted-foreground">Your Rotaro account.</p>
+                </div>
+                <ReadOnlyField label="Email" value={profile.email} />
+              </div>
+              <div className="grid gap-4 border-t pt-5 md:grid-cols-[260px_minmax(0,1fr)]">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--navy)]">Role</div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Permissions for this workspace.
+                  </p>
+                </div>
+                <ReadOnlyField label="Access level" value={profile.role.toUpperCase()} />
+              </div>
+              {canManageWorkspace && (
+                <div className="grid gap-4 border-t pt-5 md:grid-cols-2">
+                  <SettingField label="Session timeout (minutes)">
+                    <Input
+                      type="number"
+                      min={5}
+                      value={prefs.security.session_timeout_minutes}
+                      onChange={(e) => updateSecurity("session_timeout_minutes", e.target.value)}
+                    />
+                  </SettingField>
+                  <SettingField label="Password rotation days">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={prefs.security.password_rotation_days}
+                      onChange={(e) => updateSecurity("password_rotation_days", e.target.value)}
+                    />
+                  </SettingField>
+                  <SwitchRow
+                    title="Require strong password"
+                    description="Encourage longer passwords with symbols and numbers."
+                    checked={prefs.security.strong_password_required}
+                    onCheckedChange={(checked) =>
+                      updateSecurity("strong_password_required", checked)
+                    }
+                  />
+                  <SwitchRow
+                    title="Two-factor authentication"
+                    description="Mark 2FA as enabled for this workspace."
+                    checked={prefs.security.two_factor}
+                    onCheckedChange={(checked) => updateSecurity("two_factor", checked)}
+                  />
+                </div>
+              )}
+              <div className="grid gap-4 border-t pt-5 md:grid-cols-[260px_minmax(0,1fr)]">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--navy)]">
+                    Password and sign-in
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Update credentials or linked Google account.
+                  </p>
+                </div>
                 <Link
                   to="/profile"
                   className="inline-flex items-center gap-2 rounded-md border border-[var(--navy)] px-4 py-2 text-sm font-medium text-[var(--navy)] hover:bg-secondary"
@@ -1018,6 +1152,7 @@ function mergePrefs(
   return {
     theme: "light",
     language: raw.language ?? base.language,
+    date_format: raw.date_format ?? base.date_format,
     notifications: { ...base.notifications, ...(raw.notifications ?? {}) },
     security: { ...base.security, ...(raw.security ?? {}) },
     integrations: { ...base.integrations, ...(raw.integrations ?? {}) },
