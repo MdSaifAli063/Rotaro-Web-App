@@ -252,7 +252,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
                 <Mail className="size-4" />
               </Link>
               <Link
-                to="/roster"
+                to="/calendar"
                 className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Calendar"
                 title="Calendar"

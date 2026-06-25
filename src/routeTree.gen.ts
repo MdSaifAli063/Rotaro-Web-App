@@ -27,6 +27,7 @@ import { Route as AuthenticatedLeavesRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
 import { Route as AuthenticatedHelpCenterRouteImport } from './routes/_authenticated/help-center'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedAttendanceRouteImport } from './routes/_authenticated/attendance'
 import { Route as AuthenticatedApplyLeaveRouteImport } from './routes/_authenticated/apply-leave'
@@ -124,6 +125,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/help-center': typeof AuthenticatedHelpCenterRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/help-center': typeof AuthenticatedHelpCenterRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/_authenticated/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/_authenticated/attendance': typeof AuthenticatedAttendanceRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
+  '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/help-center': typeof AuthenticatedHelpCenterRoute
   '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/apply-leave'
     | '/attendance'
     | '/billing'
+    | '/calendar'
     | '/dashboard'
     | '/help-center'
     | '/holidays'
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/apply-leave'
     | '/attendance'
     | '/billing'
+    | '/calendar'
     | '/dashboard'
     | '/help-center'
     | '/holidays'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '/_authenticated/apply-leave'
     | '/_authenticated/attendance'
     | '/_authenticated/billing'
+    | '/_authenticated/calendar'
     | '/_authenticated/dashboard'
     | '/_authenticated/help-center'
     | '/_authenticated/holidays'
@@ -462,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/calendar': {
+      id: '/_authenticated/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof AuthenticatedCalendarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/billing': {
       id: '/_authenticated/billing'
       path: '/billing'
@@ -535,6 +554,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedApplyLeaveRoute: typeof AuthenticatedApplyLeaveRoute
   AuthenticatedAttendanceRoute: typeof AuthenticatedAttendanceRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
+  AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHelpCenterRoute: typeof AuthenticatedHelpCenterRoute
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
@@ -554,6 +574,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedApplyLeaveRoute: AuthenticatedApplyLeaveRoute,
   AuthenticatedAttendanceRoute: AuthenticatedAttendanceRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
+  AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHelpCenterRoute: AuthenticatedHelpCenterRoute,
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
