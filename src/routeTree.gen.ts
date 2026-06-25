@@ -14,6 +14,7 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
 import { Route as AuthenticatedSwapsRouteImport } from './routes/_authenticated/swaps'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
@@ -60,6 +61,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedWorkspaceRoute = AuthenticatedWorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSwapsRoute = AuthenticatedSwapsRouteImport.update({
   id: '/swaps',
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
+  '/workspace': typeof AuthenticatedWorkspaceRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
   '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
   '/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
+  '/workspace': typeof AuthenticatedWorkspaceRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
   '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
   '/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
@@ -257,6 +265,7 @@ export interface FileRoutesById {
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/swaps': typeof AuthenticatedSwapsRoute
+  '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
   '/_authenticated/roster/create': typeof AuthenticatedRosterCreateRoute
   '/_authenticated/roster/templates': typeof AuthenticatedRosterTemplatesRoute
   '/_authenticated/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/staff'
     | '/swaps'
+    | '/workspace'
     | '/roster/create'
     | '/roster/templates'
     | '/roster/edit/$id'
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/staff'
     | '/swaps'
+    | '/workspace'
     | '/roster/create'
     | '/roster/templates'
     | '/roster/edit/$id'
@@ -344,6 +355,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shifts'
     | '/_authenticated/staff'
     | '/_authenticated/swaps'
+    | '/_authenticated/workspace'
     | '/_authenticated/roster/create'
     | '/_authenticated/roster/templates'
     | '/_authenticated/roster/edit/$id'
@@ -394,6 +406,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/workspace': {
+      id: '/_authenticated/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof AuthenticatedWorkspaceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/swaps': {
       id: '/_authenticated/swaps'
@@ -588,6 +607,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedSwapsRoute: typeof AuthenticatedSwapsRoute
+  AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -609,6 +629,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedSwapsRoute: AuthenticatedSwapsRoute,
+  AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

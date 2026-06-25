@@ -235,14 +235,14 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
               <GlobalSearch profile={profile} />
             </div>
             <div className="hidden md:flex items-center gap-1">
-              <button
-                type="button"
+              <Link
+                to="/workspace"
                 className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Toggle dashboard view"
-                title="Toggle dashboard view"
+                aria-label="Workspace"
+                title="Workspace"
               >
                 <LayoutGrid className="size-4" />
-              </button>
+              </Link>
               <Link
                 to="/messages"
                 className="size-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
