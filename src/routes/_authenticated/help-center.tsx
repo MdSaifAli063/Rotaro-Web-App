@@ -1,14 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { Search, BookOpen, FileText, HelpCircle, MessageSquare, ChevronRight } from "lucide-react";
 import {
-  Search,
-  BookOpen,
-  FileText,
-  HelpCircle,
-  MessageSquare,
-  ChevronRight,
-} from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -107,24 +105,24 @@ function HelpCenterPage() {
         </p>
       </header>
 
-      <section className="overflow-hidden rounded-3xl border bg-card shadow-sm">
-        <div className="bg-gradient-to-br from-[#1f61ff] via-[#1666ef] to-[#0f97c8] px-5 py-8 text-white sm:px-8 sm:py-10">
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="border-b bg-[var(--navy)] px-5 py-8 text-white sm:px-8 sm:py-10">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-2xl font-bold sm:text-4xl">Find What You Need</h2>
+            <h2 className="text-2xl font-bold sm:text-3xl">Find What You Need</h2>
             <p className="mt-3 text-sm text-white/85 sm:text-base">
               Search FAQs, guides, and articles for roster, attendance, leave, and billing help.
             </p>
             <div className="mx-auto mt-6 flex w-full max-w-2xl flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Quick search..."
-                  className="h-12 rounded-2xl border-0 bg-white/95 pl-11 text-[var(--navy)] placeholder:text-slate-400"
+                  className="h-12 rounded-xl border-0 bg-white pl-11 text-[var(--navy)] shadow-sm placeholder:text-muted-foreground"
                 />
               </div>
-              <Button className="h-12 rounded-2xl bg-white px-7 text-[var(--navy)] hover:bg-white/90">
+              <Button className="h-12 rounded-xl bg-white px-7 text-[var(--navy)] shadow-sm hover:bg-secondary">
                 Search
               </Button>
             </div>
@@ -133,26 +131,41 @@ function HelpCenterPage() {
 
         <div className="px-4 pb-5 pt-4 sm:px-6">
           <Tabs value={tab} onValueChange={(value) => setTab(value as TabKey)}>
-            <TabsList className="h-auto w-full justify-start gap-0 rounded-2xl bg-[#eef2f8] p-1">
-              <TabsTrigger value="faq" className="rounded-xl px-4 py-2">
+            <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl border bg-secondary/70 p-1">
+              <TabsTrigger
+                value="faq"
+                className="rounded-lg px-4 py-2 data-[state=active]:bg-card data-[state=active]:text-[var(--navy)]"
+              >
                 FAQ
               </TabsTrigger>
-              <TabsTrigger value="articles" className="rounded-xl px-4 py-2">
+              <TabsTrigger
+                value="articles"
+                className="rounded-lg px-4 py-2 data-[state=active]:bg-card data-[state=active]:text-[var(--navy)]"
+              >
                 Articles
               </TabsTrigger>
-              <TabsTrigger value="guides" className="rounded-xl px-4 py-2">
+              <TabsTrigger
+                value="guides"
+                className="rounded-lg px-4 py-2 data-[state=active]:bg-card data-[state=active]:text-[var(--navy)]"
+              >
                 Guides & Tutorials
               </TabsTrigger>
-              <TabsTrigger value="terms" className="rounded-xl px-4 py-2">
+              <TabsTrigger
+                value="terms"
+                className="rounded-lg px-4 py-2 data-[state=active]:bg-card data-[state=active]:text-[var(--navy)]"
+              >
                 Terms & Conditions
               </TabsTrigger>
-              <TabsTrigger value="privacy" className="rounded-xl px-4 py-2">
+              <TabsTrigger
+                value="privacy"
+                className="rounded-lg px-4 py-2 data-[state=active]:bg-card data-[state=active]:text-[var(--navy)]"
+              >
                 Privacy Policy
               </TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <div className="mt-4 rounded-3xl border bg-background p-5 sm:p-6">
+          <div className="mt-4 rounded-2xl border bg-background p-5 sm:p-6">
             <h3 className="text-xl font-semibold text-[var(--navy)]">
               {tab === "faq" && "Frequently Asked Questions"}
               {tab === "articles" && "Articles"}
@@ -176,7 +189,7 @@ function HelpCenterPage() {
                       <AccordionItem
                         key={item.q}
                         value={item.q}
-                        className="rounded-2xl border px-4 data-[state=open]:bg-secondary/30"
+                        className="rounded-xl border bg-card px-4 data-[state=open]:bg-secondary/30"
                       >
                         <AccordionTrigger className="py-4 text-left text-sm font-semibold text-[var(--navy)] hover:no-underline">
                           {item.q}
@@ -205,9 +218,9 @@ function HelpCenterPage() {
                     <a
                       key={title}
                       href={href}
-                      className="rounded-2xl border p-5 transition-colors hover:bg-secondary/40"
+                      className="rounded-xl border bg-card p-5 transition-colors hover:bg-secondary/40"
                     >
-                      <div className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-secondary">
+                      <div className="mb-4 flex size-11 items-center justify-center rounded-lg bg-secondary">
                         <Icon className="size-5 text-[var(--navy)]" />
                       </div>
                       <div className="text-base font-semibold text-[var(--navy)]">{title}</div>
@@ -223,11 +236,14 @@ function HelpCenterPage() {
       <section className="grid gap-4 md:grid-cols-3">
         {[
           { title: "Help Centre", desc: "Browse step-by-step guides for setup and daily tasks." },
-          { title: "Contact Support", desc: "Send a direct message if you need help from the team." },
+          {
+            title: "Contact Support",
+            desc: "Send a direct message if you need help from the team.",
+          },
           { title: "Account and billing", desc: "Review plans, payment settings, and questions." },
         ].map((item) => (
-          <div key={item.title} className="rounded-2xl border bg-card p-5 shadow-sm">
-            <div className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-secondary">
+          <div key={item.title} className="rounded-xl border bg-card p-5 shadow-sm">
+            <div className="mb-4 flex size-11 items-center justify-center rounded-lg bg-secondary">
               <ChevronRight className="size-5 text-[var(--navy)]" />
             </div>
             <div className="text-base font-semibold text-[var(--navy)]">{item.title}</div>

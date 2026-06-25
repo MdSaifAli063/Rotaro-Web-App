@@ -95,7 +95,7 @@ const plans = [
   },
 ] as const;
 
-export function BillingPage() {
+function BillingPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscriptionRow | null>(null);
   const [invoices, setInvoices] = useState<BillingInvoiceRow[]>([]);
