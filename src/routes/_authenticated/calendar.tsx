@@ -217,13 +217,13 @@ function CalendarPage() {
               return (
                 <div
                   key={key}
-                  className={`min-h-[112px] border-b border-r p-2 last:border-r-0 ${
+                  className={`min-h-[76px] border-b border-r p-1.5 last:border-r-0 sm:min-h-[112px] sm:p-2 ${
                     muted ? "bg-secondary/30 text-muted-foreground" : "bg-card"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span
-                      className={`flex size-8 items-center justify-center rounded-full text-sm font-semibold ${
+                      className={`flex size-7 items-center justify-center rounded-full text-xs font-semibold sm:size-8 sm:text-sm ${
                         isToday
                           ? "bg-[var(--navy)] text-white"
                           : muted
@@ -237,7 +237,7 @@ function CalendarPage() {
                       <CalendarDays className="size-4 text-[var(--navy)]" />
                     )}
                   </div>
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 hidden space-y-1 sm:block">
                     {dayHolidays.slice(0, 2).map((holiday) => (
                       <div
                         key={holiday.id}

@@ -102,9 +102,9 @@ function PricingPage() {
 function Hero() {
   return (
     <section className="bg-secondary border-b border-border">
-      <div className="max-w-7xl mx-auto px-6 py-16 md:py-20 grid gap-10 md:grid-cols-[1.4fr_0.8fr] items-center">
+      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_0.8fr] md:py-20">
         <div className="space-y-5">
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--navy)]">
+          <h1 className="text-4xl font-extrabold tracking-tight text-[var(--navy)] sm:text-5xl md:text-6xl">
             Simple, transparent pricing
           </h1>
           <p className="max-w-2xl text-base md:text-lg text-[var(--navy)]/75">
@@ -134,7 +134,7 @@ function PricingControls({
 }) {
   return (
     <section className="bg-background">
-      <div className="max-w-7xl mx-auto px-6 pt-12 text-center">
+      <div className="mx-auto max-w-7xl px-4 pt-10 text-center sm:px-6 sm:pt-12">
         <div className="inline-flex rounded-full border bg-card p-1 shadow-sm">
           {(["monthly", "annual"] as const).map((cycle) => (
             <button

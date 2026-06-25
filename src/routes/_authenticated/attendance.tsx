@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { findEmployeeForUser } from "@/lib/employee";
 import { notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/attendance")({
@@ -232,11 +233,10 @@ function AttendancePage() {
   };
 
   const loadEmployee = async (p: Profile) => {
-    const { data: emp, error: empError } = await supabase
-      .from("employees")
-      .select("id, name")
-      .eq("user_id", p.id)
-      .maybeSingle();
+    const { employee: emp, error: empError } = await findEmployeeForUser<{
+      id: string;
+      name: string;
+    }>(p.id, "id, name");
     if (empError) toast.error(empError.message);
     const employeeId = emp?.id ?? null;
     const employeeName = emp?.name ?? p.name ?? "Employee";
@@ -550,9 +550,9 @@ function AttendancePage() {
                     {format(endOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d, yyyy")}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                <div className="grid w-full gap-2 sm:grid-cols-3 xl:w-auto xl:flex xl:flex-wrap xl:items-center xl:justify-end">
                   <Select value={deptFilter} onValueChange={(value) => setDeptFilter(value)}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-full xl:w-[140px]">
                       <SelectValue placeholder="All departments" />
                     </SelectTrigger>
                     <SelectContent>
@@ -564,7 +564,7 @@ function AttendancePage() {
                     </SelectContent>
                   </Select>
                   <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-full xl:w-[140px]">
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent>
@@ -572,7 +572,7 @@ function AttendancePage() {
                       <SelectItem value="hours">Sort by hours</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" className="gap-2">
+                  <Button variant="outline" className="w-full gap-2 xl:w-auto">
                     <Filter className="size-4" />
                     Filter
                   </Button>
@@ -648,7 +648,7 @@ function AttendancePage() {
 
               <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                 <div>Total Attendance: {visibleRows.length}</div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -671,7 +671,7 @@ function AttendancePage() {
                     <ChevronRight className="size-4" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span>Show per page</span>
                   <Select
                     value={String(pageSize)}
@@ -951,7 +951,7 @@ function StatCard({
   chart: Array<{ label: string; value: number; filled: boolean }>;
 }) {
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="rounded-2xl bg-[#EEF3FF] p-3 text-[var(--navy)]">
@@ -964,11 +964,11 @@ function StatCard({
         </div>
         <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">+0%</Badge>
       </div>
-      <div className="mt-6 text-5xl font-bold text-[var(--navy)]">{value}</div>
-      <div className="mt-6 grid grid-cols-7 gap-3">
+      <div className="mt-6 text-4xl font-bold text-[var(--navy)] sm:text-5xl">{value}</div>
+      <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3">
         {chart.map((bar) => (
           <div key={bar.label} className="flex flex-col items-center gap-2">
-            <div className="flex h-36 w-full items-end justify-center rounded-2xl border bg-[#F8FAFD] px-2">
+            <div className="flex h-28 w-full items-end justify-center rounded-xl border bg-[#F8FAFD] px-1 sm:h-36 sm:rounded-2xl sm:px-2">
               <div
                 className={`w-full rounded-t-xl ${bar.filled ? "bg-[var(--navy)]" : "bg-slate-100"}`}
                 style={{ height: `${Math.max(bar.value, 10)}%` }}
@@ -978,7 +978,7 @@ function StatCard({
           </div>
         ))}
       </div>
-      <div className="mt-6 grid grid-cols-3 gap-4 border-t pt-4 text-sm">
+      <div className="mt-6 grid gap-4 border-t pt-4 text-sm sm:grid-cols-3">
         {footer.map((item) => (
           <div key={item.label}>
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -1007,14 +1007,16 @@ function MetricCard({
   footer?: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
       <div className="flex items-start justify-between">
         <div className="text-sm font-medium text-muted-foreground">{title}</div>
         <div className="rounded-xl bg-[#EEF3FF] p-2 text-[var(--navy)]">
           <Icon className="size-5" />
         </div>
       </div>
-      <div className="mt-16 text-5xl font-bold text-[var(--navy)]">{value}</div>
+      <div className="mt-10 text-4xl font-bold text-[var(--navy)] sm:mt-16 sm:text-5xl">
+        {value}
+      </div>
       <div className="mt-3 text-sm text-muted-foreground">{subtitle}</div>
       {footer && <div className="mt-14 text-sm font-semibold text-emerald-600">{footer}</div>}
     </div>

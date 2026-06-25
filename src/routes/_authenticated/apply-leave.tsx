@@ -1,10 +1,22 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { addDays, format, isAfter, isBefore, parseISO } from "date-fns";
+import {
+  ArrowUpRight,
+  CalendarCheck,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  Loader2,
+  Send,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -12,15 +24,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, type Profile } from "@/lib/auth";
+import { findEmployeeForUser } from "@/lib/employee";
 import { notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/apply-leave")({
   component: ApplyLeavePage,
 });
 
+type EmployeeRow = {
+  id: string;
+  business_id: string;
+  employee_code: string | null;
+  name: string;
+  department: string | null;
+};
+
+type BalanceRow = {
+  id: string;
+  leave_type: string;
+  total_days: number;
+  used_days: number;
+};
+
+type LeaveRow = {
+  id: string;
+  business_id: string;
+  employee_id: string;
+  leave_type: string;
+  from_date: string;
+  to_date: string;
+  total_days: number;
+  reason: string | null;
+  status: string;
+  created_at: string;
+};
+
+type LeaveForm = {
+  leave_type: string;
+  from_date: string;
+  to_date: string;
+  reason: string;
+};
+
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
+const todayKey = format(new Date(), "yyyy-MM-dd");
 
 const defaultLeaveTotal = (type: string) => {
   const value = type.toLowerCase();
@@ -30,282 +80,578 @@ const defaultLeaveTotal = (type: string) => {
   return 0;
 };
 
-const leaveDays = (from: string, to: string) => {
-  const start = new Date(`${from}T00:00:00`);
-  const end = new Date(`${to}T00:00:00`);
-  return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
-};
-
-const statusLabel = (value?: string | null) =>
-  (value || "pending").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-
 function ApplyLeavePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [empId, setEmpId] = useState<string | null>(null);
-  const [empName, setEmpName] = useState<string>("");
-  const [balances, setBalances] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
-  const [form, setForm] = useState({
+  const [employee, setEmployee] = useState<EmployeeRow | null>(null);
+  const [balances, setBalances] = useState<BalanceRow[]>([]);
+  const [history, setHistory] = useState<LeaveRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [autoApprove, setAutoApprove] = useState(false);
+  const [form, setForm] = useState<LeaveForm>({
     leave_type: "Annual",
-    from_date: "",
-    to_date: "",
+    from_date: todayKey,
+    to_date: todayKey,
     reason: "",
   });
 
-  useEffect(() => {
-    (async () => {
-      const p = await fetchProfile();
-      setProfile(p);
-      if (!p) return;
-      const { data: emp } = await supabase
-        .from("employees")
-        .select("id, name")
-        .eq("user_id", p.id)
-        .maybeSingle();
-      if (emp) {
-        setEmpId(emp.id);
-        setEmpName(emp.name);
-        const [{ data: bal }, { data: hist }] = await Promise.all([
-          supabase.from("leave_balances").select("*").eq("employee_id", emp.id),
-          supabase
-            .from("leaves")
-            .select("*")
-            .eq("employee_id", emp.id)
-            .order("created_at", { ascending: false })
-            .limit(20),
-        ]);
-        setBalances(bal ?? []);
-        setHistory(hist ?? []);
+  const selectedBalance = useMemo(
+    () => findBalance(balances, form.leave_type),
+    [balances, form.leave_type],
+  );
+  const requestedDays = useMemo(
+    () => countLeaveDays(form.from_date, form.to_date),
+    [form.from_date, form.to_date],
+  );
+  const selectedTotal = Number(selectedBalance?.total_days ?? defaultLeaveTotal(form.leave_type));
+  const selectedUsed = Number(selectedBalance?.used_days ?? 0);
+  const selectedRemaining = Math.max(selectedTotal - selectedUsed, 0);
+  const exceedsBalance =
+    form.leave_type.toLowerCase() !== "unpaid" && requestedDays > selectedRemaining;
+  const invalidDateRange = requestedDays < 1;
+
+  const load = useCallback(
+    async (currentProfile = profile, currentEmployee = employee) => {
+      if (!currentProfile?.business_id || !currentEmployee) {
+        setLoading(false);
+        return;
       }
+
+      setLoading(true);
+      const [balanceResult, historyResult, settingsResult] = await Promise.all([
+        supabase
+          .from("leave_balances")
+          .select("id, leave_type, total_days, used_days")
+          .eq("business_id", currentProfile.business_id)
+          .eq("employee_id", currentEmployee.id)
+          .order("leave_type", { ascending: true }),
+        supabase
+          .from("leaves")
+          .select("*")
+          .eq("business_id", currentProfile.business_id)
+          .eq("employee_id", currentEmployee.id)
+          .order("created_at", { ascending: false })
+          .limit(30),
+        supabase
+          .from("settings")
+          .select("auto_approve_leave, auto_approve_by_type")
+          .eq("business_id", currentProfile.business_id)
+          .maybeSingle(),
+      ]);
+
+      if (balanceResult.error)
+        toast.error("Failed to load balances: " + balanceResult.error.message);
+      if (historyResult.error)
+        toast.error("Failed to load leave history: " + historyResult.error.message);
+
+      const perType = (settingsResult.data?.auto_approve_by_type as Record<string, boolean>) ?? {};
+      setAutoApprove(
+        settingsResult.data?.auto_approve_leave === true || perType[form.leave_type] === true,
+      );
+      setBalances((balanceResult.data ?? []) as BalanceRow[]);
+      setHistory((historyResult.data ?? []) as LeaveRow[]);
+      setLoading(false);
+    },
+    [employee, form.leave_type, profile],
+  );
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const nextProfile = await fetchProfile();
+      if (!active) return;
+      setProfile(nextProfile);
+      if (!nextProfile) {
+        setLoading(false);
+        return;
+      }
+
+      const { employee: data, error } = await findEmployeeForUser<EmployeeRow>(
+        nextProfile.id,
+        "id, business_id, employee_code, name, department",
+      );
+
+      if (error) toast.error("Failed to load employee profile: " + error.message);
+      if (!data) {
+        setLoading(false);
+        return;
+      }
+
+      const nextEmployee = data as EmployeeRow;
+      setEmployee(nextEmployee);
+      await load(nextProfile, nextEmployee);
     })();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [load]);
+
+  useEffect(() => {
+    if (!profile?.business_id || !employee) return;
+    const channel = supabase
+      .channel(`apply-leave:${profile.business_id}:${employee.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leaves",
+          filter: `employee_id=eq.${employee.id}`,
+        },
+        () => load(profile, employee),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leave_balances",
+          filter: `employee_id=eq.${employee.id}`,
+        },
+        () => load(profile, employee),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [employee, load, profile]);
 
   const submit = async () => {
-    if (!empId || !profile?.business_id) return;
-    if (!form.from_date || !form.to_date) {
-      toast.error("Pick dates");
-      return;
-    }
-    const totalDays = leaveDays(form.from_date, form.to_date);
-    if (totalDays < 1) {
+    if (!employee || !profile?.business_id) return;
+    if (invalidDateRange) {
       toast.error("The end date must be on or after the start date");
       return;
     }
-    // check auto-approve settings
+    if (isBefore(parseISO(form.from_date), parseISO(todayKey))) {
+      toast.error("Start date cannot be in the past");
+      return;
+    }
+    if (exceedsBalance) {
+      toast.error("Requested days exceed your available balance");
+      return;
+    }
+    if (!form.reason.trim() && form.leave_type.toLowerCase() !== "casual") {
+      toast.error("Please add a short reason for this request");
+      return;
+    }
+
+    setSubmitting(true);
     const { data: settings } = await supabase
       .from("settings")
       .select("auto_approve_leave, auto_approve_by_type")
       .eq("business_id", profile.business_id)
       .maybeSingle();
-    const perType: any = settings?.auto_approve_by_type ?? {};
-    const autoApprove = settings?.auto_approve_leave === true || perType[form.leave_type] === true;
+
+    const perType = (settings?.auto_approve_by_type as Record<string, boolean>) ?? {};
+    const shouldApprove =
+      settings?.auto_approve_leave === true || perType[form.leave_type] === true;
 
     const { data: leave, error } = await supabase
       .from("leaves")
       .insert({
         business_id: profile.business_id,
-        employee_id: empId,
+        employee_id: employee.id,
         leave_type: form.leave_type,
         from_date: form.from_date,
         to_date: form.to_date,
-        total_days: totalDays,
-        reason: form.reason || null,
-        status: autoApprove ? "approved" : "pending",
+        total_days: requestedDays,
+        reason: form.reason.trim() || null,
+        status: shouldApprove ? "approved" : "pending",
       })
       .select("id")
       .single();
+
     if (error) {
+      setSubmitting(false);
       toast.error(error.message);
       return;
     }
-    if (autoApprove) {
-      const { data: balanceRows, error: balanceError } = await supabase
-        .from("leave_balances")
-        .select("*")
-        .eq("business_id", profile.business_id)
-        .eq("employee_id", empId);
-      if (balanceError) {
-        toast.error("Leave saved, but balance could not be updated: " + balanceError.message);
-      } else {
-        const balance = (balanceRows ?? []).find((item) => {
-          const balanceType = String(item.leave_type).toLowerCase();
-          const requestType = form.leave_type.toLowerCase();
-          return balanceType.includes(requestType) || requestType.includes(balanceType);
-        });
-        if (balance) {
-          const { error: updateBalanceError } = await supabase
-            .from("leave_balances")
-            .update({ used_days: Number(balance.used_days ?? 0) + totalDays })
-            .eq("id", balance.id);
-          if (updateBalanceError) {
-            toast.error(
-              "Leave saved, but balance could not be updated: " + updateBalanceError.message,
-            );
-          }
-        } else {
-          const { error: insertBalanceError } = await supabase.from("leave_balances").insert({
-            business_id: profile.business_id,
-            employee_id: empId,
-            leave_type: form.leave_type,
-            total_days: defaultLeaveTotal(form.leave_type),
-            used_days: totalDays,
-          });
-          if (insertBalanceError) {
-            toast.error(
-              "Leave saved, but balance could not be created: " + insertBalanceError.message,
-            );
-          }
-        }
-      }
+
+    if (shouldApprove) {
+      await applyBalanceChange(profile.business_id, employee.id, form.leave_type, requestedDays);
     }
+
     try {
       await notifyManagers({
         businessId: profile.business_id,
         type: "leave_requested",
-        message: `${empName} requested ${form.leave_type} leave (${form.from_date} to ${form.to_date}, ${totalDays} day${totalDays === 1 ? "" : "s"}).`,
+        message: `${employee.name} requested ${form.leave_type} leave (${form.from_date} to ${form.to_date}, ${requestedDays} day${requestedDays === 1 ? "" : "s"}).`,
         relatedId: leave.id,
       });
     } catch (notifyError) {
       console.error(notifyError);
-      toast.error("Leave saved, but the manager notification could not be sent.");
+      toast.error("Leave saved, but manager notification could not be sent.");
     }
-    toast.success(autoApprove ? "Leave auto-approved" : "Leave request submitted");
-    setForm({ leave_type: "Annual", from_date: "", to_date: "", reason: "" });
-    const [{ data: hist }, { data: bal }] = await Promise.all([
-      supabase
-        .from("leaves")
-        .select("*")
-        .eq("employee_id", empId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase.from("leave_balances").select("*").eq("employee_id", empId),
-    ]);
-    setHistory(hist ?? []);
-    setBalances(bal ?? []);
+
+    toast.success(shouldApprove ? "Leave auto-approved" : "Leave request submitted");
+    setForm({ leave_type: "Annual", from_date: todayKey, to_date: todayKey, reason: "" });
+    await load(profile, employee);
+    setSubmitting(false);
   };
 
+  if (loading && !employee) {
+    return (
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+        <Loader2 className="mr-2 size-4 animate-spin" />
+        Loading leave details...
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Apply Leave</h1>
-        <p className="text-sm text-muted-foreground mt-1">Submit a request and view balances.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        {LEAVE_TYPES.map((t) => {
-          const b = balances.find((x: any) =>
-            String(x.leave_type).toLowerCase().includes(t.toLowerCase()),
-          );
-          const total = Number(b?.total_days ?? defaultLeaveTotal(t));
-          const used = Number(b?.used_days ?? 0);
-          const remaining = Math.max(total - used, 0);
-          return (
-            <div key={t} className="bg-card border rounded-xl p-4 shadow-sm">
-              <div className="text-xs uppercase text-muted-foreground">{t}</div>
-              <div className="text-2xl font-semibold text-[var(--navy)] mt-1">{remaining}</div>
-              <div className="text-xs text-muted-foreground">
-                {used} used of {total} total
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="bg-card border rounded-xl p-6 shadow-sm space-y-4">
-        <h2 className="font-semibold">New request</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Leave type</Label>
-            <Select
-              value={form.leave_type}
-              onValueChange={(v) => setForm({ ...form, leave_type: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LEAVE_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-[var(--navy)]/70">My work</div>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Apply Leave</h1>
+          <p className="text-sm text-muted-foreground">
+            Submit a leave request, track approvals, and keep your balances clear.
+          </p>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-sm lg:min-w-[280px]">
+          <div className="text-sm font-medium text-muted-foreground">Employee</div>
+          <div className="mt-1 text-lg font-semibold text-[var(--navy)]">
+            {employee?.name || profile?.name || "Employee"}
           </div>
-          <div />
-          <div className="space-y-1.5">
-            <Label>From</Label>
-            <Input
-              type="date"
-              value={form.from_date}
-              onChange={(e) => setForm({ ...form, from_date: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>To</Label>
-            <Input
-              type="date"
-              value={form.to_date}
-              onChange={(e) => setForm({ ...form, to_date: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Reason</Label>
-            <Textarea
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              rows={3}
-            />
+          <div className="text-sm text-muted-foreground">
+            {[employee?.employee_code, employee?.department].filter(Boolean).join(" - ") ||
+              "Leave portal"}
           </div>
         </div>
-        <Button onClick={submit} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
-          Submit request
-        </Button>
-      </div>
+      </header>
 
-      <div className="bg-card border rounded-xl overflow-x-auto">
-        <div className="px-4 py-3 border-b font-semibold text-sm">History</div>
-        <table className="w-full min-w-[560px] text-sm">
-          <thead className="bg-secondary text-left">
-            <tr>
-              <th className="px-4 py-2 font-medium">Type</th>
-              <th className="px-4 py-2 font-medium">From</th>
-              <th className="px-4 py-2 font-medium">To</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {history.length === 0 ? (
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {LEAVE_TYPES.map((type) => (
+          <BalanceCard key={type} type={type} balance={findBalance(balances, type)} />
+        ))}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="rounded-xl border bg-card shadow-sm">
+          <div className="border-b p-5">
+            <h2 className="text-xl font-semibold text-[var(--navy)]">New leave request</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Managers will receive a notification as soon as you submit.
+            </p>
+          </div>
+          <div className="grid gap-5 p-5 md:grid-cols-2">
+            <Field label="Leave type">
+              <Select
+                value={form.leave_type}
+                onValueChange={(value) => setForm((current) => ({ ...current, leave_type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEAVE_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <div className="rounded-lg border bg-[#F8FAFD] p-4">
+              <div className="text-sm font-medium text-muted-foreground">Approval path</div>
+              <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--navy)]">
+                {autoApprove ? (
+                  <>
+                    <CheckCircle2 className="size-4 text-emerald-600" />
+                    Auto-approved
+                  </>
+                ) : (
+                  <>
+                    <Clock3 className="size-4 text-amber-500" />
+                    Manager approval required
+                  </>
+                )}
+              </div>
+            </div>
+            <Field label="From">
+              <Input
+                type="date"
+                min={todayKey}
+                value={form.from_date}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    from_date: event.target.value,
+                    to_date: isAfter(parseISO(event.target.value), parseISO(current.to_date))
+                      ? event.target.value
+                      : current.to_date,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="To">
+              <Input
+                type="date"
+                min={form.from_date || todayKey}
+                value={form.to_date}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, to_date: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label="Reason" className="md:col-span-2">
+              <Textarea
+                value={form.reason}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, reason: event.target.value }))
+                }
+                rows={4}
+                placeholder="Add a short note for your manager..."
+              />
+            </Field>
+            <div className="md:col-span-2">
+              <Button
+                onClick={submit}
+                disabled={submitting || loading || invalidDateRange || exceedsBalance}
+                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+              >
+                {submitting ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 size-4" />
+                )}
+                Submit request
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <aside className="space-y-4">
+          <div className="rounded-xl border bg-card p-5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <CalendarCheck className="size-5 text-[var(--navy)]" />
+              <h2 className="text-lg font-semibold text-[var(--navy)]">Request preview</h2>
+            </div>
+            <div className="mt-5 space-y-4 text-sm">
+              <PreviewRow label="Type" value={form.leave_type} />
+              <PreviewRow
+                label="Dates"
+                value={`${dateLabel(form.from_date)} - ${dateLabel(form.to_date)}`}
+              />
+              <PreviewRow
+                label="Total days"
+                value={invalidDateRange ? "Invalid" : String(requestedDays)}
+              />
+              <PreviewRow
+                label="Balance after"
+                value={
+                  form.leave_type.toLowerCase() === "unpaid"
+                    ? "Not deducted"
+                    : `${Math.max(selectedRemaining - requestedDays, 0)} days`
+                }
+              />
+            </div>
+            {exceedsBalance && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                This request is more than your available balance.
+              </div>
+            )}
+          </div>
+
+          <Link
+            to="/my-roster"
+            className="flex items-center justify-between rounded-xl border bg-card p-4 text-sm font-semibold text-[var(--navy)] shadow-sm hover:bg-secondary/40"
+          >
+            View my roster
+            <ArrowUpRight className="size-4" />
+          </Link>
+        </aside>
+      </section>
+
+      <section className="rounded-xl border bg-card shadow-sm">
+        <div className="flex items-center gap-2 border-b p-5">
+          <FileText className="size-5 text-[var(--navy)]" />
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--navy)]">Leave history</h2>
+            <p className="text-sm text-muted-foreground">
+              Status changes update here automatically.
+            </p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[780px] text-sm">
+            <thead className="bg-secondary/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                  No history yet.
-                </td>
+                <th className="px-5 py-3">Type</th>
+                <th className="px-5 py-3">From</th>
+                <th className="px-5 py-3">To</th>
+                <th className="px-5 py-3">Days</th>
+                <th className="px-5 py-3">Reason</th>
+                <th className="px-5 py-3">Status</th>
               </tr>
-            ) : (
-              history.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className="px-4 py-2 capitalize">{r.leave_type}</td>
-                  <td className="px-4 py-2">{r.from_date}</td>
-                  <td className="px-4 py-2">{r.to_date}</td>
-                  <td className="px-4 py-2">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        String(r.status).toLowerCase() === "pending"
-                          ? "bg-secondary text-[var(--navy)]"
-                          : String(r.status).toLowerCase() === "approved"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {statusLabel(r.status)}
-                    </span>
+            </thead>
+            <tbody>
+              {history.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                    No leave requests yet.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                history.map((row) => (
+                  <tr key={row.id} className="border-t">
+                    <td className="px-5 py-3 font-medium text-[var(--navy)]">{row.leave_type}</td>
+                    <td className="px-5 py-3">{dateLabel(row.from_date)}</td>
+                    <td className="px-5 py-3">{dateLabel(row.to_date)}</td>
+                    <td className="px-5 py-3">{row.total_days}</td>
+                    <td className="max-w-[260px] truncate px-5 py-3 text-muted-foreground">
+                      {row.reason || "-"}
+                    </td>
+                    <td className="px-5 py-3">
+                      <StatusBadge status={row.status} />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function BalanceCard({ type, balance }: { type: string; balance?: BalanceRow }) {
+  const total = Number(balance?.total_days ?? defaultLeaveTotal(type));
+  const used = Number(balance?.used_days ?? 0);
+  const remaining = Math.max(total - used, 0);
+  const percent = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {type} leave
+      </div>
+      <div className="mt-2 flex items-end gap-2">
+        <div className="text-3xl font-bold text-[var(--navy)]">{remaining}</div>
+        <div className="pb-1 text-sm text-muted-foreground">days</div>
+      </div>
+      <Progress value={percent} className="mt-4 h-2" />
+      <div className="mt-3 text-sm text-muted-foreground">
+        {used} used of {total} total
       </div>
     </div>
   );
+}
+
+function Field({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <Label className="text-sm font-medium text-[var(--navy)]">{label}</Label>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b pb-3 last:border-b-0 last:pb-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-semibold text-[var(--navy)]">{value}</span>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const value = status.toLowerCase();
+  if (value === "approved") {
+    return (
+      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+        <CheckCircle2 className="mr-1 size-3.5" />
+        Approved
+      </Badge>
+    );
+  }
+  if (value === "rejected" || value === "declined") {
+    return (
+      <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+        <XCircle className="mr-1 size-3.5" />
+        Rejected
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="bg-amber-50 text-amber-700">
+      <Clock3 className="mr-1 size-3.5" />
+      Pending
+    </Badge>
+  );
+}
+
+function findBalance(balances: BalanceRow[], type: string) {
+  const requestType = type.toLowerCase();
+  return balances.find((item) => {
+    const balanceType = String(item.leave_type).toLowerCase();
+    return balanceType.includes(requestType) || requestType.includes(balanceType);
+  });
+}
+
+function countLeaveDays(from: string, to: string) {
+  if (!from || !to) return 0;
+  const start = parseISO(from);
+  const end = parseISO(to);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || isAfter(start, end)) return 0;
+  let total = 0;
+  for (let day = start; !isAfter(day, end); day = addDays(day, 1)) {
+    total += 1;
+  }
+  return total;
+}
+
+async function applyBalanceChange(
+  businessId: string,
+  employeeId: string,
+  leaveType: string,
+  totalDays: number,
+) {
+  if (leaveType.toLowerCase() === "unpaid") return;
+  const { data: balanceRows, error: balanceError } = await supabase
+    .from("leave_balances")
+    .select("*")
+    .eq("business_id", businessId)
+    .eq("employee_id", employeeId);
+
+  if (balanceError) {
+    toast.error("Leave saved, but balance could not be updated: " + balanceError.message);
+    return;
+  }
+
+  const balance = findBalance((balanceRows ?? []) as BalanceRow[], leaveType);
+  if (balance) {
+    const { error } = await supabase
+      .from("leave_balances")
+      .update({ used_days: Number(balance.used_days ?? 0) + totalDays })
+      .eq("id", balance.id);
+    if (error) toast.error("Leave saved, but balance could not be updated: " + error.message);
+    return;
+  }
+
+  const { error } = await supabase.from("leave_balances").insert({
+    business_id: businessId,
+    employee_id: employeeId,
+    leave_type: leaveType,
+    total_days: defaultLeaveTotal(leaveType),
+    used_days: totalDays,
+  });
+  if (error) toast.error("Leave saved, but balance could not be created: " + error.message);
+}
+
+function dateLabel(value: string) {
+  if (!value) return "-";
+  return format(parseISO(value), "dd MMM yyyy");
 }
