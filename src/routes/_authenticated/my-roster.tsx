@@ -212,8 +212,15 @@ function MyRosterPage() {
     if (!profile?.business_id || !emp) return;
     const channel = supabase
       .channel(`my-roster:${profile.business_id}:${emp.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "roster_shifts" }, () =>
-        loadRoster(profile, emp),
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "roster_shifts",
+          filter: `employee_id=eq.${emp.id}`,
+        },
+        () => loadRoster(profile, emp),
       )
       .on(
         "postgres_changes",

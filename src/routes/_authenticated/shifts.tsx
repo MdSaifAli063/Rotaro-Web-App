@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,19 +51,7 @@ function ShiftsPage() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      const nextProfile = await fetchProfile();
-      setProfile(nextProfile);
-      if (nextProfile?.business_id) {
-        await load(nextProfile.business_id);
-      } else {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const load = async (businessId = profile?.business_id) => {
+  const load = useCallback(async (businessId?: string | null) => {
     if (!businessId) return;
     setLoading(true);
     const { data, error } = await supabase
@@ -79,7 +67,19 @@ function ShiftsPage() {
     }
     setRows((data as Template[]) ?? []);
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const nextProfile = await fetchProfile();
+      setProfile(nextProfile);
+      if (nextProfile?.business_id) {
+        await load(nextProfile.business_id);
+      } else {
+        setLoading(false);
+      }
+    })();
+  }, [load]);
 
   const canManage = isManager(profile);
 

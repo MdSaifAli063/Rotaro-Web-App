@@ -209,17 +209,47 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
   useEffect(() => {
     load();
     const timer = window.setInterval(load, 30000);
+    if (!profile.business_id) {
+      return () => window.clearInterval(timer);
+    }
     const channel = supabase
-      .channel("dashboard-employer")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "leaves" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "shift_swaps" }, load)
+      .channel(`dashboard-employer:${profile.business_id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_records",
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        load,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leaves",
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        load,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "shift_swaps",
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        load,
+      )
       .subscribe();
     return () => {
       window.clearInterval(timer);
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, profile.business_id]);
 
   const stores = useMemo(() => {
     const list = uniq([
@@ -619,15 +649,34 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
 
   useEffect(() => {
     load();
+    if (!employee) return;
     const channel = supabase
-      .channel("dashboard-employee")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, load)
+      .channel(`dashboard-employee:${profile.id}:${employee.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_records",
+          filter: `employee_id=eq.${employee.id}`,
+        },
+        load,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${profile.id}`,
+        },
+        load,
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [employee, load, profile.id]);
 
   const updateAttendance = async (patch: Record<string, any>) => {
     if (!employee || !profile.business_id) return;

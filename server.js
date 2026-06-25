@@ -33,6 +33,7 @@ loadLocalEnv();
 const port = Number(process.env.PORT ?? 8080);
 const host = process.env.HOST ?? "0.0.0.0";
 const clientDistPath = path.join(__dirname, "dist/client");
+const normalizedClientDistPath = path.normalize(clientDistPath + path.sep);
 const serverEntryPath = path.join(__dirname, "dist/server/server.js");
 console.log("Starting runtime server");
 console.log(`Loading SSR entry from: ${serverEntryPath}`);
@@ -65,6 +66,13 @@ function getContentType(filePath) {
   return mimeTypes[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
 }
 
+function applySecurityHeaders(res) {
+  res.setHeader("x-content-type-options", "nosniff");
+  res.setHeader("x-frame-options", "SAMEORIGIN");
+  res.setHeader("referrer-policy", "strict-origin-when-cross-origin");
+  res.setHeader("permissions-policy", "camera=(), microphone=(), geolocation=()");
+}
+
 async function serveStaticFile(url, res) {
   const { pathname } = new URL(url, "http://localhost");
   if (
@@ -78,19 +86,21 @@ async function serveStaticFile(url, res) {
   const relativePath = pathname.replace(/^[\/]/, "");
   const filePath = path.join(clientDistPath, relativePath);
   const normalized = path.normalize(filePath);
-  if (!normalized.startsWith(clientDistPath)) {
+  if (!normalized.startsWith(normalizedClientDistPath)) {
     return false;
   }
 
   try {
     const stat = await fs.promises.stat(normalized);
     if (!stat.isFile()) return false;
-    const data = await fs.promises.readFile(normalized);
+    const immutable = pathname.startsWith("/assets/");
+    applySecurityHeaders(res);
     res.writeHead(200, {
       "content-type": getContentType(normalized),
-      "content-length": data.length,
+      "content-length": stat.size,
+      "cache-control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=3600",
     });
-    res.end(data);
+    fs.createReadStream(normalized).pipe(res);
     return true;
   } catch {
     return false;
@@ -100,6 +110,26 @@ async function serveStaticFile(url, res) {
 const server = http.createServer(async (req, res) => {
   try {
     const reqUrl = req.url ?? "/";
+    applySecurityHeaders(res);
+
+    if (reqUrl === "/healthz" || reqUrl === "/health") {
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify({ ok: true, uptime: process.uptime() }));
+      return;
+    }
+
+    if (reqUrl === "/robots.txt") {
+      res.writeHead(200, {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "public, max-age=3600",
+      });
+      res.end("User-agent: *\nAllow: /\n");
+      return;
+    }
+
     const handled = await serveStaticFile(reqUrl, res);
     if (handled) return;
 

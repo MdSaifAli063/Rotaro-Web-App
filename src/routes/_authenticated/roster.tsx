@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -207,7 +207,7 @@ export function RosterList({
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(openCreate);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from("rosters")
@@ -217,11 +217,11 @@ export function RosterList({
       .limit(10);
     setRosters((data ?? []) as Roster[]);
     setLoading(false);
-  };
+  }, [businessId]);
 
   useEffect(() => {
     load();
-  }, [businessId]);
+  }, [load]);
 
   useEffect(() => {
     setCreateOpen(openCreate);

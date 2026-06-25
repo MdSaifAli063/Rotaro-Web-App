@@ -74,14 +74,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Rotaro" },
-      { name: "description", content: "Workforce scheduling made simple." },
-      { property: "og:title", content: "Rotaro" },
-      { property: "og:description", content: "Workforce scheduling made simple." },
+      { title: "Rotaro | Workforce Scheduling, Rosters, Leave & Attendance" },
+      {
+        name: "description",
+        content:
+          "Rotaro helps businesses manage rosters, employee leave, attendance, holidays, reports, and team communication in one workspace.",
+      },
+      { name: "robots", content: "index, follow" },
+      { property: "og:title", content: "Rotaro | Workforce Scheduling Software" },
+      {
+        property: "og:description",
+        content:
+          "Plan rosters, track attendance, approve leave, manage holidays, and connect teams in real time.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Rotaro" },
-      { name: "twitter:description", content: "Workforce scheduling made simple." },
+      { name: "twitter:title", content: "Rotaro | Workforce Scheduling Software" },
+      {
+        name: "twitter:description",
+        content:
+          "Plan rosters, track attendance, approve leave, manage holidays, and connect teams in real time.",
+      },
       { property: "og:image", content: "/favicon.svg" },
       { name: "twitter:image", content: "/favicon.svg" },
     ],
@@ -149,7 +162,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `window.__SUPABASE__ = ${JSON.stringify(env)};`,
+            __html: `window.__SUPABASE__ = ${serializeForScript(env)};`,
           }}
         />
       </head>
@@ -159,6 +172,10 @@ function RootShell({ children }: { children: ReactNode }) {
       </body>
     </html>
   );
+}
+
+function serializeForScript(value: unknown) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 function RootComponent() {

@@ -172,21 +172,37 @@ function AttendancePage() {
 
   useEffect(() => {
     if (!profile?.business_id) return;
+    const manager = isManager(profile);
+    if (!manager && !employeeState.employeeId) return;
+    const filter = manager
+      ? `business_id=eq.${profile.business_id}`
+      : employeeState.employeeId
+        ? `employee_id=eq.${employeeState.employeeId}`
+        : undefined;
     const channel = supabase
-      .channel(`attendance-${profile.business_id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records" }, () => {
-        if (profile && isManager(profile)) {
-          void loadManager(profile);
-        } else {
-          void loadEmployee(profile);
-        }
-      })
+      .channel(`attendance-${profile.business_id}-${employeeState.employeeId ?? profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_records",
+          ...(filter ? { filter } : {}),
+        },
+        () => {
+          if (manager) {
+            void loadManager(profile);
+          } else {
+            void loadEmployee(profile);
+          }
+        },
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile]);
+  }, [employeeState.employeeId, profile]);
 
   const loadManager = async (p: Profile) => {
     if (!p.business_id) {
