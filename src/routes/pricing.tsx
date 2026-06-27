@@ -104,7 +104,7 @@ function Hero() {
     <section className="bg-secondary border-b border-border">
       <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_0.8fr] md:py-20">
         <div className="space-y-5">
-          <h1 className="text-4xl font-extrabold tracking-tight text-[var(--navy)] sm:text-5xl md:text-6xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--navy)] sm:text-5xl md:text-6xl">
             Simple, transparent pricing
           </h1>
           <p className="max-w-2xl text-base md:text-lg text-[var(--navy)]/75">
@@ -157,7 +157,7 @@ function PricingControls({
           ))}
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-3 text-sm text-[var(--navy)]/80">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-[var(--navy)]/80">
           <span className="font-medium">Pay with:</span>
           {(["stripe", "razorpay"] as const).map((item) => (
             <button
@@ -248,7 +248,7 @@ function PricingCards({
 
   return (
     <section className="bg-background">
-      <div className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16">
         <div className="grid gap-6 lg:grid-cols-3">
           {plans.map((plan) => {
             const isFeatured = plan.featured;
@@ -256,7 +256,7 @@ function PricingCards({
             return (
               <div
                 key={plan.key}
-                className={`relative rounded-3xl border p-8 flex flex-col ${
+                className={`relative flex flex-col rounded-3xl border p-5 sm:p-8 ${
                   isFeatured
                     ? "border-[var(--navy)] bg-white shadow-[0_10px_40px_rgba(28,39,72,0.10)]"
                     : "border-border bg-card shadow-sm"
@@ -275,7 +275,7 @@ function PricingCards({
 
                 <div className="mt-6">
                   <div className="flex items-end gap-1">
-                    <span className="text-5xl font-extrabold tracking-tight text-[var(--navy)]">
+                    <span className="text-4xl font-extrabold tracking-tight text-[var(--navy)] sm:text-5xl">
                       {plan.price}
                     </span>
                     {plan.key !== "starter" && (

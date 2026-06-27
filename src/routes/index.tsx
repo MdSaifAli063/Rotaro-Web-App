@@ -277,7 +277,7 @@ function WhatWeDo() {
             />
           ))}
         </div>
-        <h2 className="text-4xl md:text-5xl font-bold">What we can do for you</h2>
+        <h2 className="text-3xl font-bold sm:text-4xl md:text-5xl">What we can do for you</h2>
         <div className="mt-8 space-y-5 text-white/85 max-w-3xl text-base leading-relaxed">
           <p>
             Looking for a simple, all-in-one platform that automates rostering, leave, attendance
@@ -339,7 +339,9 @@ function HowItWorks() {
       />
       <div className="max-w-7xl mx-auto px-6 py-24 relative">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold text-[var(--navy)]">How it works</h2>
+          <h2 className="text-3xl font-bold text-[var(--navy)] sm:text-4xl md:text-5xl">
+            How it works
+          </h2>
           <p className="text-muted-foreground mt-4">
             In four simple steps, get your team up and running with smart scheduling that makes
             managing your workforce effortless.
@@ -388,7 +390,7 @@ function Industries() {
     <section id="industries" className="bg-background">
       <div className="max-w-7xl mx-auto px-6 py-24">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold text-[var(--navy)]">
+          <h2 className="text-3xl font-bold text-[var(--navy)] sm:text-4xl md:text-5xl">
             Built for every kind of team
           </h2>
           <p className="text-muted-foreground mt-4">
@@ -441,7 +443,9 @@ function ContactSection() {
   return (
     <section id="contact" className="relative bg-background">
       <div className="max-w-5xl mx-auto px-6 py-24">
-        <h2 className="text-4xl md:text-5xl font-bold text-[var(--navy)]">Contact us</h2>
+        <h2 className="text-3xl font-bold text-[var(--navy)] sm:text-4xl md:text-5xl">
+          Contact us
+        </h2>
         <p className="text-muted-foreground mt-3 max-w-xl">
           Have a question? Get in touch with our team — we're here to help.
         </p>
@@ -563,7 +567,7 @@ export function SiteFooter() {
             }}
             className="mt-5 space-y-3"
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Input
                 placeholder="First name*"
                 required
