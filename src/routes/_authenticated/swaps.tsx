@@ -11,18 +11,34 @@ export const Route = createFileRoute("/_authenticated/swaps")({
   component: SwapsPage,
 });
 
+type EmployeeSummary = {
+  id: string;
+  name: string | null;
+  department: string | null;
+  user_id: string | null;
+};
+
+type SwapRow = {
+  id: string;
+  business_id: string;
+  requester_employee_id: string;
+  requester_shift_id: string | null;
+  target_employee_id: string;
+  target_shift_id: string | null;
+  note: string | null;
+  status: string;
+  created_at: string;
+  requester?: EmployeeSummary | null;
+  target?: EmployeeSummary | null;
+};
+
 function SwapsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<SwapRow[]>([]);
 
   const load = useCallback(async (nextProfile: Profile | null) => {
     if (!nextProfile) return;
-    let query = supabase
-      .from("shift_swaps")
-      .select(
-        "*, requester:employees!shift_swaps_requester_employee_id_fkey(name, department, user_id), target:employees!shift_swaps_target_employee_id_fkey(name, department, user_id)",
-      )
-      .order("created_at", { ascending: false });
+    let query = supabase.from("shift_swaps").select("*").order("created_at", { ascending: false });
 
     if (nextProfile.business_id) {
       query = query.eq("business_id", nextProfile.business_id);
@@ -53,7 +69,34 @@ function SwapsPage() {
       setRows([]);
       return;
     }
-    setRows(data ?? []);
+
+    const swaps = (data ?? []) as SwapRow[];
+    const employeeIds = Array.from(
+      new Set(swaps.flatMap((swap) => [swap.requester_employee_id, swap.target_employee_id])),
+    ).filter(Boolean);
+    const { data: employees, error: employeesError } = employeeIds.length
+      ? await supabase
+          .from("employees")
+          .select("id, name, department, user_id")
+          .in("id", employeeIds)
+      : { data: [], error: null };
+
+    if (employeesError) {
+      toast.error("Failed to load swap employee details: " + employeesError.message);
+      setRows(swaps);
+      return;
+    }
+
+    const employeesById = new Map(
+      ((employees ?? []) as EmployeeSummary[]).map((employee) => [employee.id, employee]),
+    );
+    setRows(
+      swaps.map((swap) => ({
+        ...swap,
+        requester: employeesById.get(swap.requester_employee_id) ?? null,
+        target: employeesById.get(swap.target_employee_id) ?? null,
+      })),
+    );
   }, []);
 
   useEffect(() => {
@@ -64,7 +107,7 @@ function SwapsPage() {
     })();
   }, [load]);
 
-  const decide = async (row: any, status: "approved" | "rejected") => {
+  const decide = async (row: SwapRow, status: "approved" | "rejected") => {
     const { error } = await supabase.from("shift_swaps").update({ status }).eq("id", row.id);
     if (error) {
       toast.error(error.message);
@@ -93,6 +136,9 @@ function SwapsPage() {
         businessId: profile?.business_id,
         type: "swap_" + status,
         message: `Your shift swap request was ${status}.`,
+      }).catch((notifyError) => {
+        console.error(notifyError);
+        toast.error("Swap updated, but requester notification could not be sent.");
       });
     toast.success(`Swap ${status}`);
     load(profile);
