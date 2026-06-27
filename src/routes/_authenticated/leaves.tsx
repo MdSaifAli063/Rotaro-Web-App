@@ -209,6 +209,9 @@ function LeavesPage() {
         type: "leave_" + status,
         message: `Your ${row.leave_type} leave was ${status}.`,
         relatedId: row.id,
+      }).catch((notifyError) => {
+        console.error(notifyError);
+        toast.error("Leave updated, but employee notification could not be sent.");
       });
     }
     toast.success(`Leave ${status}`);

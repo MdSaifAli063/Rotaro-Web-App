@@ -329,6 +329,9 @@ function MyRosterPage() {
       businessId: profile.business_id,
       type: "swap_requested",
       message: `${emp.name} requested a shift swap.`,
+    }).catch((notifyError) => {
+      console.error(notifyError);
+      toast.error("Swap saved, but manager notification could not be sent.");
     });
     toast.success("Swap request submitted");
     setOpen(false);

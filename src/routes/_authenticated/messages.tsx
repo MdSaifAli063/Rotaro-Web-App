@@ -329,13 +329,13 @@ function MessagesPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-card shadow-sm">
+        <div className="min-w-0 rounded-2xl border bg-card shadow-sm">
           {selectedMessage ? (
-            <div className="flex min-h-[620px] flex-col">
+            <div className="flex min-h-[360px] flex-col sm:min-h-[520px] xl:min-h-[620px]">
               <div className="border-b p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-[var(--navy)]">
+                  <div className="min-w-0">
+                    <h2 className="break-words text-xl font-semibold text-[var(--navy)] sm:text-2xl">
                       {selectedMessage.subject || "New message"}
                     </h2>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -357,12 +357,12 @@ function MessagesPage() {
                   </Badge>
                 </div>
               </div>
-              <div className="flex-1 whitespace-pre-wrap p-5 text-sm leading-7 text-[var(--navy)]">
+              <div className="min-w-0 flex-1 whitespace-pre-wrap break-words p-5 text-sm leading-7 text-[var(--navy)]">
                 {selectedMessage.body}
               </div>
             </div>
           ) : (
-            <div className="flex min-h-[620px] items-center justify-center p-6">
+            <div className="flex min-h-[320px] items-center justify-center p-6 sm:min-h-[520px] xl:min-h-[620px]">
               <EmptyState text="Select a message to read it here." />
             </div>
           )}
