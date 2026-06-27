@@ -326,7 +326,9 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
             </DropdownMenu>
           </div>
         </header>
-        <div className="mx-auto max-w-7xl px-3 py-5 sm:px-6 sm:py-8 lg:px-8">{children}</div>
+        <div className="mx-auto min-w-0 max-w-7xl px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+          {children}
+        </div>
       </main>
     </div>
   );

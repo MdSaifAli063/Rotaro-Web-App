@@ -21,6 +21,7 @@ export type Database = {
           id: string;
           status: string | null;
           updated_at: string;
+          user_id: string;
           total_hours: number | null;
         };
         Insert: {
@@ -34,6 +35,7 @@ export type Database = {
           employee_id: string;
           id?: string;
           status?: string | null;
+          user_id: string;
           total_hours?: number | null;
           updated_at?: string;
         };
@@ -48,6 +50,7 @@ export type Database = {
           employee_id?: string;
           id?: string;
           status?: string | null;
+          user_id?: string;
           total_hours?: number | null;
           updated_at?: string;
         };
@@ -314,37 +317,46 @@ export type Database = {
           business_id: string;
           created_at: string;
           employee_id: string;
+          end_date: string | null;
           from_date: string;
           id: string;
           leave_type: string;
           reason: string | null;
+          start_date: string | null;
           status: string;
           to_date: string;
           total_days: number;
+          user_id: string;
         };
         Insert: {
           business_id: string;
           created_at?: string;
           employee_id: string;
+          end_date?: string | null;
           from_date: string;
           id?: string;
           leave_type: string;
           reason?: string | null;
+          start_date?: string | null;
           status?: string;
           to_date: string;
           total_days?: number;
+          user_id: string;
         };
         Update: {
           business_id?: string;
           created_at?: string;
           employee_id?: string;
+          end_date?: string | null;
           from_date?: string;
           id?: string;
           leave_type?: string;
           reason?: string | null;
+          start_date?: string | null;
           status?: string;
           to_date?: string;
           total_days?: number;
+          user_id?: string;
         };
         Relationships: [
           {
