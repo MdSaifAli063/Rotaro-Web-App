@@ -9,6 +9,9 @@ import { RotaroMark } from "@/components/RotaroMark";
 import { seedDemoData } from "@/lib/seed.functions";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    next: typeof search.next === "string" && search.next.startsWith("/") ? search.next : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — Rotaro" },
@@ -20,16 +23,14 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [role, setRole] = useState<"employer" | "employee">("employer");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const next =
-    typeof window !== "undefined"
-      ? (new URLSearchParams(window.location.search).get("next") ?? undefined)
-      : undefined;
+  const afterLogin = next || "/dashboard";
 
   // Fire-and-forget: seed demo data once so the demo accounts work.
   useEffect(() => {
@@ -51,7 +52,7 @@ function AuthPage() {
         password: "Demo1234!",
       });
       if (error) throw error;
-      navigate({ to: next || "/dashboard" });
+      navigate({ to: afterLogin });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Demo login failed");
     } finally {
@@ -78,7 +79,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      navigate({ to: next || "/dashboard" });
+      navigate({ to: afterLogin });
     } catch (err: any) {
       toast.error(err.message ?? "Something went wrong");
     } finally {

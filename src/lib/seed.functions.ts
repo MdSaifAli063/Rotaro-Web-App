@@ -161,6 +161,7 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
   ];
 
   const empIds: string[] = [];
+  const employeeUserIds = new Map<string, string>();
   for (const e of empSeed) {
     const uid = await ensureUser(e.email, e.name, "employee");
     await upsertProfile(uid, e.name, e.email, "employee", biz.id, { department: e.dept });
@@ -201,6 +202,7 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
       employeeId = newEmp.id;
     }
     empIds.push(employeeId);
+    employeeUserIds.set(employeeId, uid);
 
     await supabaseAdmin.from("leave_balances").upsert(
       [
@@ -336,27 +338,36 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
       {
         business_id: biz.id,
         employee_id: empIds[0],
+        user_id: employeeUserIds.get(empIds[0]),
         leave_type: "Annual",
         from_date: fmt(lastMon),
         to_date: fmt(addDays(lastMon, 2)),
+        start_date: fmt(lastMon),
+        end_date: fmt(addDays(lastMon, 2)),
         status: "Approved",
         reason: "Family trip",
       },
       {
         business_id: biz.id,
         employee_id: empIds[1],
+        user_id: employeeUserIds.get(empIds[1]),
         leave_type: "Sick",
         from_date: fmt(thisMon),
         to_date: fmt(addDays(thisMon, 1)),
+        start_date: fmt(thisMon),
+        end_date: fmt(addDays(thisMon, 1)),
         status: "Pending",
         reason: "Flu",
       },
       {
         business_id: biz.id,
         employee_id: empIds[3],
+        user_id: employeeUserIds.get(empIds[3]),
         leave_type: "Unpaid",
         from_date: fmt(addDays(thisMon, -14)),
         to_date: fmt(addDays(thisMon, -13)),
+        start_date: fmt(addDays(thisMon, -14)),
+        end_date: fmt(addDays(thisMon, -13)),
         status: "Rejected",
         reason: "Personal",
       },
@@ -382,6 +393,7 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
         attRows.push({
           business_id: biz.id,
           employee_id: eid,
+          user_id: employeeUserIds.get(eid),
           date,
           check_in_time: new Date(`${date}T0${inH}:00:00Z`).toISOString(),
           check_out_time: new Date(`${date}T${outH}:00:00Z`).toISOString(),
