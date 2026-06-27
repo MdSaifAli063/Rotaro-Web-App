@@ -1077,19 +1077,19 @@ function SettingsCard({
 }) {
   return (
     <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-[#EEF3FA] text-[var(--navy)]">
+      <div className="flex flex-col gap-4 border-b px-4 py-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FA] text-[var(--navy)]">
             <Icon className="size-5" />
           </div>
-          <div>
-            <h2 className="text-xl font-semibold text-[var(--navy)]">{title}</h2>
+          <div className="min-w-0">
+            <h2 className="break-words text-xl font-semibold text-[var(--navy)]">{title}</h2>
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>
         </div>
         {action}
       </div>
-      <div className="space-y-6 px-5 py-5">{children}</div>
+      <div className="space-y-6 px-4 py-5 sm:px-5">{children}</div>
     </section>
   );
 }
@@ -1134,7 +1134,7 @@ function SwitchRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border bg-[#F8FAFD] px-4 py-3">
+    <div className="flex flex-col items-start gap-4 rounded-xl border bg-[#F8FAFD] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="font-medium text-[var(--navy)]">{title}</div>
         <div className="text-sm text-muted-foreground">{description}</div>

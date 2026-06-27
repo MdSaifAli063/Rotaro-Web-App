@@ -79,8 +79,8 @@ function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background px-4 py-8 sm:py-12">
+      <div className="mx-auto max-w-2xl">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-[var(--navy)]">Set up your business</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -96,7 +96,7 @@ function OnboardingPage() {
           ))}
         </div>
 
-        <div className="bg-card border rounded-xl p-8 shadow-sm">
+        <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-8">
           {step === 1 && (
             <div className="space-y-5">
               <h2 className="font-semibold text-lg">Business info</h2>
@@ -108,7 +108,7 @@ function OnboardingPage() {
                   placeholder="Acme Cafe"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Country</Label>
                   <Input
@@ -140,7 +140,7 @@ function OnboardingPage() {
           {step === 2 && (
             <div className="space-y-5">
               <h2 className="font-semibold text-lg">Hours of operation</h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Opening time</Label>
                   <Input
@@ -183,7 +183,7 @@ function OnboardingPage() {
           {step === 3 && (
             <div className="space-y-5">
               <h2 className="font-semibold text-lg">Employee settings</h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Number of employees</Label>
                   <Input
@@ -244,7 +244,7 @@ function OnboardingPage() {
             </div>
           )}
 
-          <div className="flex justify-between mt-8 pt-6 border-t">
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-between">
             <Button variant="outline" onClick={() => setStep(step - 1)} disabled={step === 1}>
               Back
             </Button>
