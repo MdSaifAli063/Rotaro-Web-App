@@ -37,6 +37,7 @@ export const Route = createFileRoute("/_authenticated/attendance")({
 
 type AttendanceRow = {
   id: string;
+  user_id: string;
   employee_id: string;
   date: string;
   check_in_time: string | null;
@@ -402,6 +403,7 @@ function AttendancePage() {
             .insert({
               business_id: profile.business_id,
               employee_id: employeeState.employeeId,
+              user_id: profile.id,
               date: todayStr,
               check_in_time: checkedInAt.toISOString(),
               status: "checked_in",
@@ -429,6 +431,7 @@ function AttendancePage() {
             check_out_time: out.toISOString(),
             total_hours: workedHours(employeeState.today, out),
             status: "completed",
+            user_id: profile.id,
           };
           const { error } = await supabase
             .from("attendance_records")
@@ -454,7 +457,7 @@ function AttendancePage() {
           const started = new Date();
           const { error } = await supabase
             .from("attendance_records")
-            .update({ break_start: started.toISOString() })
+            .update({ break_start: started.toISOString(), user_id: profile.id })
             .eq("id", employeeState.today.id);
           if (error) {
             toast.error(error.message);
@@ -475,7 +478,7 @@ function AttendancePage() {
           const ended = new Date();
           const { error } = await supabase
             .from("attendance_records")
-            .update({ break_end: ended.toISOString() })
+            .update({ break_end: ended.toISOString(), user_id: profile.id })
             .eq("id", employeeState.today.id);
           if (error) {
             toast.error(error.message);
@@ -980,7 +983,7 @@ function StatCard({
         </div>
         <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">+0%</Badge>
       </div>
-      <div className="mt-6 text-4xl font-bold text-[var(--navy)] sm:text-5xl">{value}</div>
+      <div className="mt-6 text-3xl font-bold text-[var(--navy)] sm:text-5xl">{value}</div>
       <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3">
         {chart.map((bar) => (
           <div key={bar.label} className="flex flex-col items-center gap-2">
@@ -1030,7 +1033,7 @@ function MetricCard({
           <Icon className="size-5" />
         </div>
       </div>
-      <div className="mt-10 text-4xl font-bold text-[var(--navy)] sm:mt-16 sm:text-5xl">
+      <div className="mt-10 text-3xl font-bold text-[var(--navy)] sm:mt-16 sm:text-5xl">
         {value}
       </div>
       <div className="mt-3 text-sm text-muted-foreground">{subtitle}</div>
@@ -1062,7 +1065,7 @@ function PerformanceCard({
             }}
           />
           <div className="relative text-center">
-            <div className="text-4xl font-bold text-[var(--navy)]">{value}%</div>
+            <div className="text-3xl font-bold text-[var(--navy)] sm:text-4xl">{value}%</div>
             <div className="text-sm text-muted-foreground">Needs attention</div>
           </div>
         </div>

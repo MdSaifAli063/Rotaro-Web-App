@@ -40,6 +40,7 @@ type EmployeeRow = {
   employee_code: string | null;
   name: string;
   department: string | null;
+  user_id: string | null;
 };
 
 type BalanceRow = {
@@ -71,6 +72,10 @@ type LeaveForm = {
 
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 const todayKey = format(new Date(), "yyyy-MM-dd");
+const defaultLeaveSettings = {
+  autoApproveLeave: false,
+  autoApproveByType: {} as Record<string, boolean>,
+};
 
 const defaultLeaveTotal = (type: string) => {
   const value = type.toLowerCase();
@@ -87,7 +92,7 @@ function ApplyLeavePage() {
   const [history, setHistory] = useState<LeaveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [autoApprove, setAutoApprove] = useState(false);
+  const [leaveSettings, setLeaveSettings] = useState(defaultLeaveSettings);
   const [form, setForm] = useState<LeaveForm>({
     leave_type: "Annual",
     from_date: todayKey,
@@ -109,15 +114,22 @@ function ApplyLeavePage() {
   const exceedsBalance =
     form.leave_type.toLowerCase() !== "unpaid" && requestedDays > selectedRemaining;
   const invalidDateRange = requestedDays < 1;
+  const autoApprove =
+    leaveSettings.autoApproveLeave === true ||
+    leaveSettings.autoApproveByType[form.leave_type] === true;
 
   const load = useCallback(
-    async (currentProfile = profile, currentEmployee = employee) => {
+    async (
+      currentProfile: Profile | null,
+      currentEmployee: EmployeeRow | null,
+      options: { showLoading?: boolean } = {},
+    ) => {
       if (!currentProfile?.business_id || !currentEmployee) {
         setLoading(false);
         return;
       }
 
-      setLoading(true);
+      if (options.showLoading !== false) setLoading(true);
       const [balanceResult, historyResult, settingsResult] = await Promise.all([
         supabase
           .from("leave_balances")
@@ -145,14 +157,15 @@ function ApplyLeavePage() {
         toast.error("Failed to load leave history: " + historyResult.error.message);
 
       const perType = (settingsResult.data?.auto_approve_by_type as Record<string, boolean>) ?? {};
-      setAutoApprove(
-        settingsResult.data?.auto_approve_leave === true || perType[form.leave_type] === true,
-      );
+      setLeaveSettings({
+        autoApproveLeave: settingsResult.data?.auto_approve_leave === true,
+        autoApproveByType: perType,
+      });
       setBalances((balanceResult.data ?? []) as BalanceRow[]);
       setHistory((historyResult.data ?? []) as LeaveRow[]);
       setLoading(false);
     },
-    [employee, form.leave_type, profile],
+    [],
   );
 
   useEffect(() => {
@@ -168,7 +181,7 @@ function ApplyLeavePage() {
 
       const { employee: data, error } = await findEmployeeForUser<EmployeeRow>(
         nextProfile.id,
-        "id, business_id, employee_code, name, department",
+        "id, business_id, employee_code, name, department, user_id",
       );
 
       if (error) toast.error("Failed to load employee profile: " + error.message);
@@ -199,7 +212,7 @@ function ApplyLeavePage() {
           table: "leaves",
           filter: `employee_id=eq.${employee.id}`,
         },
-        () => load(profile, employee),
+        () => load(profile, employee, { showLoading: false }),
       )
       .on(
         "postgres_changes",
@@ -209,7 +222,7 @@ function ApplyLeavePage() {
           table: "leave_balances",
           filter: `employee_id=eq.${employee.id}`,
         },
-        () => load(profile, employee),
+        () => load(profile, employee, { showLoading: false }),
       )
       .subscribe();
 
@@ -219,6 +232,7 @@ function ApplyLeavePage() {
   }, [employee, load, profile]);
 
   const submit = async () => {
+    if (submitting) return;
     if (!employee || !profile?.business_id) return;
     if (invalidDateRange) {
       toast.error("The end date must be on or after the start date");
@@ -238,57 +252,81 @@ function ApplyLeavePage() {
     }
 
     setSubmitting(true);
-    const { data: settings } = await supabase
-      .from("settings")
-      .select("auto_approve_leave, auto_approve_by_type")
-      .eq("business_id", profile.business_id)
-      .maybeSingle();
+    try {
+      const { data: settings, error: settingsError } = await supabase
+        .from("settings")
+        .select("auto_approve_leave, auto_approve_by_type")
+        .eq("business_id", profile.business_id)
+        .maybeSingle();
 
-    const perType = (settings?.auto_approve_by_type as Record<string, boolean>) ?? {};
-    const shouldApprove =
-      settings?.auto_approve_leave === true || perType[form.leave_type] === true;
+      if (settingsError) {
+        console.error("Apply leave settings load failed:", settingsError.message);
+      }
 
-    const { data: leave, error } = await supabase
-      .from("leaves")
-      .insert({
-        business_id: profile.business_id,
-        employee_id: employee.id,
+      const perType =
+        (settings?.auto_approve_by_type as Record<string, boolean>) ??
+        leaveSettings.autoApproveByType;
+      const shouldApprove =
+        settings?.auto_approve_leave === true ||
+        leaveSettings.autoApproveLeave === true ||
+        perType[form.leave_type] === true;
+
+      const request = {
         leave_type: form.leave_type,
         from_date: form.from_date,
         to_date: form.to_date,
+        reason: form.reason.trim(),
         total_days: requestedDays,
-        reason: form.reason.trim() || null,
-        status: shouldApprove ? "approved" : "pending",
-      })
-      .select("id")
-      .single();
+      };
 
-    if (error) {
-      setSubmitting(false);
-      toast.error(error.message);
-      return;
-    }
+      const { data: leave, error } = await supabase
+        .from("leaves")
+        .insert({
+          business_id: profile.business_id,
+          employee_id: employee.id,
+          user_id: employee.user_id ?? profile.id,
+          leave_type: request.leave_type,
+          from_date: request.from_date,
+          to_date: request.to_date,
+          start_date: request.from_date,
+          end_date: request.to_date,
+          total_days: request.total_days,
+          reason: request.reason || null,
+          status: shouldApprove ? "approved" : "pending",
+        })
+        .select("id")
+        .single();
 
-    if (shouldApprove) {
-      await applyBalanceChange(profile.business_id, employee.id, form.leave_type, requestedDays);
-    }
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
 
-    try {
-      await notifyManagers({
+      if (shouldApprove) {
+        await applyBalanceChange(
+          profile.business_id,
+          employee.id,
+          request.leave_type,
+          request.total_days,
+        );
+      }
+
+      toast.success(shouldApprove ? "Leave auto-approved" : "Leave request submitted");
+      setForm({ leave_type: "Annual", from_date: todayKey, to_date: todayKey, reason: "" });
+      await load(profile, employee, { showLoading: false });
+
+      void notifyManagers({
         businessId: profile.business_id,
         type: "leave_requested",
-        message: `${employee.name} requested ${form.leave_type} leave (${form.from_date} to ${form.to_date}, ${requestedDays} day${requestedDays === 1 ? "" : "s"}).`,
+        message: `${employee.name} requested ${request.leave_type} leave (${request.from_date} to ${request.to_date}, ${request.total_days} day${request.total_days === 1 ? "" : "s"}).`,
         relatedId: leave.id,
+      }).catch((notifyError) => {
+        console.error(notifyError);
+        toast.error("Leave saved, but manager notification could not be sent.");
       });
-    } catch (notifyError) {
-      console.error(notifyError);
-      toast.error("Leave saved, but manager notification could not be sent.");
+    } finally {
+      setSubmitting(false);
     }
-
-    toast.success(shouldApprove ? "Leave auto-approved" : "Leave request submitted");
-    setForm({ leave_type: "Annual", from_date: todayKey, to_date: todayKey, reason: "" });
-    await load(profile, employee);
-    setSubmitting(false);
   };
 
   if (loading && !employee) {
