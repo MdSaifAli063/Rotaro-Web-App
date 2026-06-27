@@ -362,7 +362,7 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
                 {selectedDeptLabel}
               </button>
               {deptMenuOpen && (
-                <div className="absolute left-0 top-11 z-40 w-full min-w-[16rem] rounded-md border bg-white p-3 text-[var(--navy)] shadow-lg sm:left-auto sm:right-0 sm:w-64">
+                <div className="absolute left-0 top-11 z-40 w-full min-w-0 max-w-[calc(100vw-2rem)] rounded-md border bg-white p-3 text-[var(--navy)] shadow-lg sm:left-auto sm:right-0 sm:w-64 sm:min-w-[16rem]">
                   <button
                     type="button"
                     onClick={() => setDepts(allDepts)}
@@ -523,7 +523,7 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
           </main>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           icon={Users}
           label="Total Employees"
@@ -555,7 +555,7 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
           to="/roster"
         />
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Action to="/roster">Create Roster</Action>
         <Action to="/staff">Add Employee</Action>
         <Action to="/holidays">Import Holidays</Action>
@@ -685,15 +685,19 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
       ...patch,
       business_id: profile.business_id,
       employee_id: employee.id,
+      user_id: employee.user_id ?? profile.id,
       date: todayKey,
     };
-    const { error } = today?.id
+    const result = today?.id
       ? await supabase
           .from("attendance_records")
-          .update(patch as any)
+          .update({ ...patch, user_id: employee.user_id ?? profile.id } as any)
           .eq("id", today.id)
-      : await supabase.from("attendance_records").insert(payload as any);
+          .select("id")
+          .single()
+      : await supabase.from("attendance_records").insert(payload as any).select("id").single();
     setSaving(false);
+    const { data: savedAttendance, error } = result;
     if (error) toast.error(error.message);
     else {
       if (profile.business_id) {
@@ -723,7 +727,7 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
           await notifyManagers({
             businessId: profile.business_id,
             ...notification,
-            relatedId: today?.id,
+            relatedId: savedAttendance?.id ?? today?.id,
           }).catch((notifyError) => console.error(notifyError));
         }
       }
@@ -853,7 +857,7 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
           ))}
         </div>
       </section>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Action solid to="/apply-leave">
           Apply Leave
         </Action>

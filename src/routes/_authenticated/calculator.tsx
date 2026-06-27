@@ -207,7 +207,7 @@ function CalculatorPage() {
             <div className="min-h-6 break-all text-right text-sm text-muted-foreground">
               {expression ? prettyExpression(expression) : "Ready"}
             </div>
-            <div className="mt-2 break-all text-right text-4xl font-bold tracking-tight text-[var(--navy)]">
+            <div className="mt-2 break-all text-right text-3xl font-bold tracking-tight text-[var(--navy)] sm:text-4xl">
               {display}
             </div>
           </div>

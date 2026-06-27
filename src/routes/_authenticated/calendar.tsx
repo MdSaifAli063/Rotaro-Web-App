@@ -143,7 +143,7 @@ function CalendarPage() {
             Live workspace calendar with holidays and current local time.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[420px]">
+        <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:min-w-[420px]">
           <div className="rounded-xl border bg-card p-4 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <Clock3 className="size-4 text-[var(--navy)]" />
@@ -199,9 +199,9 @@ function CalendarPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 border-b bg-secondary/70 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="grid grid-cols-7 border-b bg-secondary/70 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-              <div key={day} className="px-2 py-3">
+              <div key={day} className="px-1 py-3 sm:px-2">
                 {day}
               </div>
             ))}
@@ -217,7 +217,7 @@ function CalendarPage() {
               return (
                 <div
                   key={key}
-                  className={`min-h-[76px] border-b border-r p-1.5 last:border-r-0 sm:min-h-[112px] sm:p-2 ${
+                  className={`min-h-[68px] min-w-0 border-b border-r p-1 last:border-r-0 sm:min-h-[112px] sm:p-2 ${
                     muted ? "bg-secondary/30 text-muted-foreground" : "bg-card"
                   }`}
                 >
