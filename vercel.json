@@ -1,13 +1,6 @@
 {
-  "version": 2,
-  "routes": [
-    {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|json|map))",
-      "dest": "/dist/client/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/dist/server/server.js"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": null
 }

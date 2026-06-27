@@ -1,17 +1,33 @@
 import { defineConfig } from "vite";
+import { nitro } from "nitro/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [
-    // tsconfigPaths(), // Vite now supports tsconfig paths resolution natively
-    tailwindcss(),
     tanstackStart(),
     viteReact(),
+    tailwindcss(),
+    nitro({
+      preset: "vercel",
+      vercel: {
+        functions: {
+          runtime: "nodejs22.x",
+        },
+      },
+    }),
   ],
   resolve: {
-    tsconfigPaths: true, // Enable native tsconfig paths resolution
+    tsconfigPaths: true,
+  },
+  environments: {
+    ssr: {
+      build: {
+        rollupOptions: {
+          input: "./src/server.ts",
+        },
+      },
+    },
   },
 });
