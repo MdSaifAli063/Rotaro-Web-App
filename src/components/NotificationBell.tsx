@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, AtSign, BellRing, Inbox, X } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Bell, AtSign, BellRing, CheckCheck, Inbox, Trash2, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
@@ -20,8 +21,11 @@ type Notification = {
 type TabKey = "all" | "mention" | "reminder";
 
 export function NotificationBell({ userId }: { userId: string }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("all");
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     const { data, error } = await supabase
@@ -77,6 +81,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   }, [userId]);
 
   const unread = useMemo(() => items.filter((n) => !n.is_read).length, [items]);
+  const readCount = useMemo(() => items.filter((n) => n.is_read).length, [items]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -96,21 +101,77 @@ export function NotificationBell({ userId }: { userId: string }) {
   }, [activeTab, items]);
 
   const markAllRead = async () => {
-    if (!unread) return;
-    await supabase
+    if (!unread || saving) return;
+    setSaving(true);
+    const { error } = await supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", userId)
       .eq("is_read", false);
-    await load();
+    setSaving(false);
+    if (error) {
+      toast.error("Failed to mark notifications as read: " + error.message);
+      return;
+    }
+    setItems((current) => current.map((item) => ({ ...item, is_read: true })));
+    toast.success("All notifications marked as read");
+  };
+
+  const clearRead = async () => {
+    if (!readCount || saving) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("user_id", userId)
+      .eq("is_read", true);
+    setSaving(false);
+    if (error) {
+      toast.error("Failed to clear read notifications: " + error.message);
+      return;
+    }
+    setItems((current) => current.filter((item) => !item.is_read));
+    toast.success("Read notifications cleared");
+  };
+
+  const clearAll = async () => {
+    if (!items.length || saving) return;
+    if (!window.confirm("Clear all notifications?")) return;
+    setSaving(true);
+    const { error } = await supabase.from("notifications").delete().eq("user_id", userId);
+    setSaving(false);
+    if (error) {
+      toast.error("Failed to clear notifications: " + error.message);
+      return;
+    }
+    setItems([]);
+    setOpen(false);
+    toast.success("Notifications cleared");
+  };
+
+  const openNotification = async (notification: Notification) => {
+    setOpen(false);
+    if (!notification.is_read) {
+      setItems((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, is_read: true } : item,
+        ),
+      );
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", notification.id)
+        .eq("user_id", userId);
+      if (error) console.error("Notification read update failed:", error.message);
+    }
+    navigate({
+      to: "/notifications/$id",
+      params: { id: notification.id },
+    });
   };
 
   return (
-    <Popover
-      onOpenChange={(open) => {
-        if (open) markAllRead();
-      }}
-    >
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           className="relative inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-[var(--navy)]"
@@ -157,8 +218,46 @@ export function NotificationBell({ userId }: { userId: string }) {
           </Tabs>
         </div>
 
-        <div className="border-b px-4 py-3 text-sm font-medium text-muted-foreground">
-          Notifications
+        <div className="space-y-3 border-b px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium text-muted-foreground">Notifications</div>
+            {unread > 0 && (
+              <span className="rounded-full bg-[var(--navy)] px-2 py-0.5 text-xs font-semibold text-white">
+                {unread} unread
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markAllRead}
+              disabled={!unread || saving}
+              className="h-8 rounded-xl"
+            >
+              <CheckCheck className="size-3.5" />
+              Read all
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearRead}
+              disabled={!readCount || saving}
+              className="h-8 rounded-xl"
+            >
+              Clear read
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearAll}
+              disabled={!items.length || saving}
+              className="h-8 rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="size-3.5" />
+              Clear all
+            </Button>
+          </div>
         </div>
 
         <div className="max-h-[18rem] overflow-auto">
@@ -170,10 +269,12 @@ export function NotificationBell({ userId }: { userId: string }) {
             filteredItems.map((n) => (
               <button
                 key={n.id}
+                onClick={() => openNotification(n)}
                 className={cn(
                   "w-full border-b px-4 py-3 text-left text-sm transition-colors last:border-0 hover:bg-secondary/50",
                   n.is_read ? "bg-background" : "bg-blue-50/40",
                 )}
+                aria-label={`Open notification: ${n.message}`}
               >
                 <div className="flex items-start gap-3">
                   <span
