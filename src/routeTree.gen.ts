@@ -36,6 +36,7 @@ import { Route as AuthenticatedAttendanceRouteImport } from './routes/_authentic
 import { Route as AuthenticatedApplyLeaveRouteImport } from './routes/_authenticated/apply-leave'
 import { Route as AuthenticatedRosterTemplatesRouteImport } from './routes/_authenticated/roster.templates'
 import { Route as AuthenticatedRosterCreateRouteImport } from './routes/_authenticated/roster.create'
+import { Route as AuthenticatedNotificationsIdRouteImport } from './routes/_authenticated/notifications.$id'
 import { Route as AuthenticatedRosterViewIdRouteImport } from './routes/_authenticated/roster.view.$id'
 import { Route as AuthenticatedRosterEditIdRouteImport } from './routes/_authenticated/roster.edit.$id'
 
@@ -175,6 +176,12 @@ const AuthenticatedRosterCreateRoute =
     path: '/create',
     getParentRoute: () => AuthenticatedRosterRoute,
   } as any)
+const AuthenticatedNotificationsIdRoute =
+  AuthenticatedNotificationsIdRouteImport.update({
+    id: '/notifications/$id',
+    path: '/notifications/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRosterViewIdRoute =
   AuthenticatedRosterViewIdRouteImport.update({
     id: '/view/$id',
@@ -213,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
   '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
   '/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
@@ -243,6 +251,7 @@ export interface FileRoutesByTo {
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
   '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
   '/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
@@ -275,6 +284,7 @@ export interface FileRoutesById {
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/swaps': typeof AuthenticatedSwapsRoute
   '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
+  '/_authenticated/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/_authenticated/roster/create': typeof AuthenticatedRosterCreateRoute
   '/_authenticated/roster/templates': typeof AuthenticatedRosterTemplatesRoute
   '/_authenticated/roster/edit/$id': typeof AuthenticatedRosterEditIdRoute
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/swaps'
     | '/workspace'
+    | '/notifications/$id'
     | '/roster/create'
     | '/roster/templates'
     | '/roster/edit/$id'
@@ -337,6 +348,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/swaps'
     | '/workspace'
+    | '/notifications/$id'
     | '/roster/create'
     | '/roster/templates'
     | '/roster/edit/$id'
@@ -368,6 +380,7 @@ export interface FileRouteTypes {
     | '/_authenticated/staff'
     | '/_authenticated/swaps'
     | '/_authenticated/workspace'
+    | '/_authenticated/notifications/$id'
     | '/_authenticated/roster/create'
     | '/_authenticated/roster/templates'
     | '/_authenticated/roster/edit/$id'
@@ -573,6 +586,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRosterCreateRouteImport
       parentRoute: typeof AuthenticatedRosterRoute
     }
+    '/_authenticated/notifications/$id': {
+      id: '/_authenticated/notifications/$id'
+      path: '/notifications/$id'
+      fullPath: '/notifications/$id'
+      preLoaderRoute: typeof AuthenticatedNotificationsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/roster/view/$id': {
       id: '/_authenticated/roster/view/$id'
       path: '/view/$id'
@@ -628,6 +648,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedSwapsRoute: typeof AuthenticatedSwapsRoute
   AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
+  AuthenticatedNotificationsIdRoute: typeof AuthenticatedNotificationsIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -651,6 +672,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedSwapsRoute: AuthenticatedSwapsRoute,
   AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
+  AuthenticatedNotificationsIdRoute: AuthenticatedNotificationsIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
