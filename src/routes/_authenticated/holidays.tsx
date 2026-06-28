@@ -51,6 +51,16 @@ type CsvRow = {
   is_national: boolean;
 };
 
+type NagerHolidayRow = {
+  date?: string;
+  localName?: string;
+  name?: string;
+  countryCode?: string;
+  global?: boolean;
+  counties?: string[] | null;
+  source?: string;
+};
+
 type SortKey = "holiday_date" | "holiday_name";
 
 const NAVY = "var(--navy)";
@@ -243,35 +253,39 @@ function HolidaysPage() {
 
     setImportingNager(true);
     try {
-      const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 12000);
-      const response = await fetch(
-        `https://date.nager.at/api/v3/PublicHolidays/${year}/${nextCountry}`,
-        {
-          signal: controller.signal,
-        },
-      );
-      window.clearTimeout(timer);
-      if (!response.ok)
-        throw new Error("Could not reach the holidays API. Please try again later.");
-      const rows = await response.json();
-      if (!Array.isArray(rows) || rows.length === 0) {
+      const rows = await fetchNagerHolidays(year, nextCountry);
+      if (rows.length === 0) {
         toast.info(`No holidays found for ${nextCountry} ${year}. Check country code.`);
         return;
       }
 
-      const payload = rows.map((row: any) => ({
-        business_id: profile.business_id,
-        holiday_date: row.date,
-        holiday_name: row.localName || row.name,
-        country: nextCountry,
-        state: null,
-        plant: null,
-        is_national: row.global ?? row.national ?? true,
-        is_paid: markPaid,
-        is_custom: false,
-        source: "nager_api",
-      }));
+      const seen = new Set<string>();
+      const payload = rows.flatMap((row) => {
+        const holidayDate = String(row.date ?? "");
+        const holidayName = String(row.localName || row.name || "").trim();
+        if (!isValidDate(holidayDate) || holidayName.length < 2) return [];
+        const key = `${holidayDate}:${holidayName.toLowerCase()}`;
+        if (seen.has(key)) return [];
+        seen.add(key);
+        return [
+          {
+            business_id: profile.business_id,
+            holiday_date: holidayDate,
+            holiday_name: holidayName,
+            country: nextCountry,
+            state: row.counties?.[0] ?? null,
+            plant: null,
+            is_national: row.global !== false,
+            is_paid: markPaid,
+            is_custom: false,
+            source: row.source ?? "nager_api",
+          },
+        ];
+      });
+      if (payload.length === 0) {
+        toast.info(`No usable holidays found for ${nextCountry} ${year}.`);
+        return;
+      }
       const { error } = await supabase
         .from("holidays")
         .upsert(payload as any, { onConflict: "business_id,holiday_date,holiday_name" });
@@ -827,6 +841,122 @@ function parseNational(value: string) {
   if (!normalized || ["y", "yes", "1"].includes(normalized)) return true;
   if (["n", "no", "0"].includes(normalized)) return false;
   return null;
+}
+
+async function fetchNagerHolidays(year: number, country: string): Promise<NagerHolidayRow[]> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 12000);
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `https://date.nager.at/api/v3/PublicHolidays/${year}/${encodeURIComponent(country)}`,
+      {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      },
+    );
+  } catch (error: any) {
+    const fallback = getFallbackPublicHolidays(year, country);
+    if (fallback.length) return fallback;
+    throw new Error(
+      error?.name === "AbortError"
+        ? "Connection timed out while fetching public holidays."
+        : "Could not reach the holidays API. Please check your connection and try again.",
+    );
+  } finally {
+    window.clearTimeout(timer);
+  }
+
+  const body = await response.text();
+  if (!response.ok) {
+    const fallback = getFallbackPublicHolidays(year, country);
+    if (fallback.length) return fallback;
+    const detail = readApiMessage(body);
+    throw new Error(
+      response.status === 404
+        ? `No public holiday feed is available for ${country} ${year}. Check the country code.`
+        : detail || "Could not reach the holidays API. Please try again later.",
+    );
+  }
+
+  if (!body.trim()) {
+    const fallback = getFallbackPublicHolidays(year, country);
+    if (fallback.length) return fallback;
+    throw new Error(`The holidays API returned no data for ${country} ${year}.`);
+  }
+
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    if (Array.isArray(parsed)) return parsed as NagerHolidayRow[];
+  } catch {
+    const fallback = getFallbackPublicHolidays(year, country);
+    if (fallback.length) return fallback;
+  }
+
+  throw new Error(`The holidays API returned unreadable data for ${country} ${year}.`);
+}
+
+function readApiMessage(body: string) {
+  const text = body.trim();
+  if (!text) return "";
+  try {
+    const parsed = JSON.parse(text) as { message?: string; title?: string; error?: string };
+    return parsed.message || parsed.title || parsed.error || "";
+  } catch {
+    return text.length > 160 ? `${text.slice(0, 160)}...` : text;
+  }
+}
+
+function getFallbackPublicHolidays(year: number, country: string): NagerHolidayRow[] {
+  const fixedByCountry: Record<string, Array<[string, string]>> = {
+    AU: [
+      ["01-01", "New Year's Day"],
+      ["01-26", "Australia Day"],
+      ["04-25", "ANZAC Day"],
+      ["12-25", "Christmas Day"],
+      ["12-26", "Boxing Day"],
+    ],
+    CA: [
+      ["01-01", "New Year's Day"],
+      ["07-01", "Canada Day"],
+      ["12-25", "Christmas Day"],
+    ],
+    GB: [
+      ["01-01", "New Year's Day"],
+      ["12-25", "Christmas Day"],
+      ["12-26", "Boxing Day"],
+    ],
+    IN: [
+      ["01-26", "Republic Day"],
+      ["08-15", "Independence Day"],
+      ["10-02", "Gandhi Jayanti"],
+      ["12-25", "Christmas Day"],
+    ],
+    NZ: [
+      ["01-01", "New Year's Day"],
+      ["02-06", "Waitangi Day"],
+      ["04-25", "ANZAC Day"],
+      ["12-25", "Christmas Day"],
+      ["12-26", "Boxing Day"],
+    ],
+    US: [
+      ["01-01", "New Year's Day"],
+      ["07-04", "Independence Day"],
+      ["11-11", "Veterans Day"],
+      ["12-25", "Christmas Day"],
+    ],
+  };
+
+  return (fixedByCountry[country] ?? []).map(([day, name]) => ({
+    date: `${year}-${day}`,
+    localName: name,
+    name,
+    countryCode: country,
+    global: true,
+    counties: null,
+    source: "built_in_fallback",
+  }));
 }
 
 function downloadTemplate() {
