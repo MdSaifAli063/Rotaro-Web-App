@@ -9,7 +9,7 @@ import {
   parseISO,
   startOfMonth,
 } from "date-fns";
-import { CalendarDays, RefreshCw, Repeat } from "lucide-react";
+import { CalendarDays, Clock3, RefreshCw, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -342,16 +342,16 @@ function MyRosterPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Home</span>
-            <span>/</span>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span>My work</span>
             <span>/</span>
-            <span className="font-medium text-[var(--navy)]">My Roster</span>
+            <span className="font-semibold text-[var(--navy)]">My Roster</span>
           </div>
           <div>
-            <div className="text-sm font-semibold text-blue-600">Roster</div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">View Roster</h1>
+            <div className="text-sm font-semibold text-[var(--navy)]">Roster</div>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)] sm:text-4xl">
+              View Roster
+            </h1>
             <p className="text-sm text-muted-foreground">
               {emp
                 ? `${emp.name} - ${emp.employee_code || "No code"} - read-only schedule`
@@ -360,7 +360,12 @@ function MyRosterPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => loadRoster(profile, emp)} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={() => loadRoster(profile, emp)}
+            disabled={loading}
+            className="border-[var(--navy)] text-[var(--navy)] hover:bg-[var(--navy)] hover:text-white"
+          >
             <RefreshCw className={`mr-2 size-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -386,24 +391,28 @@ function MyRosterPage() {
         <SummaryCard label="Rostered hours" value={formatHours(summary.hours)} />
       </section>
 
-      <section className="rounded-xl border bg-card shadow-sm">
-        <div className="border-b p-5">
+      <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+        <div className="border-b bg-[var(--navy)] p-5 text-white">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-[var(--navy)]">My schedule</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <h2 className="text-xl font-semibold">My schedule</h2>
+              <p className="mt-2 text-sm text-white/75">
                 Viewing shifts for{" "}
-                <strong className="text-[var(--navy)]">{emp?.name || "you"}</strong>. Approved leave
-                shows as <span className="font-semibold text-violet-500">Leave</span>; holidays as{" "}
-                <span className="font-semibold text-red-500">PH</span>.
+                <strong className="text-white">{emp?.name || "you"}</strong>. Approved leave shows
+                as <span className="font-semibold text-violet-200">Leave</span>; holidays as{" "}
+                <span className="font-semibold text-red-200">PH</span>.
               </p>
             </div>
             {days.length >= maxVisibleDays && (
-              <Badge variant="outline">Showing first {maxVisibleDays} days</Badge>
+              <Badge className="w-fit border-white/20 bg-white/10 text-white hover:bg-white/10">
+                Showing first {maxVisibleDays} days
+              </Badge>
             )}
           </div>
+        </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+        <div className="border-b bg-card p-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
             <label className="space-y-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 From
@@ -425,7 +434,7 @@ function MyRosterPage() {
               />
             </label>
             <Button
-              className="self-end bg-blue-500 hover:bg-blue-600"
+              className="self-end bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
               onClick={() => loadRoster(profile, emp)}
               disabled={loading || days.length === 0}
             >
@@ -437,7 +446,7 @@ function MyRosterPage() {
         <div className="overflow-x-auto">
           <div className="min-w-[980px]">
             <div
-              className="grid border-b bg-secondary/60 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              className="grid border-b bg-[#F3F6FA] text-xs font-semibold uppercase tracking-wide text-muted-foreground"
               style={{
                 gridTemplateColumns: `112px 200px repeat(${days.length}, minmax(124px, 1fr))`,
               }}
@@ -448,7 +457,9 @@ function MyRosterPage() {
                 <div
                   key={day.toISOString()}
                   className={`border-r px-3 py-3 text-center ${isWeekend(day) ? "bg-muted text-muted-foreground" : ""} ${
-                    isSameDay(day, currentDate) ? "bg-blue-50 text-blue-600" : ""
+                    isSameDay(day, currentDate)
+                      ? "bg-[var(--navy)] text-white [&_div:last-child]:text-white"
+                      : ""
                   }`}
                 >
                   <div>{format(day, "EEE")}</div>
@@ -460,7 +471,7 @@ function MyRosterPage() {
             </div>
 
             <div
-              className="grid min-h-[72px] border-b"
+              className="grid min-h-[78px] border-b"
               style={{
                 gridTemplateColumns: `112px 200px repeat(${days.length}, minmax(124px, 1fr))`,
               }}
@@ -483,18 +494,19 @@ function MyRosterPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t bg-card px-5 py-4 text-sm">
-          <Legend label="W Working" className="text-emerald-500" />
-          <Legend label="WO Weekly Off" className="text-amber-500" />
-          <Legend label="PH Public holiday" className="text-red-500" />
-          <Legend label="Leave Approved leave" className="text-violet-500" />
-          <span className="font-mono text-xs font-semibold text-emerald-500">
-            W cells: 09:00 - 17:00 | 30m | 7.5h
+        <div className="flex flex-wrap items-center gap-2 border-t bg-card px-5 py-4 text-sm">
+          <Legend label="Working" className="border-emerald-200 bg-emerald-50 text-emerald-700" />
+          <Legend label="Weekly off" className="border-amber-200 bg-amber-50 text-amber-700" />
+          <Legend label="Public holiday" className="border-red-200 bg-red-50 text-red-700" />
+          <Legend label="Approved leave" className="border-violet-200 bg-violet-50 text-violet-700" />
+          <span className="inline-flex items-center gap-1 rounded-md border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            <Clock3 className="size-3.5" />
+            Time | break | hours
           </span>
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card shadow-sm">
+      <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
         <div className="flex items-center gap-2 border-b p-5">
           <CalendarDays className="size-5 text-[var(--navy)]" />
           <div>
@@ -575,7 +587,10 @@ function SwapDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button
+          variant="outline"
+          className="border-[var(--navy)] text-[var(--navy)] hover:bg-[var(--navy)] hover:text-white"
+        >
           <Repeat className="mr-2 size-4" /> Request swap
         </Button>
       </DialogTrigger>
@@ -666,7 +681,7 @@ function SwapDialog({
 
 function SummaryCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
@@ -679,21 +694,23 @@ function RosterCell({ date, state }: { date: Date; state: CellState }) {
   const weekend = isWeekend(date);
   if (state.kind === "shift") {
     return (
-      <div className="flex min-h-[72px] items-center justify-center border-r px-2 py-3">
-        <div className="w-full rounded-full bg-emerald-100 px-3 py-2 text-center text-xs font-semibold text-emerald-700">
-          {timeLabel(state.shift.start_time)} - {timeLabel(state.shift.end_time)}
-          <span className="ml-1 text-emerald-600">
-            | {state.shift.break_minutes ?? 0}m |{" "}
+      <div className="flex min-h-[78px] items-center justify-center border-r px-2 py-3">
+        <div className="w-full rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-700 shadow-sm">
+          <div>
+            {timeLabel(state.shift.start_time)} - {timeLabel(state.shift.end_time)}
+          </div>
+          <div className="mt-1 text-[11px] text-emerald-600">
+            {state.shift.break_minutes ?? 0}m break |{" "}
             {formatHours(Number(state.shift.total_hours ?? 0))}
-          </span>
+          </div>
         </div>
       </div>
     );
   }
   if (state.kind === "leave") {
     return (
-      <div className="flex min-h-[72px] items-center justify-center border-r bg-violet-50 px-2 py-3">
-        <span className="rounded-full bg-violet-200 px-3 py-1 text-xs font-semibold text-violet-700">
+      <div className="flex min-h-[78px] items-center justify-center border-r bg-violet-50 px-2 py-3">
+        <span className="rounded-md border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
           Leave
         </span>
       </div>
@@ -701,9 +718,9 @@ function RosterCell({ date, state }: { date: Date; state: CellState }) {
   }
   if (state.kind === "holiday") {
     return (
-      <div className="flex min-h-[72px] items-center justify-center border-r bg-red-50 px-2 py-3">
+      <div className="flex min-h-[78px] items-center justify-center border-r bg-red-50 px-2 py-3">
         <span
-          className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600"
+          className="rounded-md border border-red-200 bg-red-100 px-3 py-1 text-xs font-semibold text-red-600"
           title={state.holiday.holiday_name}
         >
           PH
@@ -713,7 +730,7 @@ function RosterCell({ date, state }: { date: Date; state: CellState }) {
   }
   return (
     <div
-      className={`flex min-h-[72px] items-center justify-center border-r px-2 py-3 ${weekend ? "bg-muted" : ""}`}
+      className={`flex min-h-[78px] items-center justify-center border-r px-2 py-3 ${weekend ? "bg-muted" : ""}`}
     >
       <span className="text-muted-foreground">-</span>
     </div>
@@ -721,11 +738,9 @@ function RosterCell({ date, state }: { date: Date; state: CellState }) {
 }
 
 function Legend({ label, className }: { label: string; className: string }) {
-  const [prefix, ...rest] = label.split(" ");
   return (
-    <span className="inline-flex items-center gap-1">
-      <span className={`font-semibold ${className}`}>{prefix}</span>
-      <span className="text-muted-foreground">{rest.join(" ")}</span>
+    <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${className}`}>
+      {label}
     </span>
   );
 }
