@@ -215,7 +215,7 @@ function AttendancePage() {
     const [attendanceResult, employeesResult] = await Promise.all([
       supabase
         .from("attendance_records")
-        .select("*, employees(name, employee_code, department)")
+        .select("*")
         .eq("business_id", p.business_id)
         .gte("date", format(start, "yyyy-MM-dd"))
         .lte("date", format(end, "yyyy-MM-dd"))
@@ -231,21 +231,35 @@ function AttendancePage() {
     if (attendanceResult.error) toast.error(attendanceResult.error.message);
     if (employeesResult.error) toast.error(employeesResult.error.message);
 
-    setManagerRows((attendanceResult.data ?? []) as AttendanceRow[]);
-    setEmployees((employeesResult.data ?? []) as EmployeeRow[]);
+    const employeeRows = (employeesResult.data ?? []) as EmployeeRow[];
+    const employeeById = new Map(employeeRows.map((employee) => [employee.id, employee]));
+    const attachEmployee = <T extends { employee_id: string }>(row: T) => {
+      const employee = employeeById.get(row.employee_id);
+      return {
+        ...row,
+        employees: employee
+          ? {
+              name: employee.name,
+              employee_code: employee.employee_code,
+              department: employee.department,
+            }
+          : null,
+      };
+    };
+
+    setManagerRows(((attendanceResult.data ?? []) as AttendanceRow[]).map(attachEmployee));
+    setEmployees(employeeRows);
 
     const weekDays = Array.from({ length: 7 }, (_, index) =>
       format(addDays(start, index), "yyyy-MM-dd"),
     );
     const { data: rosterData, error: rosterError } = await supabase
       .from("roster_shifts")
-      .select(
-        "id, employee_id, day, start_time, end_time, break_minutes, employees(name, employee_code, department)",
-      )
+      .select("id, employee_id, day, start_time, end_time, break_minutes")
       .in("day", weekDays)
       .order("day", { ascending: true });
     if (rosterError) toast.error(rosterError.message);
-    setRosterRows((rosterData ?? []) as RosterShiftRow[]);
+    setRosterRows(((rosterData ?? []) as RosterShiftRow[]).map(attachEmployee));
     setManagerLoading(false);
   };
 
