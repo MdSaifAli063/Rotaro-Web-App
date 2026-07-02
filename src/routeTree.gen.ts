@@ -22,6 +22,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedRosterRouteImport } from './routes/_authenticated/roster'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedOrganizationRouteImport } from './routes/_authenticated/organization'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMyRosterRouteImport } from './routes/_authenticated/my-roster'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
@@ -104,6 +105,12 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOrganizationRoute =
+  AuthenticatedOrganizationRouteImport.update({
+    id: '/organization',
+    path: '/organization',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -212,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof AuthenticatedMessagesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/organization': typeof AuthenticatedOrganizationRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/roster': typeof AuthenticatedRosterRouteWithChildren
@@ -243,6 +251,7 @@ export interface FileRoutesByTo {
   '/messages': typeof AuthenticatedMessagesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/organization': typeof AuthenticatedOrganizationRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/roster': typeof AuthenticatedRosterRouteWithChildren
@@ -276,6 +285,7 @@ export interface FileRoutesById {
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/my-roster': typeof AuthenticatedMyRosterRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/organization': typeof AuthenticatedOrganizationRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/roster': typeof AuthenticatedRosterRouteWithChildren
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/my-roster'
     | '/onboarding'
+    | '/organization'
     | '/profile'
     | '/reports'
     | '/roster'
@@ -340,6 +351,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/my-roster'
     | '/onboarding'
+    | '/organization'
     | '/profile'
     | '/reports'
     | '/roster'
@@ -372,6 +384,7 @@ export interface FileRouteTypes {
     | '/_authenticated/messages'
     | '/_authenticated/my-roster'
     | '/_authenticated/onboarding'
+    | '/_authenticated/organization'
     | '/_authenticated/profile'
     | '/_authenticated/reports'
     | '/_authenticated/roster'
@@ -486,6 +499,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/organization': {
+      id: '/_authenticated/organization'
+      path: '/organization'
+      fullPath: '/organization'
+      preLoaderRoute: typeof AuthenticatedOrganizationRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/onboarding': {
@@ -640,6 +660,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedMyRosterRoute: typeof AuthenticatedMyRosterRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedOrganizationRoute: typeof AuthenticatedOrganizationRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedRosterRoute: typeof AuthenticatedRosterRouteWithChildren
@@ -664,6 +685,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedMyRosterRoute: AuthenticatedMyRosterRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedOrganizationRoute: AuthenticatedOrganizationRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedRosterRoute: AuthenticatedRosterRouteWithChildren,
