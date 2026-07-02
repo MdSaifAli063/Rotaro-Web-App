@@ -57,6 +57,13 @@ const managerShortcuts: SearchResult[] = [
     to: "/reports",
   },
   {
+    id: "organization",
+    title: "Organization",
+    subtitle: "Company profile, locations, and logo",
+    category: "analytic",
+    to: "/organization",
+  },
+  {
     id: "rosters",
     title: "Rosters",
     subtitle: "Plan weekly schedules",
