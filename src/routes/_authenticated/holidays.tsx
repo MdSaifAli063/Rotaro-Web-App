@@ -89,7 +89,9 @@ const FALLBACK_COUNTRIES: CountryOption[] = [
 function HolidaysPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
-  const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
+  const [countryOptions, setCountryOptions] = useState<CountryOption[]>(() =>
+    orderCountries(FALLBACK_COUNTRIES),
+  );
   const [countriesLoading, setCountriesLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -151,7 +153,7 @@ function HolidaysPage() {
           countries = FALLBACK_COUNTRIES;
         }
 
-        const ordered = orderCountries(countries);
+        const ordered = orderCountries([...countries, ...FALLBACK_COUNTRIES]);
         if (active) setCountryOptions(ordered);
       } catch {
         if (active) setCountryOptions(orderCountries(FALLBACK_COUNTRIES));
