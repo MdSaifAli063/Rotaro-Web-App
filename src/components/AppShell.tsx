@@ -15,6 +15,7 @@ import {
   Repeat,
   LayoutTemplate,
   CreditCard,
+  Building2,
   Menu,
   X,
   ChevronLeft,
@@ -44,6 +45,7 @@ import {
 
 const managerNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/organization", label: "Organization", icon: Building2 },
   { to: "/roster", label: "Rosters", icon: CalendarDays },
   { to: "/shifts", label: "Shift Templates", icon: LayoutTemplate },
   { to: "/staff", label: "Staff", icon: Users },
@@ -67,6 +69,7 @@ const employeeNav = [
 
 const headerTools = [
   { to: "/workspace", label: "Workspace", icon: LayoutGrid },
+  { to: "/organization", label: "Organization", icon: Building2 },
   { to: "/messages", label: "Messages", icon: Mail },
   { to: "/calendar", label: "Calendar", icon: Calendar },
   { to: "/calculator", label: "Calculator", icon: Calculator },
