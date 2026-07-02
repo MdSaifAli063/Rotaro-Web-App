@@ -61,18 +61,36 @@ type NagerHolidayRow = {
   source?: string;
 };
 
+type CountryOption = {
+  countryCode: string;
+  name: string;
+};
+
 type SortKey = "holiday_date" | "holiday_name";
 
 const NAVY = "var(--navy)";
 const CURRENT_YEAR = new Date().getFullYear();
-const COMMON_COUNTRIES = "AU, NZ, US, GB, IN, CA";
+const COMMON_COUNTRIES = "IN, AU, NZ, US, GB, CA";
 const DEFAULT_CSV =
   "2025-12-25,Christmas,,Y\n2025-01-01,New Year's Day,,Y\n2025-04-25,ANZAC Day,,Y";
 const allPlantsValue = "__all_plants__";
+const PRIORITY_COUNTRIES = new Set(["IN", "AU"]);
+const FALLBACK_COUNTRIES: CountryOption[] = [
+  { countryCode: "IN", name: "India" },
+  { countryCode: "AU", name: "Australia" },
+  { countryCode: "NZ", name: "New Zealand" },
+  { countryCode: "US", name: "United States" },
+  { countryCode: "GB", name: "United Kingdom" },
+  { countryCode: "CA", name: "Canada" },
+  { countryCode: "SG", name: "Singapore" },
+  { countryCode: "AE", name: "United Arab Emirates" },
+];
 
 function HolidaysPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [importingNager, setImportingNager] = useState(false);
@@ -103,6 +121,50 @@ function HolidaysPage() {
       const nextProfile = await fetchProfile();
       setProfile(nextProfile);
     })();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCountries = async () => {
+      setCountriesLoading(true);
+      try {
+        const response = await fetch("https://date.nager.at/api/v3/AvailableCountries", {
+          headers: { Accept: "application/json" },
+        });
+        const body = await response.text();
+        let countries: CountryOption[] = [];
+
+        if (response.ok && body.trim()) {
+          const parsed = JSON.parse(body) as Array<{ countryCode?: string; name?: string }>;
+          if (Array.isArray(parsed)) {
+            countries = parsed
+              .filter((item) => item.countryCode && item.name)
+              .map((item) => ({
+                countryCode: String(item.countryCode).toUpperCase(),
+                name: String(item.name),
+              }));
+          }
+        }
+
+        if (!countries.length) {
+          countries = FALLBACK_COUNTRIES;
+        }
+
+        const ordered = orderCountries(countries);
+        if (active) setCountryOptions(ordered);
+      } catch {
+        if (active) setCountryOptions(orderCountries(FALLBACK_COUNTRIES));
+      } finally {
+        if (active) setCountriesLoading(false);
+      }
+    };
+
+    void loadCountries();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const loadHolidays = useCallback(async () => {
@@ -464,12 +526,24 @@ function HolidaysPage() {
           <div className="mt-4 grid gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <Field label="Country">
-                <Input
-                  className="w-full sm:w-24"
+                <Select
                   value={country}
-                  maxLength={2}
-                  onChange={(e) => setCountry(e.target.value.toUpperCase())}
-                />
+                  onValueChange={(value) => setCountry(value.toUpperCase())}
+                  disabled={countriesLoading && countryOptions.length === 0}
+                >
+                  <SelectTrigger className="w-full sm:w-60">
+                    <SelectValue
+                      placeholder={countriesLoading ? "Loading countries..." : "Select country"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {countryOptions.map((item) => (
+                      <SelectItem key={item.countryCode} value={item.countryCode}>
+                        {item.name} ({item.countryCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <YearStepper year={year} setYear={setYear} />
               <CheckRow checked={markPaid} onCheckedChange={setMarkPaid} label="Mark as paid" />
@@ -483,7 +557,7 @@ function HolidaysPage() {
               {importingNager && <Loader2 className="mr-2 size-4 animate-spin" />} Fetch {year}
             </Button>
             <p className="text-xs text-muted-foreground">
-              Common codes: {COMMON_COUNTRIES}.{" "}
+              India and Australia are listed first. Common codes: {COMMON_COUNTRIES}.{" "}
               <a
                 className="font-medium text-[var(--navy)] underline"
                 href="https://date.nager.at/Country"
@@ -802,13 +876,18 @@ async function findDuplicate(businessId: string, date: string, name: string) {
 
 function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00`);
-  const year = date.getFullYear();
+  const [yearText, monthText, dayText] = value.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) return false;
+  if (!Number.isInteger(month) || month < 1 || month > 12) return false;
+  if (!Number.isInteger(day) || day < 1 || day > 31) return false;
+  const date = new Date(Date.UTC(year, month - 1, day));
   return (
-    !Number.isNaN(date.getTime()) &&
-    year >= 2000 &&
-    year <= 2100 &&
-    value === date.toISOString().slice(0, 10)
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
   );
 }
 
@@ -870,8 +949,6 @@ async function fetchNagerHolidays(year: number, country: string): Promise<NagerH
 
   const body = await response.text();
   if (!response.ok) {
-    const fallback = getFallbackPublicHolidays(year, country);
-    if (fallback.length) return fallback;
     const detail = readApiMessage(body);
     throw new Error(
       response.status === 404
@@ -881,8 +958,6 @@ async function fetchNagerHolidays(year: number, country: string): Promise<NagerH
   }
 
   if (!body.trim()) {
-    const fallback = getFallbackPublicHolidays(year, country);
-    if (fallback.length) return fallback;
     throw new Error(`The holidays API returned no data for ${country} ${year}.`);
   }
 
@@ -890,8 +965,7 @@ async function fetchNagerHolidays(year: number, country: string): Promise<NagerH
     const parsed = JSON.parse(body) as unknown;
     if (Array.isArray(parsed)) return parsed as NagerHolidayRow[];
   } catch {
-    const fallback = getFallbackPublicHolidays(year, country);
-    if (fallback.length) return fallback;
+    throw new Error(`The holidays API returned unreadable data for ${country} ${year}.`);
   }
 
   throw new Error(`The holidays API returned unreadable data for ${country} ${year}.`);
@@ -957,6 +1031,26 @@ function getFallbackPublicHolidays(year: number, country: string): NagerHolidayR
     counties: null,
     source: "built_in_fallback",
   }));
+}
+
+function orderCountries(countries: CountryOption[]) {
+  const unique = new Map<string, CountryOption>();
+  countries.forEach((item) => {
+    if (!item.countryCode || !item.name) return;
+    unique.set(item.countryCode.toUpperCase(), {
+      countryCode: item.countryCode.toUpperCase(),
+      name: item.name,
+    });
+  });
+
+  return Array.from(unique.values()).sort((left, right) => {
+    const leftPriority = PRIORITY_COUNTRIES.has(left.countryCode) ? 0 : 1;
+    const rightPriority = PRIORITY_COUNTRIES.has(right.countryCode) ? 0 : 1;
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+    const nameCompare = left.name.localeCompare(right.name);
+    if (nameCompare !== 0) return nameCompare;
+    return left.countryCode.localeCompare(right.countryCode);
+  });
 }
 
 function downloadTemplate() {
