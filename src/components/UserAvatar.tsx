@@ -10,6 +10,10 @@ function initialsOf(name: string | null | undefined, email?: string | null) {
 }
 
 export function useSignedAvatarUrl(path?: string | null) {
+  return useSignedStorageUrl("avatars", path);
+}
+
+export function useSignedStorageUrl(bucket: string, path?: string | null) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -23,11 +27,11 @@ export function useSignedAvatarUrl(path?: string | null) {
     }
 
     supabase.storage
-      .from("avatars")
+      .from(bucket)
       .createSignedUrl(path, 60 * 60 * 24)
       .then(({ data, error }) => {
         if (error) {
-          console.error("Error generating signed avatar URL:", error.message);
+          console.error(`Error generating signed ${bucket} URL:`, error.message);
         }
         if (!cancelled) setUrl(data?.signedUrl ?? null);
       });
@@ -35,7 +39,7 @@ export function useSignedAvatarUrl(path?: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [bucket, path]);
   return [url, setUrl] as const;
 }
 
