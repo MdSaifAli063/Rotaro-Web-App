@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { useSignedStorageUrl } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,6 +83,7 @@ type BusinessRow = {
   abn: string | null;
   business_phone: string | null;
   business_email: string | null;
+  logo_url: string | null;
   timezone: string | null;
   min_age: number | null;
   employment_types: string[] | null;
@@ -156,6 +158,7 @@ function SettingsPage() {
   const [autoApproveByType, setAutoApproveByType] = useState<Record<string, boolean>>({});
 
   const [prefs, setPrefs] = useState<SettingsBlob>(defaultSettings());
+  const [businessLogoUrl] = useSignedStorageUrl("avatars", business?.logo_url);
 
   const canManageWorkspace = useMemo(
     () => profile?.role === "employer" || profile?.role === "manager",
@@ -195,7 +198,7 @@ function SettingsPage() {
           supabase
             .from("businesses")
             .select(
-              "id, name, country, state, location, open_time, close_time, abn, business_phone, business_email, timezone, min_age, employment_types",
+              "id, name, country, state, location, open_time, close_time, abn, business_phone, business_email, logo_url, timezone, min_age, employment_types",
             )
             .eq("id", nextProfile.business_id)
             .maybeSingle(),
@@ -357,7 +360,7 @@ function SettingsPage() {
     const { data } = await supabase
       .from("businesses")
       .select(
-        "id, name, country, state, location, open_time, close_time, abn, business_phone, business_email, timezone, min_age, employment_types",
+        "id, name, country, state, location, open_time, close_time, abn, business_phone, business_email, logo_url, timezone, min_age, employment_types",
       )
       .eq("id", businessId)
       .maybeSingle();
@@ -380,7 +383,7 @@ function SettingsPage() {
       supabase
         .from("businesses")
         .select(
-          "id, name, country, state, location, open_time, close_time, abn, business_phone, business_email, timezone, min_age, employment_types",
+          "id, name, country, state, location, open_time, close_time, abn, business_phone, business_email, logo_url, timezone, min_age, employment_types",
         )
         .eq("id", businessId)
         .maybeSingle(),
@@ -474,10 +477,18 @@ function SettingsPage() {
 
         <TabsContent value="company" className="space-y-4">
           <SettingsCard
-            title="Company Information"
-            description="Manage the core business details used across the portal."
-            icon={Building2}
-            action={
+          title="Company Information"
+          description="Manage the core business details used across the portal."
+          icon={Building2}
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/organization"
+                className="inline-flex items-center gap-2 rounded-md border border-[var(--navy)] px-4 py-2 text-sm font-medium text-[var(--navy)] hover:bg-secondary"
+              >
+                Open organization
+                <ArrowUpRight className="size-4" />
+              </Link>
               <Button
                 onClick={saveCompany}
                 disabled={saving === "company"}
@@ -486,18 +497,27 @@ function SettingsPage() {
                 {saving === "company" && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Save
               </Button>
-            }
-          >
-            <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-              <div className="rounded-xl border bg-[#F8FAFD] p-4">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--navy)] text-white shadow-sm">
+            </div>
+          }
+        >
+          <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <div className="rounded-xl border bg-[#F8FAFD] p-4">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[var(--navy)] text-white shadow-sm">
+                {businessLogoUrl ? (
+                  <img
+                    src={businessLogoUrl}
+                    alt={business?.name || "Organization logo"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
                   <Building2 className="size-9" />
-                </div>
-                <div className="mt-4 text-sm text-muted-foreground">
-                  Company logo and brand image can be added later without changing the rest of the
-                  settings flow.
-                </div>
+                )}
               </div>
+              <div className="mt-4 text-sm text-muted-foreground">
+                Brand assets are managed from Organization so the same logo appears across the
+                portal.
+              </div>
+            </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <SettingField label="Company name">
                   <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
