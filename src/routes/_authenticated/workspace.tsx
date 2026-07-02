@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
+  Building2,
   CalendarCheck,
   CalendarDays,
   Calculator,
@@ -170,6 +171,13 @@ function WorkspacePage() {
               desc: "Plan, edit, save, and publish weekly rosters.",
               icon: CalendarDays,
               badge: "Plan",
+            },
+            {
+              to: "/organization",
+              title: "Organization",
+              desc: "Company profile, logo, locations, and roster defaults.",
+              icon: Building2,
+              badge: "Company",
             },
             {
               to: "/shifts",
