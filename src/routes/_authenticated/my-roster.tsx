@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   eachDayOfInterval,
   endOfMonth,
@@ -34,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, type Profile } from "@/lib/auth";
 import { findEmployeeForUser } from "@/lib/employee";
-import { notifyManagers } from "@/lib/notify";
+import { notify, notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/my-roster")({
   component: MyRosterPage,
@@ -293,13 +293,17 @@ function MyRosterPage() {
   }, [approvedLeaveByDay.size, days.length, holidays.length, shifts]);
 
   const loadColleagueShifts = async (empId: string) => {
+    const now = new Date();
+    const from = format(startOfMonth(now), "yyyy-MM-dd");
+    const to = format(endOfMonth(now), "yyyy-MM-dd");
     const { data, error } = await supabase
       .from("roster_shifts")
       .select(
         "id, employee_id, day, start_time, end_time, break_minutes, total_hours, rosters(status)",
       )
       .eq("employee_id", empId)
-      .gte("day", format(new Date(), "yyyy-MM-dd"))
+      .gte("day", from)
+      .lte("day", to)
       .order("day", { ascending: true });
 
     if (error) toast.error("Failed to load colleague shifts: " + error.message);
@@ -312,23 +316,42 @@ function MyRosterPage() {
       toast.error("Please select all shifts");
       return;
     }
-    const { error } = await supabase.from("shift_swaps").insert({
+    const { data: inserted, error } = await supabase
+      .from("shift_swaps")
+      .insert({
       business_id: profile.business_id,
+      requester_id: profile.id,
       requester_employee_id: emp.id,
       requester_shift_id: swap.my_shift_id,
       target_employee_id: swap.target_emp_id,
       target_shift_id: swap.target_shift_id,
       note: swap.note || null,
       status: "pending",
-    });
+      } as any)
+      .select("id")
+      .single();
     if (error) {
       toast.error(error.message);
       return;
+    }
+    const targetEmployee = colleagues.find((item) => item.id === swap.target_emp_id);
+    if (targetEmployee?.user_id) {
+      await notify({
+        userId: targetEmployee.user_id,
+        businessId: profile.business_id,
+        type: "swap_requested",
+        message: `${emp.name} requested a shift swap with you.`,
+        relatedId: inserted?.id,
+      }).catch((notifyError) => {
+        console.error(notifyError);
+        toast.error("Swap saved, but colleague notification could not be sent.");
+      });
     }
     await notifyManagers({
       businessId: profile.business_id,
       type: "swap_requested",
       message: `${emp.name} requested a shift swap.`,
+      relatedId: inserted?.id,
     }).catch((notifyError) => {
       console.error(notifyError);
       toast.error("Swap saved, but manager notification could not be sent.");
@@ -374,12 +397,12 @@ function MyRosterPage() {
             setOpen={setOpen}
             shifts={shifts}
             colleagues={colleagues}
-            colleagueShifts={colleagueShifts}
-            swap={swap}
-            setSwap={setSwap}
-            loadColleagueShifts={loadColleagueShifts}
-            submitSwap={submitSwap}
-          />
+              colleagueShifts={colleagueShifts}
+              swap={swap}
+              setSwap={setSwap}
+              loadColleagueShifts={loadColleagueShifts}
+              submitSwap={submitSwap}
+            />
         </div>
       </header>
 
@@ -580,10 +603,26 @@ function SwapDialog({
   colleagues: EmployeeRow[];
   colleagueShifts: ShiftRow[];
   swap: SwapState;
-  setSwap: (value: SwapState) => void;
+  setSwap: Dispatch<SetStateAction<SwapState>>;
   loadColleagueShifts: (empId: string) => Promise<void>;
   submitSwap: () => Promise<void>;
-}) {
+  }) {
+  useEffect(() => {
+    if (shifts.length === 0) return;
+    const hasSelection = shifts.some((shift) => shift.id === swap.my_shift_id);
+    if (!hasSelection) {
+      setSwap((current) => ({ ...current, my_shift_id: shifts[0].id }));
+    }
+  }, [setSwap, shifts, swap]);
+
+  useEffect(() => {
+    if (colleagueShifts.length === 0) return;
+    const hasSelection = colleagueShifts.some((shift) => shift.id === swap.target_shift_id);
+    if (!hasSelection) {
+      setSwap((current) => ({ ...current, target_shift_id: colleagueShifts[0].id }));
+    }
+  }, [colleagueShifts, setSwap, swap]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -603,7 +642,7 @@ function SwapDialog({
             <Label>My shift</Label>
             <Select
               value={swap.my_shift_id}
-              onValueChange={(v) => setSwap({ ...swap, my_shift_id: v })}
+              onValueChange={(v) => setSwap((current) => ({ ...current, my_shift_id: v }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select your shift" />
@@ -622,7 +661,7 @@ function SwapDialog({
             <Select
               value={swap.target_emp_id}
               onValueChange={(v) => {
-                setSwap({ ...swap, target_emp_id: v, target_shift_id: "" });
+                setSwap((current) => ({ ...current, target_emp_id: v, target_shift_id: "" }));
                 void loadColleagueShifts(v);
               }}
             >
@@ -642,7 +681,7 @@ function SwapDialog({
             <Label>Their shift</Label>
             <Select
               value={swap.target_shift_id}
-              onValueChange={(v) => setSwap({ ...swap, target_shift_id: v })}
+              onValueChange={(v) => setSwap((current) => ({ ...current, target_shift_id: v }))}
               disabled={!swap.target_emp_id}
             >
               <SelectTrigger>
@@ -661,7 +700,7 @@ function SwapDialog({
             <Label>Note (optional)</Label>
             <Textarea
               value={swap.note}
-              onChange={(e) => setSwap({ ...swap, note: e.target.value })}
+              onChange={(e) => setSwap((current) => ({ ...current, note: e.target.value }))}
               rows={3}
             />
           </div>
