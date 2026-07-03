@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) throw redirect({ to: "/auth", search: { next: undefined } });
     return { user: data.user };
   },
   component: AuthenticatedLayout,
@@ -55,7 +55,7 @@ function AuthenticatedLayout() {
           <button
             onClick={() => {
               supabase.auth.signOut();
-              navigate({ to: "/auth", replace: true });
+              navigate({ to: "/auth", search: { next: undefined }, replace: true });
             }}
             className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
