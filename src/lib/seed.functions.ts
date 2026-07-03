@@ -333,12 +333,26 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
     .eq("business_id", biz.id)
     .limit(1);
   if (!existingLeaves?.length) {
+    const employeeIdAt = (index: number) => {
+      const employeeId = empIds[index];
+      if (!employeeId) throw new Error(`Missing seeded employee at index ${index}`);
+      return employeeId;
+    };
+    const userIdFor = (employeeId: string) => {
+      const userId = employeeUserIds.get(employeeId);
+      if (!userId) throw new Error(`Missing seeded user for employee ${employeeId}`);
+      return userId;
+    };
+    const annualLeaveEmployee = employeeIdAt(0);
+    const sickLeaveEmployee = employeeIdAt(1);
+    const unpaidLeaveEmployee = employeeIdAt(3);
+
     // Only insert if no leaves exist for this business
     await supabaseAdmin.from("leaves").insert([
       {
         business_id: biz.id,
-        employee_id: empIds[0],
-        user_id: employeeUserIds.get(empIds[0]),
+        employee_id: annualLeaveEmployee,
+        user_id: userIdFor(annualLeaveEmployee),
         leave_type: "Annual",
         from_date: fmt(lastMon),
         to_date: fmt(addDays(lastMon, 2)),
@@ -349,8 +363,8 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
       },
       {
         business_id: biz.id,
-        employee_id: empIds[1],
-        user_id: employeeUserIds.get(empIds[1]),
+        employee_id: sickLeaveEmployee,
+        user_id: userIdFor(sickLeaveEmployee),
         leave_type: "Sick",
         from_date: fmt(thisMon),
         to_date: fmt(addDays(thisMon, 1)),
@@ -361,8 +375,8 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
       },
       {
         business_id: biz.id,
-        employee_id: empIds[3],
-        user_id: employeeUserIds.get(empIds[3]),
+        employee_id: unpaidLeaveEmployee,
+        user_id: userIdFor(unpaidLeaveEmployee),
         leave_type: "Unpaid",
         from_date: fmt(addDays(thisMon, -14)),
         to_date: fmt(addDays(thisMon, -13)),
