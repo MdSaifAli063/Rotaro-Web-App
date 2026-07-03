@@ -1,5 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type ChangeEvent, type ElementType } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ElementType,
+  type ReactNode,
+} from "react";
 import {
   ArrowUpRight,
   Building2,
@@ -8,6 +15,7 @@ import {
   CreditCard,
   Loader2,
   MapPin,
+  PencilLine,
   Settings,
   ShieldCheck,
   Store,
@@ -19,6 +27,19 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { useSignedStorageUrl } from "@/components/UserAvatar";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/organization")({
   component: OrganizationPage,
@@ -60,12 +81,79 @@ type StatsState = {
   leaves: number;
 };
 
+type OrganizationDraft = {
+  name: string;
+  country: string;
+  state: string;
+  location: string;
+  abn: string;
+  businessPhone: string;
+  businessEmail: string;
+  openTime: string;
+  closeTime: string;
+  timezone: string;
+  minAge: string;
+  employmentTypes: string;
+  breakOptions: string;
+  overtimeAfterHours: string;
+  overtimeMultiplier: string;
+  numEmployees: string;
+  autoApproveLeave: boolean;
+  openDays: string[];
+};
+
+const weekdayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 const emptyStats: StatsState = {
   employees: 0,
   sites: 0,
   shifts: 0,
   leaves: 0,
 };
+
+function buildOrganizationDraft(business: BusinessRow | null, settings: SettingsRow | null): OrganizationDraft {
+  return {
+    name: business?.name ?? "",
+    country: business?.country ?? "",
+    state: business?.state ?? "",
+    location: business?.location ?? "",
+    abn: business?.abn ?? "",
+    businessPhone: business?.business_phone ?? "",
+    businessEmail: business?.business_email ?? "",
+    openTime: business?.open_time ?? "09:00",
+    closeTime: business?.close_time ?? "17:00",
+    timezone: business?.timezone ?? "Australia/Sydney",
+    minAge: String(business?.min_age ?? 16),
+    employmentTypes: (business?.employment_types ?? ["Full-time", "Part-time", "Casual"]).join(", "),
+    breakOptions: (business?.break_options ?? [30]).join(", "),
+    overtimeAfterHours:
+      business?.overtime_after_hours != null ? String(business.overtime_after_hours) : "",
+    overtimeMultiplier:
+      business?.overtime_multiplier != null ? String(business.overtime_multiplier) : "",
+    numEmployees: business?.num_employees != null ? String(business.num_employees) : "",
+    autoApproveLeave: settings?.auto_approve_leave ?? false,
+    openDays: business?.open_days?.length ? business.open_days : ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  };
+}
+
+function cleanText(value: string) {
+  const next = value.trim();
+  return next.length ? next : null;
+}
+
+function toNumberOrNull(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toNumberArray(value: string) {
+  return value
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item));
+}
 
 function OrganizationPage() {
   const navigate = useNavigate();
@@ -74,12 +162,29 @@ function OrganizationPage() {
   const [settings, setSettings] = useState<SettingsRow | null>(null);
   const [stats, setStats] = useState<StatsState>(emptyStats);
   const [siteLocations, setSiteLocations] = useState<string[]>([]);
+  const [rosterRows, setRosterRows] = useState<{ id: string; location: string | null }[]>([]);
   const [logoPath, setLogoPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingLogo, setSavingLogo] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [draft, setDraft] = useState<OrganizationDraft>(() => buildOrganizationDraft(null, null));
   const fileRef = useRef<HTMLInputElement>(null);
   const [logoPreviewUrl] = useSignedStorageUrl("avatars", logoPath);
   const canEdit = profile?.role === "employer";
+
+  const updateDraft = <K extends keyof OrganizationDraft>(key: K, value: OrganizationDraft[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const toggleOpenDay = (day: string, checked: boolean) => {
+    setDraft((current) => ({
+      ...current,
+      openDays: checked
+        ? Array.from(new Set([...current.openDays, day]))
+        : current.openDays.filter((item) => item !== day),
+    }));
+  };
 
   useEffect(() => {
     let active = true;
@@ -159,6 +264,7 @@ function OrganizationPage() {
         setBusiness(nextBusiness);
         setSettings((settingsRow as SettingsRow | null) ?? null);
         setLogoPath(nextBusiness?.logo_url ?? null);
+        setRosterRows(rosters ?? []);
         setStats({
           employees: employeeCount ?? 0,
           sites: uniqueLocations(nextBusiness, rosters ?? []).length,
@@ -166,6 +272,7 @@ function OrganizationPage() {
           leaves: pendingLeaveCount ?? 0,
         });
         setSiteLocations(uniqueLocations(nextBusiness, rosters ?? []));
+        setDraft(buildOrganizationDraft(nextBusiness, settingsRow as SettingsRow | null));
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to load organization.";
         toast.error(message);
@@ -180,6 +287,98 @@ function OrganizationPage() {
       active = false;
     };
   }, [navigate]);
+
+  const openEditDialog = () => {
+    setDraft(buildOrganizationDraft(business, settings));
+    setEditOpen(true);
+  };
+
+  const saveDetails = async () => {
+    if (!business || !profile?.business_id) return;
+    setSavingDetails(true);
+    try {
+      const nextBusiness: BusinessRow = {
+        ...business,
+        name: draft.name.trim() || business.name,
+        country: cleanText(draft.country),
+        state: cleanText(draft.state),
+        location: cleanText(draft.location),
+        abn: cleanText(draft.abn),
+        business_phone: cleanText(draft.businessPhone),
+        business_email: cleanText(draft.businessEmail),
+        open_time: draft.openTime || business.open_time,
+        close_time: draft.closeTime || business.close_time,
+        timezone: cleanText(draft.timezone),
+        min_age: toNumberOrNull(draft.minAge) ?? business.min_age,
+        employment_types: draft.employmentTypes
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        break_options: toNumberArray(draft.breakOptions),
+        num_employees: toNumberOrNull(draft.numEmployees),
+        overtime_after_hours: toNumberOrNull(draft.overtimeAfterHours),
+        overtime_multiplier: toNumberOrNull(draft.overtimeMultiplier),
+        open_days: draft.openDays,
+      };
+
+      const { error: businessError } = await supabase
+        .from("businesses")
+        .update({
+          name: nextBusiness.name,
+          country: nextBusiness.country,
+          state: nextBusiness.state,
+          location: nextBusiness.location,
+          abn: nextBusiness.abn,
+          business_phone: nextBusiness.business_phone,
+          business_email: nextBusiness.business_email,
+          open_time: nextBusiness.open_time,
+          close_time: nextBusiness.close_time,
+          timezone: nextBusiness.timezone,
+          min_age: nextBusiness.min_age,
+          employment_types: nextBusiness.employment_types,
+          break_options: nextBusiness.break_options,
+          num_employees: nextBusiness.num_employees,
+          overtime_after_hours: nextBusiness.overtime_after_hours,
+          overtime_multiplier: nextBusiness.overtime_multiplier,
+          open_days: nextBusiness.open_days,
+        })
+        .eq("id", business.id);
+
+      if (businessError) {
+        toast.error(businessError.message);
+        return;
+      }
+
+      const { error: settingsError } = await supabase.from("settings").upsert({
+        business_id: business.id,
+        auto_approve_leave: draft.autoApproveLeave,
+        auto_approve_by_type: settings?.auto_approve_by_type ?? {},
+      });
+
+      if (settingsError) {
+        toast.error(settingsError.message);
+        return;
+      }
+
+      const nextSettings = {
+        auto_approve_leave: draft.autoApproveLeave,
+        auto_approve_by_type: settings?.auto_approve_by_type ?? {},
+      };
+
+      setBusiness(nextBusiness);
+      setSettings(nextSettings);
+      setStats((current) => ({
+        ...current,
+        sites: uniqueLocations(nextBusiness, rosterRows).length,
+      }));
+      setSiteLocations(uniqueLocations(nextBusiness, rosterRows));
+      setDraft(buildOrganizationDraft(nextBusiness, nextSettings));
+      setEditOpen(false);
+      toast.success("Organization updated");
+    } finally {
+      setSavingDetails(false);
+    }
+  };
 
   const openPicker = () => fileRef.current?.click();
 
@@ -289,6 +488,16 @@ function OrganizationPage() {
             Open settings
             <ArrowUpRight className="size-4" />
           </Link>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={openEditDialog}
+            disabled={!canEdit}
+            className="border-[var(--navy)] text-[var(--navy)] hover:bg-secondary"
+          >
+            <PencilLine className="mr-2 size-4" />
+            Edit details
+          </Button>
           <button
             type="button"
             onClick={openPicker}
@@ -326,10 +535,10 @@ function OrganizationPage() {
               <h2 className="truncate text-2xl font-bold text-[var(--navy)]">{business.name}</h2>
               <p className="text-sm text-muted-foreground">
                 {business.location || "Primary location not set"}
-                {business.country ? ` · ${business.country}` : ""}
+                {business.country ? ` - ${business.country}` : ""}
               </p>
               <p className="text-xs text-muted-foreground">
-                Owner: {profile.name || profile.email} · Plan: Business
+                Owner: {profile.name || profile.email} - Plan: Business
               </p>
             </div>
           </div>
@@ -539,6 +748,179 @@ function OrganizationPage() {
           </div>
         </div>
       </section>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit organization</DialogTitle>
+            <DialogDescription>
+              Update company details, location defaults, roster rules, and leave automation.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-6">
+            <section className="grid gap-4 md:grid-cols-2">
+              <FormField label="Organization name">
+                <Input value={draft.name} onChange={(e) => updateDraft("name", e.target.value)} />
+              </FormField>
+              <FormField label="ABN / Tax ID">
+                <Input value={draft.abn} onChange={(e) => updateDraft("abn", e.target.value)} />
+              </FormField>
+              <FormField label="Business email">
+                <Input
+                  type="email"
+                  value={draft.businessEmail}
+                  onChange={(e) => updateDraft("businessEmail", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Business phone">
+                <Input
+                  value={draft.businessPhone}
+                  onChange={(e) => updateDraft("businessPhone", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Primary location" className="md:col-span-2">
+                <Input
+                  value={draft.location}
+                  onChange={(e) => updateDraft("location", e.target.value)}
+                />
+              </FormField>
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-2">
+              <FormField label="Country">
+                <Input value={draft.country} onChange={(e) => updateDraft("country", e.target.value)} />
+              </FormField>
+              <FormField label="State / region">
+                <Input value={draft.state} onChange={(e) => updateDraft("state", e.target.value)} />
+              </FormField>
+              <FormField label="Timezone">
+                <Input
+                  value={draft.timezone}
+                  onChange={(e) => updateDraft("timezone", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Planned team size">
+                <Input
+                  type="number"
+                  min={0}
+                  value={draft.numEmployees}
+                  onChange={(e) => updateDraft("numEmployees", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Open time">
+                <Input
+                  type="time"
+                  value={draft.openTime}
+                  onChange={(e) => updateDraft("openTime", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Close time">
+                <Input
+                  type="time"
+                  value={draft.closeTime}
+                  onChange={(e) => updateDraft("closeTime", e.target.value)}
+                />
+              </FormField>
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-2">
+              <FormField label="Minimum employee age">
+                <Input
+                  type="number"
+                  min={0}
+                  value={draft.minAge}
+                  onChange={(e) => updateDraft("minAge", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Overtime after (hours / week)">
+                <Input
+                  type="number"
+                  min={0}
+                  value={draft.overtimeAfterHours}
+                  onChange={(e) => updateDraft("overtimeAfterHours", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Overtime multiplier">
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={draft.overtimeMultiplier}
+                  onChange={(e) => updateDraft("overtimeMultiplier", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Break options (minutes)">
+                <Input
+                  value={draft.breakOptions}
+                  onChange={(e) => updateDraft("breakOptions", e.target.value)}
+                  placeholder="30, 45, 60"
+                />
+              </FormField>
+              <FormField label="Employment types" className="md:col-span-2">
+                <Input
+                  value={draft.employmentTypes}
+                  onChange={(e) => updateDraft("employmentTypes", e.target.value)}
+                  placeholder="Full-time, Part-time, Casual"
+                />
+              </FormField>
+            </section>
+
+            <section className="grid gap-4">
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-[var(--navy)]">Open days</div>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {weekdayOptions.map((day) => (
+                    <label
+                      key={day}
+                      className="flex items-center gap-3 rounded-xl border bg-[#F8FAFD] px-3 py-2 text-sm text-[var(--navy)]"
+                    >
+                      <Checkbox
+                        checked={draft.openDays.includes(day)}
+                        onCheckedChange={(checked) => toggleOpenDay(day, checked === true)}
+                      />
+                      <span>{day}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border bg-[#F8FAFD] px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium text-[var(--navy)]">Auto-approve leave</div>
+                  <div className="text-sm text-muted-foreground">
+                    New leave requests can be approved automatically.
+                  </div>
+                </div>
+                <Switch
+                  checked={draft.autoApproveLeave}
+                  onCheckedChange={(checked) => updateDraft("autoApproveLeave", checked)}
+                />
+              </div>
+            </section>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditOpen(false)}
+              disabled={savingDetails}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={saveDetails}
+              disabled={savingDetails}
+              className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+            >
+              {savingDetails ? <Loader2 className="mr-2 size-4 animate-spin" /> : <PencilLine className="mr-2 size-4" />}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -611,7 +993,7 @@ function InfoPanel({
   title: string;
   icon: ElementType;
   description: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
@@ -636,6 +1018,23 @@ function TwoColumnField({ label, value }: { label: string; value: string }) {
         {label}
       </div>
       <div className="mt-2 text-sm font-medium text-[var(--navy)]">{value}</div>
+    </div>
+  );
+}
+
+function FormField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <Label className="text-sm font-medium text-[var(--navy)]">{label}</Label>
+      <div className="mt-2">{children}</div>
     </div>
   );
 }
