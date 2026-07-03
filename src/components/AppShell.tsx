@@ -45,7 +45,6 @@ import {
 
 const managerNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/organization", label: "Organization", icon: Building2 },
   { to: "/roster", label: "Rosters", icon: CalendarDays },
   { to: "/shifts", label: "Shift Templates", icon: LayoutTemplate },
   { to: "/staff", label: "Staff", icon: Users },
@@ -81,6 +80,9 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = isManager(profile) ? managerNav : employeeNav;
+  const tools = isManager(profile)
+    ? headerTools
+    : headerTools.filter((tool) => tool.to !== "/organization");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
@@ -114,7 +116,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/auth", search: { next: undefined }, replace: true });
   };
 
   const SidebarBody = ({ collapsed = false }: { collapsed?: boolean }) => (
@@ -132,6 +134,45 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
           </div>
         )}
       </div>
+      {isManager(profile) && (
+        <div className="border-b border-sidebar-border px-3 py-3">
+          {!collapsed && (
+            <div className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.32em] text-sidebar-foreground/50">
+              Company
+            </div>
+          )}
+          <Link
+            to="/organization"
+            title={collapsed ? "Organization" : undefined}
+            className={`group flex items-center rounded-xl border transition-colors ${
+              collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
+            } ${
+              pathname === "/organization" || pathname.startsWith("/organization/")
+                ? "border-sidebar-accent bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                : "border-transparent bg-sidebar-accent/30 hover:border-sidebar-accent hover:bg-sidebar-accent/50"
+            }`}
+          >
+            <span
+              className={`flex shrink-0 items-center justify-center rounded-lg ${
+                collapsed ? "size-10" : "size-9"
+              } ${
+                pathname === "/organization" || pathname.startsWith("/organization/")
+                  ? "bg-white/20 text-sidebar-accent-foreground"
+                  : "bg-sidebar text-sidebar-foreground"
+              }`}
+            >
+              <Building2 className="size-5" />
+            </span>
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">Organization</div>
+                <div className="truncate text-xs opacity-70">Company profile</div>
+              </div>
+            )}
+            {!collapsed && <ChevronRight className="size-4 shrink-0 opacity-70" />}
+          </Link>
+        </div>
+      )}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-auto">
         {nav.map(({ to, label, icon: Icon }) => {
           const active = pathname === to || pathname.startsWith(to + "/");
@@ -249,7 +290,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
               <GlobalSearch profile={profile} />
             </div>
             <div className="hidden md:flex items-center gap-1">
-              {headerTools.map(({ to, label, icon: Icon }) => (
+              {tools.map(({ to, label, icon: Icon }) => (
                 <Link
                   key={to}
                   to={to}
@@ -273,7 +314,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel>Tools</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {headerTools.map(({ to, label, icon: Icon }) => (
+                {tools.map(({ to, label, icon: Icon }) => (
                   <DropdownMenuItem key={to} asChild>
                     <Link to={to} className="cursor-pointer">
                       <Icon className="size-4" />
