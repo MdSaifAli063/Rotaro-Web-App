@@ -199,7 +199,9 @@ function EmployerDashboard({ profile }: { profile: Profile }) {
     setAttendance(attendanceRows);
     setLeavesToday(leaveRows.filter((l) => lower(l.status) === "approved"));
     setPendingLeaves(leaveRows.filter((l) => lower(l.status) === "pending").length);
-    setPendingSwaps((swaps ?? []).filter((s) => lower(s.status) === "pending").length);
+    setPendingSwaps(
+      (swaps ?? []).filter((s) => ["pending", "target_accepted"].includes(lower(s.status))).length,
+    );
     setDepts((old) =>
       old.length ? old : uniq((emps ?? []).map((e) => e.department || "Unassigned")),
     );
