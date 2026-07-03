@@ -115,11 +115,12 @@ export function SiteHeader() {
             <>
               <Link
                 to="/auth"
+                search={{ next: undefined }}
                 className="hidden sm:inline-block text-sm font-medium text-[var(--navy)] hover:opacity-70 px-2"
               >
                 Staff Login
               </Link>
-              <Link to="/auth" className="hidden sm:inline-block">
+              <Link to="/auth" search={{ next: undefined }} className="hidden sm:inline-block">
                 <Button className="rounded-full px-5">Get Started</Button>
               </Link>
             </>
@@ -189,10 +190,14 @@ export function SiteHeader() {
                 </Link>
               ) : (
                 <>
-                  <Link to="/auth" className="text-sm font-medium text-[var(--navy)] py-2">
+                  <Link
+                    to="/auth"
+                    search={{ next: undefined }}
+                    className="text-sm font-medium text-[var(--navy)] py-2"
+                  >
                     Staff Login
                   </Link>
-                  <Link to="/auth">
+                  <Link to="/auth" search={{ next: undefined }}>
                     <Button className="w-full rounded-full">Get Started</Button>
                   </Link>
                 </>
@@ -220,7 +225,7 @@ function Hero() {
           reports — all without the clutter.
         </p>
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-          <Link to="/auth">
+          <Link to="/auth" search={{ next: undefined }}>
             <Button size="lg" className="h-12 px-8 text-base rounded-full w-full sm:w-auto">
               Get started free
             </Button>
