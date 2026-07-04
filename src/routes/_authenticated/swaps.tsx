@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import {
   ArrowRightLeft,
@@ -14,7 +21,13 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -151,12 +164,12 @@ function SwapsPage() {
     setLoading(true);
     const nextEmployee = isManager(nextProfile)
       ? null
-      : (
+      : ((
           await findEmployeeForUser<EmployeeSummary>(
             nextProfile.id,
             "id, business_id, employee_code, name, department, user_id",
           )
-        ).employee ?? null;
+        ).employee ?? null);
 
     if (!isManager(nextProfile) && !nextEmployee) {
       setLoading(false);
@@ -230,9 +243,9 @@ function SwapsPage() {
         requester: employeesById.get(swap.requester_employee_id) ?? null,
         target: employeesById.get(swap.target_employee_id) ?? null,
         requester_shift: swap.requester_shift_id
-          ? shiftsById.get(swap.requester_shift_id) ?? null
+          ? (shiftsById.get(swap.requester_shift_id) ?? null)
           : null,
-        target_shift: swap.target_shift_id ? shiftsById.get(swap.target_shift_id) ?? null : null,
+        target_shift: swap.target_shift_id ? (shiftsById.get(swap.target_shift_id) ?? null) : null,
       })),
     );
 
@@ -327,11 +340,12 @@ function SwapsPage() {
     ).length;
     const waitingOnMe = requesterId
       ? rows.filter(
-          (row) =>
-            row.target_employee_id === requesterId && lower(row.status) === "pending",
+          (row) => row.target_employee_id === requesterId && lower(row.status) === "pending",
         ).length
       : 0;
-    const mySent = requesterId ? rows.filter((row) => row.requester_employee_id === requesterId).length : 0;
+    const mySent = requesterId
+      ? rows.filter((row) => row.requester_employee_id === requesterId).length
+      : 0;
     const approved = rows.filter((row) => lower(row.status) === "approved").length;
     const closed = rows.filter((row) =>
       ["rejected", "target_declined", "cancelled"].includes(lower(row.status)),
@@ -349,10 +363,13 @@ function SwapsPage() {
 
   const respond = async (row: SwapRow, action: SwapAction) => {
     setActioningId(row.id);
-    const { data, error } = await supabase.rpc("respond_to_shift_swap" as any, {
-      p_swap_id: row.id,
-      p_action: action,
-    } as any);
+    const { data, error } = await supabase.rpc(
+      "respond_to_shift_swap" as any,
+      {
+        p_swap_id: row.id,
+        p_action: action,
+      } as any,
+    );
     setActioningId(null);
 
     if (error) {
@@ -360,7 +377,7 @@ function SwapsPage() {
       return;
     }
 
-    const updated = ((data as unknown) as SwapRow | null) ?? row;
+    const updated = (data as unknown as SwapRow | null) ?? row;
     const requesterName = updated.requester?.name ?? "Requester";
     const targetName = updated.target?.name ?? "Target employee";
 
@@ -597,7 +614,9 @@ function SwapsPage() {
         />
         <SummaryCard
           label={canManage ? "Awaiting employee response" : "Waiting on me"}
-          value={canManage ? rows.filter((row) => row.status === "pending").length : summary.waitingOnMe}
+          value={
+            canManage ? rows.filter((row) => row.status === "pending").length : summary.waitingOnMe
+          }
           icon={Clock3}
         />
         <SummaryCard label="Approved" value={summary.approved} icon={CheckCircle2} />
@@ -657,7 +676,8 @@ function SwapsPage() {
                   const isRequester = employee?.id === row.requester_employee_id;
                   const isTarget = employee?.id === row.target_employee_id;
                   const status = lower(row.status);
-                  const showManagerActions = canManage && ["pending", "target_accepted"].includes(status);
+                  const showManagerActions =
+                    canManage && ["pending", "target_accepted"].includes(status);
                   const showTargetActions = !canManage && isTarget && status === "pending";
                   const showRequesterActions =
                     !canManage && isRequester && ["pending", "target_accepted"].includes(status);
@@ -887,9 +907,7 @@ function RequestDialog({
             <Label>Note</Label>
             <Textarea
               value={form.note}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, note: event.target.value }))
-              }
+              onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
               rows={3}
               placeholder="Optional context for the swap"
             />
@@ -900,7 +918,10 @@ function RequestDialog({
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={submit} className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]">
+          <Button
+            onClick={submit}
+            className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+          >
             Submit request
           </Button>
         </DialogFooter>

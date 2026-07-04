@@ -477,47 +477,47 @@ function SettingsPage() {
 
         <TabsContent value="company" className="space-y-4">
           <SettingsCard
-          title="Company Information"
-          description="Manage the core business details used across the portal."
-          icon={Building2}
-          action={
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to="/organization"
-                className="inline-flex items-center gap-2 rounded-md border border-[var(--navy)] px-4 py-2 text-sm font-medium text-[var(--navy)] hover:bg-secondary"
-              >
-                Open organization
-                <ArrowUpRight className="size-4" />
-              </Link>
-              <Button
-                onClick={saveCompany}
-                disabled={saving === "company"}
-                className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-              >
-                {saving === "company" && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Save
-              </Button>
-            </div>
-          }
-        >
-          <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-            <div className="rounded-xl border bg-[#F8FAFD] p-4">
-              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[var(--navy)] text-white shadow-sm">
-                {businessLogoUrl ? (
-                  <img
-                    src={businessLogoUrl}
-                    alt={business?.name || "Organization logo"}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <Building2 className="size-9" />
-                )}
+            title="Company Information"
+            description="Manage the core business details used across the portal."
+            icon={Building2}
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  to="/organization"
+                  className="inline-flex items-center gap-2 rounded-md border border-[var(--navy)] px-4 py-2 text-sm font-medium text-[var(--navy)] hover:bg-secondary"
+                >
+                  Open organization
+                  <ArrowUpRight className="size-4" />
+                </Link>
+                <Button
+                  onClick={saveCompany}
+                  disabled={saving === "company"}
+                  className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+                >
+                  {saving === "company" && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  Save
+                </Button>
               </div>
-              <div className="mt-4 text-sm text-muted-foreground">
-                Brand assets are managed from Organization so the same logo appears across the
-                portal.
+            }
+          >
+            <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+              <div className="rounded-xl border bg-[#F8FAFD] p-4">
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[var(--navy)] text-white shadow-sm">
+                  {businessLogoUrl ? (
+                    <img
+                      src={businessLogoUrl}
+                      alt={business?.name || "Organization logo"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Building2 className="size-9" />
+                  )}
+                </div>
+                <div className="mt-4 text-sm text-muted-foreground">
+                  Brand assets are managed from Organization so the same logo appears across the
+                  portal.
+                </div>
               </div>
-            </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <SettingField label="Company name">
                   <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
@@ -992,7 +992,10 @@ function SettingsPage() {
                 value="Configure GOOGLE_CLIENT_ID on the server for login"
               />
               <ReadOnlyField label="Provider" value="Resend or custom webhook via env" />
-              <ReadOnlyField label="Email scope" value="Notifications, leave, swaps, messages, attendance, and roster publishes" />
+              <ReadOnlyField
+                label="Email scope"
+                value="Notifications, leave, swaps, messages, attendance, and roster publishes"
+              />
               <SettingField label="Google client ID">
                 <Input
                   value={prefs.integrations.google_client_id}

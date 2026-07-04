@@ -111,7 +111,10 @@ const emptyStats: StatsState = {
   leaves: 0,
 };
 
-function buildOrganizationDraft(business: BusinessRow | null, settings: SettingsRow | null): OrganizationDraft {
+function buildOrganizationDraft(
+  business: BusinessRow | null,
+  settings: SettingsRow | null,
+): OrganizationDraft {
   return {
     name: business?.name ?? "",
     country: business?.country ?? "",
@@ -124,7 +127,9 @@ function buildOrganizationDraft(business: BusinessRow | null, settings: Settings
     closeTime: business?.close_time ?? "17:00",
     timezone: business?.timezone ?? "Australia/Sydney",
     minAge: String(business?.min_age ?? 16),
-    employmentTypes: (business?.employment_types ?? ["Full-time", "Part-time", "Casual"]).join(", "),
+    employmentTypes: (business?.employment_types ?? ["Full-time", "Part-time", "Casual"]).join(
+      ", ",
+    ),
     breakOptions: (business?.break_options ?? [30]).join(", "),
     overtimeAfterHours:
       business?.overtime_after_hours != null ? String(business.overtime_after_hours) : "",
@@ -132,7 +137,9 @@ function buildOrganizationDraft(business: BusinessRow | null, settings: Settings
       business?.overtime_multiplier != null ? String(business.overtime_multiplier) : "",
     numEmployees: business?.num_employees != null ? String(business.num_employees) : "",
     autoApproveLeave: settings?.auto_approve_leave ?? false,
-    openDays: business?.open_days?.length ? business.open_days : ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    openDays: business?.open_days?.length
+      ? business.open_days
+      : ["Mon", "Tue", "Wed", "Thu", "Fri"],
   };
 }
 
@@ -394,7 +401,9 @@ function OrganizationPage() {
       toast.error("Profile is still loading. Please try again in a moment.");
       return;
     }
-    if (!["image/jpeg", "image/jpg", "image/png", "image/webp", "image/svg+xml"].includes(file.type)) {
+    if (
+      !["image/jpeg", "image/jpg", "image/png", "image/webp", "image/svg+xml"].includes(file.type)
+    ) {
       toast.error("Use SVG, JPG, PNG, or WEBP images.");
       return;
     }
@@ -428,7 +437,10 @@ function OrganizationPage() {
     }
 
     if (previous && !previous.startsWith("http")) {
-      await supabase.storage.from("avatars").remove([previous]).catch(() => undefined);
+      await supabase.storage
+        .from("avatars")
+        .remove([previous])
+        .catch(() => undefined);
     }
 
     setLogoPath(path);
@@ -443,16 +455,24 @@ function OrganizationPage() {
       return;
     }
     const current = logoPath;
-    const { error } = await supabase.from("businesses").update({ logo_url: null }).eq("id", business.id);
+    const { error } = await supabase
+      .from("businesses")
+      .update({ logo_url: null })
+      .eq("id", business.id);
     if (error) return toast.error(error.message);
     if (current && !current.startsWith("http")) {
-      await supabase.storage.from("avatars").remove([current]).catch(() => undefined);
+      await supabase.storage
+        .from("avatars")
+        .remove([current])
+        .catch(() => undefined);
     }
     setLogoPath(null);
     toast.success("Organization logo removed");
   };
 
-  const openDays = business?.open_days?.length ? business.open_days : ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const openDays = business?.open_days?.length
+    ? business.open_days
+    : ["Mon", "Tue", "Wed", "Thu", "Fri"];
   const employmentTypes = business?.employment_types?.length
     ? business.employment_types
     : ["Full-time", "Part-time", "Casual"];
@@ -476,8 +496,8 @@ function OrganizationPage() {
           <div className="text-sm font-medium text-[var(--navy)]/70">Company</div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Organization</h1>
           <p className="max-w-3xl text-sm text-muted-foreground">
-            Manage your company profile, location defaults, roster rules, and organization logo
-            from one place.
+            Manage your company profile, location defaults, roster rules, and organization logo from
+            one place.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -504,7 +524,11 @@ function OrganizationPage() {
             disabled={!canEdit || savingLogo}
             className="inline-flex items-center gap-2 rounded-md bg-[var(--navy)] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[var(--navy-light)] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {savingLogo ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            {savingLogo ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Upload className="size-4" />
+            )}
             Upload logo
           </button>
         </div>
@@ -728,7 +752,11 @@ function OrganizationPage() {
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex size-12 items-center justify-center overflow-hidden rounded-xl bg-[var(--navy)] text-white">
                   {logoPreviewUrl ? (
-                    <img src={logoPreviewUrl} alt={business.name} className="h-full w-full object-cover" />
+                    <img
+                      src={logoPreviewUrl}
+                      alt={business.name}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <Building2 className="size-6" />
                   )}
@@ -789,7 +817,10 @@ function OrganizationPage() {
 
             <section className="grid gap-4 md:grid-cols-2">
               <FormField label="Country">
-                <Input value={draft.country} onChange={(e) => updateDraft("country", e.target.value)} />
+                <Input
+                  value={draft.country}
+                  onChange={(e) => updateDraft("country", e.target.value)}
+                />
               </FormField>
               <FormField label="State / region">
                 <Input value={draft.state} onChange={(e) => updateDraft("state", e.target.value)} />
@@ -915,7 +946,11 @@ function OrganizationPage() {
               disabled={savingDetails}
               className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
             >
-              {savingDetails ? <Loader2 className="mr-2 size-4 animate-spin" /> : <PencilLine className="mr-2 size-4" />}
+              {savingDetails ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <PencilLine className="mr-2 size-4" />
+              )}
               Save changes
             </Button>
           </DialogFooter>
@@ -1039,15 +1074,7 @@ function FormField({
   );
 }
 
-function QuickLink({
-  to,
-  label,
-  icon: Icon,
-}: {
-  to: string;
-  label: string;
-  icon: ElementType;
-}) {
+function QuickLink({ to, label, icon: Icon }: { to: string; label: string; icon: ElementType }) {
   return (
     <Link
       to={to}
