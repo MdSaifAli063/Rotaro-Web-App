@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   Send,
+  UsersRound,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,9 +27,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchProfile, type Profile } from "@/lib/auth";
+import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { findEmployeeForUser } from "@/lib/employee";
-import { notifyManagers } from "@/lib/notify";
+import { notify, notifyManagers } from "@/lib/notify";
 
 export const Route = createFileRoute("/_authenticated/apply-leave")({
   component: ApplyLeavePage,
@@ -70,6 +71,14 @@ type LeaveForm = {
   reason: string;
 };
 
+type ManagerLeaveForm = {
+  employee_id: string;
+  leave_type: string;
+  from_date: string;
+  to_date: string;
+  reason: string;
+};
+
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 const todayKey = format(new Date(), "yyyy-MM-dd");
 const defaultLeaveSettings = {
@@ -88,10 +97,12 @@ const defaultLeaveTotal = (type: string) => {
 function ApplyLeavePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [employee, setEmployee] = useState<EmployeeRow | null>(null);
+  const [team, setTeam] = useState<EmployeeRow[]>([]);
   const [balances, setBalances] = useState<BalanceRow[]>([]);
   const [history, setHistory] = useState<LeaveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [managerSubmitting, setManagerSubmitting] = useState(false);
   const [leaveSettings, setLeaveSettings] = useState(defaultLeaveSettings);
   const [form, setForm] = useState<LeaveForm>({
     leave_type: "Annual",
@@ -99,6 +110,15 @@ function ApplyLeavePage() {
     to_date: todayKey,
     reason: "",
   });
+  const [managerForm, setManagerForm] = useState<ManagerLeaveForm>({
+    employee_id: "",
+    leave_type: "Annual",
+    from_date: todayKey,
+    to_date: todayKey,
+    reason: "",
+  });
+
+  const canManage = profile ? isManager(profile) : false;
 
   const selectedBalance = useMemo(
     () => findBalance(balances, form.leave_type),
@@ -124,12 +144,55 @@ function ApplyLeavePage() {
       currentEmployee: EmployeeRow | null,
       options: { showLoading?: boolean } = {},
     ) => {
-      if (!currentProfile?.business_id || !currentEmployee) {
+      if (!currentProfile?.business_id) {
         setLoading(false);
         return;
       }
 
       if (options.showLoading !== false) setLoading(true);
+      const settingsPromise = supabase
+        .from("settings")
+        .select("auto_approve_leave, auto_approve_by_type")
+        .eq("business_id", currentProfile.business_id)
+        .maybeSingle();
+
+      if (isManager(currentProfile)) {
+        const [historyResult, settingsResult, teamResult] = await Promise.all([
+          supabase
+            .from("leaves")
+            .select("*")
+            .eq("business_id", currentProfile.business_id)
+            .order("created_at", { ascending: false })
+            .limit(50),
+          settingsPromise,
+          supabase
+            .from("employees")
+            .select("id, business_id, employee_code, name, department, user_id")
+            .eq("business_id", currentProfile.business_id)
+            .order("name", { ascending: true }),
+        ]);
+
+        if (historyResult.error)
+          toast.error("Failed to load leave requests: " + historyResult.error.message);
+        if (teamResult.error) toast.error("Failed to load employees: " + teamResult.error.message);
+
+        const perType = (settingsResult.data?.auto_approve_by_type as Record<string, boolean>) ?? {};
+        setLeaveSettings({
+          autoApproveLeave: settingsResult.data?.auto_approve_leave === true,
+          autoApproveByType: perType,
+        });
+        setBalances([]);
+        setHistory((historyResult.data ?? []) as LeaveRow[]);
+        setTeam((teamResult.data ?? []) as EmployeeRow[]);
+        setLoading(false);
+        return;
+      }
+
+      if (!currentEmployee) {
+        setLoading(false);
+        return;
+      }
+
       const [balanceResult, historyResult, settingsResult] = await Promise.all([
         supabase
           .from("leave_balances")
@@ -144,15 +207,10 @@ function ApplyLeavePage() {
           .eq("employee_id", currentEmployee.id)
           .order("created_at", { ascending: false })
           .limit(30),
-        supabase
-          .from("settings")
-          .select("auto_approve_leave, auto_approve_by_type")
-          .eq("business_id", currentProfile.business_id)
-          .maybeSingle(),
+        settingsPromise,
       ]);
 
-      if (balanceResult.error)
-        toast.error("Failed to load balances: " + balanceResult.error.message);
+      if (balanceResult.error) toast.error("Failed to load balances: " + balanceResult.error.message);
       if (historyResult.error)
         toast.error("Failed to load leave history: " + historyResult.error.message);
 
@@ -185,12 +243,12 @@ function ApplyLeavePage() {
       );
 
       if (error) toast.error("Failed to load employee profile: " + error.message);
-      if (!data) {
+      if (!data && !isManager(nextProfile)) {
         setLoading(false);
         return;
       }
 
-      const nextEmployee = data as EmployeeRow;
+      const nextEmployee = data ? (data as EmployeeRow) : null;
       setEmployee(nextEmployee);
       await load(nextProfile, nextEmployee);
     })();
@@ -201,16 +259,16 @@ function ApplyLeavePage() {
   }, [load]);
 
   useEffect(() => {
-    if (!profile?.business_id || !employee) return;
+    if (!profile?.business_id) return;
     const channel = supabase
-      .channel(`apply-leave:${profile.business_id}:${employee.id}`)
+      .channel(`apply-leave:${profile.business_id}:${profile.id}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "leaves",
-          filter: `employee_id=eq.${employee.id}`,
+          filter: `business_id=eq.${profile.business_id}`,
         },
         () => load(profile, employee, { showLoading: false }),
       )
@@ -220,7 +278,7 @@ function ApplyLeavePage() {
           event: "*",
           schema: "public",
           table: "leave_balances",
-          filter: `employee_id=eq.${employee.id}`,
+          filter: employee ? `employee_id=eq.${employee.id}` : `business_id=eq.${profile.business_id}`,
         },
         () => load(profile, employee, { showLoading: false }),
       )
@@ -326,6 +384,85 @@ function ApplyLeavePage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const submitForEmployee = async () => {
+    if (managerSubmitting) return;
+    if (!canManage || !profile?.business_id) return;
+    if (!managerForm.employee_id) {
+      toast.error("Please choose an employee");
+      return;
+    }
+    const requestedDays = countLeaveDays(managerForm.from_date, managerForm.to_date);
+    if (requestedDays < 1) {
+      toast.error("The end date must be on or after the start date");
+      return;
+    }
+    if (isBefore(parseISO(managerForm.from_date), parseISO(todayKey))) {
+      toast.error("Start date cannot be in the past");
+      return;
+    }
+    if (!managerForm.reason.trim() && managerForm.leave_type.toLowerCase() !== "casual") {
+      toast.error("Please add a short reason for this request");
+      return;
+    }
+
+    const target = team.find((item) => item.id === managerForm.employee_id);
+    if (!target) {
+      toast.error("Selected employee could not be found");
+      return;
+    }
+
+    setManagerSubmitting(true);
+    try {
+      const { data: leave, error } = await supabase
+        .from("leaves")
+        .insert({
+          business_id: profile.business_id,
+          employee_id: target.id,
+          user_id: target.user_id ?? profile.id,
+          leave_type: managerForm.leave_type,
+          from_date: managerForm.from_date,
+          to_date: managerForm.to_date,
+          start_date: managerForm.from_date,
+          end_date: managerForm.to_date,
+          total_days: requestedDays,
+          reason: managerForm.reason.trim() || null,
+          status: "approved",
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      await applyBalanceChange(profile.business_id, target.id, managerForm.leave_type, requestedDays);
+      toast.success("Leave added for employee");
+      setManagerForm({
+        employee_id: team[0]?.id ?? "",
+        leave_type: "Annual",
+        from_date: todayKey,
+        to_date: todayKey,
+        reason: "",
+      });
+      await load(profile, employee, { showLoading: false });
+
+      if (target.user_id) {
+        await notify({
+          userId: target.user_id,
+          businessId: profile.business_id,
+          type: "leave_approved",
+          message: `${profile.name} added ${managerForm.leave_type} leave for you.`,
+          relatedId: leave.id,
+        }).catch((notifyError) => {
+          console.error(notifyError);
+        });
+      }
+    } finally {
+      setManagerSubmitting(false);
     }
   };
 
