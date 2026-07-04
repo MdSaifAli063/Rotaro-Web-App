@@ -24,6 +24,7 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedOrganizationRouteImport } from './routes/_authenticated/organization'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedMyRosterRouteImport } from './routes/_authenticated/my-roster'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedLeavesRouteImport } from './routes/_authenticated/leaves'
@@ -116,6 +117,12 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMyRosterRoute = AuthenticatedMyRosterRouteImport.update({
   id: '/my-roster',
   path: '/my-roster',
@@ -185,9 +192,9 @@ const AuthenticatedRosterCreateRoute =
   } as any)
 const AuthenticatedNotificationsIdRoute =
   AuthenticatedNotificationsIdRouteImport.update({
-    id: '/notifications/$id',
-    path: '/notifications/$id',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedNotificationsRoute,
   } as any)
 const AuthenticatedRosterViewIdRoute =
   AuthenticatedRosterViewIdRouteImport.update({
@@ -218,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/leaves': typeof AuthenticatedLeavesRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
+  '/notifications': typeof AuthenticatedNotificationsRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/organization': typeof AuthenticatedOrganizationRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -250,6 +258,7 @@ export interface FileRoutesByTo {
   '/leaves': typeof AuthenticatedLeavesRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/my-roster': typeof AuthenticatedMyRosterRoute
+  '/notifications': typeof AuthenticatedNotificationsRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/organization': typeof AuthenticatedOrganizationRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -284,6 +293,7 @@ export interface FileRoutesById {
   '/_authenticated/leaves': typeof AuthenticatedLeavesRoute
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/my-roster': typeof AuthenticatedMyRosterRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRouteWithChildren
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/organization': typeof AuthenticatedOrganizationRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/leaves'
     | '/messages'
     | '/my-roster'
+    | '/notifications'
     | '/onboarding'
     | '/organization'
     | '/profile'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/leaves'
     | '/messages'
     | '/my-roster'
+    | '/notifications'
     | '/onboarding'
     | '/organization'
     | '/profile'
@@ -383,6 +395,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leaves'
     | '/_authenticated/messages'
     | '/_authenticated/my-roster'
+    | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
     | '/_authenticated/organization'
     | '/_authenticated/profile'
@@ -515,6 +528,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/my-roster': {
       id: '/_authenticated/my-roster'
       path: '/my-roster'
@@ -608,10 +628,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/notifications/$id': {
       id: '/_authenticated/notifications/$id'
-      path: '/notifications/$id'
+      path: '/$id'
       fullPath: '/notifications/$id'
       preLoaderRoute: typeof AuthenticatedNotificationsIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedNotificationsRoute
     }
     '/_authenticated/roster/view/$id': {
       id: '/_authenticated/roster/view/$id'
@@ -629,6 +649,20 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthenticatedNotificationsRouteChildren {
+  AuthenticatedNotificationsIdRoute: typeof AuthenticatedNotificationsIdRoute
+}
+
+const AuthenticatedNotificationsRouteChildren: AuthenticatedNotificationsRouteChildren =
+  {
+    AuthenticatedNotificationsIdRoute: AuthenticatedNotificationsIdRoute,
+  }
+
+const AuthenticatedNotificationsRouteWithChildren =
+  AuthenticatedNotificationsRoute._addFileChildren(
+    AuthenticatedNotificationsRouteChildren,
+  )
 
 interface AuthenticatedRosterRouteChildren {
   AuthenticatedRosterCreateRoute: typeof AuthenticatedRosterCreateRoute
@@ -659,6 +693,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeavesRoute: typeof AuthenticatedLeavesRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedMyRosterRoute: typeof AuthenticatedMyRosterRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRouteWithChildren
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedOrganizationRoute: typeof AuthenticatedOrganizationRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
@@ -669,7 +704,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedSwapsRoute: typeof AuthenticatedSwapsRoute
   AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
-  AuthenticatedNotificationsIdRoute: typeof AuthenticatedNotificationsIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -684,6 +718,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeavesRoute: AuthenticatedLeavesRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedMyRosterRoute: AuthenticatedMyRosterRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRouteWithChildren,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedOrganizationRoute: AuthenticatedOrganizationRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
@@ -694,7 +729,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedSwapsRoute: AuthenticatedSwapsRoute,
   AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
-  AuthenticatedNotificationsIdRoute: AuthenticatedNotificationsIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

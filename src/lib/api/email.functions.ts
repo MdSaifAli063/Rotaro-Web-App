@@ -46,9 +46,7 @@ export const sendNotificationEmails = createServerFn({ method: "POST" })
       .filter((profile) => isEmailPreferenceAllowed(profile, data.type));
     if (!recipients.length) return { sent: 0, skipped: "no_emails" as const };
 
-    const business = data.businessId
-      ? await loadBusiness(data.businessId, supabaseAdmin)
-      : null;
+    const business = data.businessId ? await loadBusiness(data.businessId, supabaseAdmin) : null;
     const subject = data.subject || subjectForType(data.type, business?.name);
     const url = actionUrl(config.email.appUrl, data.type, data.relatedId);
     const results = await Promise.allSettled(
@@ -96,7 +94,10 @@ export const sendNotificationEmails = createServerFn({ method: "POST" })
     };
   });
 
-async function loadBusiness(businessId: string, supabaseAdmin: any): Promise<BusinessSummary | null> {
+async function loadBusiness(
+  businessId: string,
+  supabaseAdmin: any,
+): Promise<BusinessSummary | null> {
   const { data, error } = await supabaseAdmin
     .from("businesses")
     .select("id, name, business_email")

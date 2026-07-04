@@ -118,9 +118,7 @@ function SupportIntro() {
   return (
     <section className="bg-white">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20 sm:py-24 text-center">
-        <h2 className="text-3xl font-bold text-[var(--navy)] sm:text-4xl md:text-5xl">
-          Support
-        </h2>
+        <h2 className="text-3xl font-bold text-[var(--navy)] sm:text-4xl md:text-5xl">Support</h2>
         <p className="mt-6 text-lg sm:text-xl font-semibold text-[var(--navy)]">
           It isn't always easy getting started with new software. You need real help, when you need
           it.

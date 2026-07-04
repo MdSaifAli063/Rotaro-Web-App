@@ -71,21 +71,21 @@ export type Database = {
           },
         ];
       };
-        businesses: {
-          Row: {
-            abn: string | null;
-            break_options: number[] | null;
-            business_email: string | null;
-            business_phone: string | null;
-            close_time: string | null;
-            country: string | null;
-            created_at: string;
-            logo_url: string | null;
-            overtime_after_hours: number | null;
-            employment_types: string[] | null;
-            id: string;
-            is_onboarded: boolean;
-            location: string | null;
+      businesses: {
+        Row: {
+          abn: string | null;
+          break_options: number[] | null;
+          business_email: string | null;
+          business_phone: string | null;
+          close_time: string | null;
+          country: string | null;
+          created_at: string;
+          logo_url: string | null;
+          overtime_after_hours: number | null;
+          employment_types: string[] | null;
+          id: string;
+          is_onboarded: boolean;
+          location: string | null;
           min_age: number | null;
           name: string;
           num_employees: number | null;
@@ -100,17 +100,17 @@ export type Database = {
         Insert: {
           abn?: string | null;
           break_options?: number[] | null;
-            business_email?: string | null;
-            business_phone?: string | null;
-            close_time?: string | null;
-            country?: string | null;
-            created_at?: string;
-            logo_url?: string | null;
-            overtime_after_hours?: number | null;
-            employment_types?: string[] | null;
-            id?: string;
-            is_onboarded?: boolean;
-            location?: string | null;
+          business_email?: string | null;
+          business_phone?: string | null;
+          close_time?: string | null;
+          country?: string | null;
+          created_at?: string;
+          logo_url?: string | null;
+          overtime_after_hours?: number | null;
+          employment_types?: string[] | null;
+          id?: string;
+          is_onboarded?: boolean;
+          location?: string | null;
           min_age?: number | null;
           name?: string;
           num_employees?: number | null;
@@ -125,17 +125,17 @@ export type Database = {
         Update: {
           abn?: string | null;
           break_options?: number[] | null;
-            business_email?: string | null;
-            business_phone?: string | null;
-            close_time?: string | null;
-            country?: string | null;
-            created_at?: string;
-            logo_url?: string | null;
-            overtime_after_hours?: number | null;
-            employment_types?: string[] | null;
-            id?: string;
-            is_onboarded?: boolean;
-            location?: string | null;
+          business_email?: string | null;
+          business_phone?: string | null;
+          close_time?: string | null;
+          country?: string | null;
+          created_at?: string;
+          logo_url?: string | null;
+          overtime_after_hours?: number | null;
+          employment_types?: string[] | null;
+          id?: string;
+          is_onboarded?: boolean;
+          location?: string | null;
           min_age?: number | null;
           name?: string;
           num_employees?: number | null;
@@ -382,6 +382,8 @@ export type Database = {
         Row: {
           business_id: string | null;
           created_at: string;
+          deleted_at: string | null;
+          dismissed_at: string | null;
           id: string;
           is_read: boolean;
           message: string;
@@ -392,6 +394,8 @@ export type Database = {
         Insert: {
           business_id?: string | null;
           created_at?: string;
+          deleted_at?: string | null;
+          dismissed_at?: string | null;
           id?: string;
           is_read?: boolean;
           message: string;
@@ -402,6 +406,8 @@ export type Database = {
         Update: {
           business_id?: string | null;
           created_at?: string;
+          deleted_at?: string | null;
+          dismissed_at?: string | null;
           id?: string;
           is_read?: boolean;
           message?: string;

@@ -15,6 +15,8 @@ type Notification = {
   type: string;
   message: string;
   is_read: boolean;
+  dismissed_at: string | null;
+  deleted_at: string | null;
   created_at: string;
 };
 
@@ -30,8 +32,10 @@ export function NotificationBell({ userId }: { userId: string }) {
   const load = async () => {
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, type, message, is_read, created_at")
+      .select("id, type, message, is_read, dismissed_at, deleted_at, created_at")
       .eq("user_id", userId)
+      .is("dismissed_at", null)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {
@@ -61,7 +65,12 @@ export function NotificationBell({ userId }: { userId: string }) {
           }
           if (payload.eventType === "UPDATE") {
             const next = payload.new as Notification;
-            setItems((current) => current.map((item) => (item.id === next.id ? next : item)));
+            setItems((current) => {
+              if (next.dismissed_at || next.deleted_at) {
+                return current.filter((item) => item.id !== next.id);
+              }
+              return current.map((item) => (item.id === next.id ? next : item));
+            });
             return;
           }
           if (payload.eventType === "DELETE") {
@@ -107,6 +116,8 @@ export function NotificationBell({ userId }: { userId: string }) {
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", userId)
+      .is("dismissed_at", null)
+      .is("deleted_at", null)
       .eq("is_read", false);
     setSaving(false);
     if (error) {
@@ -120,10 +131,13 @@ export function NotificationBell({ userId }: { userId: string }) {
   const clearRead = async () => {
     if (!readCount || saving) return;
     setSaving(true);
+    const dismissedAt = new Date().toISOString();
     const { error } = await supabase
       .from("notifications")
-      .delete()
+      .update({ dismissed_at: dismissedAt })
       .eq("user_id", userId)
+      .is("dismissed_at", null)
+      .is("deleted_at", null)
       .eq("is_read", true);
     setSaving(false);
     if (error) {
@@ -136,9 +150,15 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   const clearAll = async () => {
     if (!items.length || saving) return;
-    if (!window.confirm("Clear all notifications?")) return;
+    if (!window.confirm("Clear all notifications from the bell?")) return;
     setSaving(true);
-    const { error } = await supabase.from("notifications").delete().eq("user_id", userId);
+    const dismissedAt = new Date().toISOString();
+    const { error } = await supabase
+      .from("notifications")
+      .update({ dismissed_at: dismissedAt, is_read: true })
+      .eq("user_id", userId)
+      .is("dismissed_at", null)
+      .is("deleted_at", null);
     setSaving(false);
     if (error) {
       toast.error("Failed to clear notifications: " + error.message);
@@ -146,22 +166,21 @@ export function NotificationBell({ userId }: { userId: string }) {
     }
     setItems([]);
     setOpen(false);
-    toast.success("Notifications cleared");
+    toast.success("Notifications hidden from bell");
   };
 
   const openNotification = async (notification: Notification) => {
     setOpen(false);
     if (!notification.is_read) {
       setItems((current) =>
-        current.map((item) =>
-          item.id === notification.id ? { ...item, is_read: true } : item,
-        ),
+        current.map((item) => (item.id === notification.id ? { ...item, is_read: true } : item)),
       );
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })
         .eq("id", notification.id)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .is("deleted_at", null);
       if (error) console.error("Notification read update failed:", error.message);
     }
     navigate({
@@ -221,11 +240,24 @@ export function NotificationBell({ userId }: { userId: string }) {
         <div className="space-y-3 border-b px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-medium text-muted-foreground">Notifications</div>
-            {unread > 0 && (
-              <span className="rounded-full bg-[var(--navy)] px-2 py-0.5 text-xs font-semibold text-white">
-                {unread} unread
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {unread > 0 && (
+                <span className="rounded-full bg-[var(--navy)] px-2 py-0.5 text-xs font-semibold text-white">
+                  {unread} unread
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setOpen(false);
+                  navigate({ to: "/notifications" });
+                }}
+                className="h-8 rounded-xl px-2 text-xs"
+              >
+                View all
+              </Button>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
