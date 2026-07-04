@@ -20,6 +20,8 @@ type NotificationRow = {
   message: string;
   related_id: string | null;
   is_read: boolean;
+  dismissed_at: string | null;
+  deleted_at: string | null;
   created_at: string;
 };
 
@@ -40,9 +42,12 @@ function NotificationMessagePage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, business_id, user_id, type, message, related_id, is_read, created_at")
+      .select(
+        "id, business_id, user_id, type, message, related_id, is_read, dismissed_at, deleted_at, created_at",
+      )
       .eq("id", id)
       .eq("user_id", profile.id)
+      .is("deleted_at", null)
       .maybeSingle();
 
     if (error) {
@@ -61,7 +66,8 @@ function NotificationMessagePage() {
         .from("notifications")
         .update({ is_read: true })
         .eq("id", row.id)
-        .eq("user_id", profile.id);
+        .eq("user_id", profile.id)
+        .is("deleted_at", null);
       setNotification({ ...row, is_read: true });
     }
   }, [id, profile?.id]);
@@ -76,14 +82,16 @@ function NotificationMessagePage() {
       .channel(`notification-detail:${id}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${profile.id}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${profile.id}`,
+        },
         (payload) => {
-          if (payload.eventType === "DELETE" && (payload.old as { id?: string }).id === id) {
-            setNotification(null);
-            return;
-          }
           if ((payload.new as { id?: string }).id === id) {
-            setNotification(payload.new as NotificationRow);
+            const next = payload.new as NotificationRow;
+            setNotification(next.deleted_at ? null : next);
           }
         },
       )
@@ -103,23 +111,25 @@ function NotificationMessagePage() {
     if (!notification || !profile) return;
     const { error } = await supabase
       .from("notifications")
-      .update({ is_read: false })
+      .update({ is_read: false, dismissed_at: null })
       .eq("id", notification.id)
-      .eq("user_id", profile.id);
+      .eq("user_id", profile.id)
+      .is("deleted_at", null);
     if (error) {
       toast.error("Failed to mark as unread: " + error.message);
       return;
     }
-    setNotification({ ...notification, is_read: false });
+    setNotification({ ...notification, is_read: false, dismissed_at: null });
     toast.success("Marked as unread");
   };
 
   const deleteNotification = async () => {
     if (!notification || !profile) return;
     setDeleting(true);
+    const deletedAt = new Date().toISOString();
     const { error } = await supabase
       .from("notifications")
-      .delete()
+      .update({ deleted_at: deletedAt, dismissed_at: deletedAt, is_read: true })
       .eq("id", notification.id)
       .eq("user_id", profile.id);
     setDeleting(false);
@@ -128,7 +138,7 @@ function NotificationMessagePage() {
       return;
     }
     toast.success("Notification deleted");
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/notifications" });
   };
 
   if (!profile || loading) {
@@ -156,6 +166,9 @@ function NotificationMessagePage() {
           <p className="mt-2 text-sm text-muted-foreground">
             This notification may have been cleared or is no longer available.
           </p>
+          <Button asChild className="mt-5 bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]">
+            <Link to="/notifications">Open notification history</Link>
+          </Button>
         </section>
       </div>
     );
@@ -168,6 +181,9 @@ function NotificationMessagePage() {
           <ArrowLeft className="size-4" />
           Back to dashboard
         </Link>
+      </Button>
+      <Button variant="ghost" asChild className="ml-3 w-fit px-0 text-[var(--navy)]">
+        <Link to="/notifications">All notifications</Link>
       </Button>
 
       <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">

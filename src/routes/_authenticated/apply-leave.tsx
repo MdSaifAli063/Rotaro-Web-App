@@ -176,7 +176,8 @@ function ApplyLeavePage() {
           toast.error("Failed to load leave requests: " + historyResult.error.message);
         if (teamResult.error) toast.error("Failed to load employees: " + teamResult.error.message);
 
-        const perType = (settingsResult.data?.auto_approve_by_type as Record<string, boolean>) ?? {};
+        const perType =
+          (settingsResult.data?.auto_approve_by_type as Record<string, boolean>) ?? {};
         setLeaveSettings({
           autoApproveLeave: settingsResult.data?.auto_approve_leave === true,
           autoApproveByType: perType,
@@ -210,7 +211,8 @@ function ApplyLeavePage() {
         settingsPromise,
       ]);
 
-      if (balanceResult.error) toast.error("Failed to load balances: " + balanceResult.error.message);
+      if (balanceResult.error)
+        toast.error("Failed to load balances: " + balanceResult.error.message);
       if (historyResult.error)
         toast.error("Failed to load leave history: " + historyResult.error.message);
 
@@ -278,7 +280,9 @@ function ApplyLeavePage() {
           event: "*",
           schema: "public",
           table: "leave_balances",
-          filter: employee ? `employee_id=eq.${employee.id}` : `business_id=eq.${profile.business_id}`,
+          filter: employee
+            ? `employee_id=eq.${employee.id}`
+            : `business_id=eq.${profile.business_id}`,
         },
         () => load(profile, employee, { showLoading: false }),
       )
@@ -439,7 +443,12 @@ function ApplyLeavePage() {
         return;
       }
 
-      await applyBalanceChange(profile.business_id, target.id, managerForm.leave_type, requestedDays);
+      await applyBalanceChange(
+        profile.business_id,
+        target.id,
+        managerForm.leave_type,
+        requestedDays,
+      );
       toast.success("Leave added for employee");
       setManagerForm({
         employee_id: team[0]?.id ?? "",

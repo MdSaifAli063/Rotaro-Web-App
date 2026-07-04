@@ -697,7 +697,11 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
           .eq("id", today.id)
           .select("id")
           .single()
-      : await supabase.from("attendance_records").insert(payload as any).select("id").single();
+      : await supabase
+          .from("attendance_records")
+          .insert(payload as any)
+          .select("id")
+          .single();
     setSaving(false);
     const { data: savedAttendance, error } = result;
     if (error) toast.error(error.message);

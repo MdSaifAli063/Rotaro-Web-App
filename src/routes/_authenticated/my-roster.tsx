@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   eachDayOfInterval,
   endOfMonth,
@@ -319,14 +326,14 @@ function MyRosterPage() {
     const { data: inserted, error } = await supabase
       .from("shift_swaps")
       .insert({
-      business_id: profile.business_id,
-      requester_id: profile.id,
-      requester_employee_id: emp.id,
-      requester_shift_id: swap.my_shift_id,
-      target_employee_id: swap.target_emp_id,
-      target_shift_id: swap.target_shift_id,
-      note: swap.note || null,
-      status: "pending",
+        business_id: profile.business_id,
+        requester_id: profile.id,
+        requester_employee_id: emp.id,
+        requester_shift_id: swap.my_shift_id,
+        target_employee_id: swap.target_emp_id,
+        target_shift_id: swap.target_shift_id,
+        note: swap.note || null,
+        status: "pending",
       } as any)
       .select("id")
       .single();
@@ -397,12 +404,12 @@ function MyRosterPage() {
             setOpen={setOpen}
             shifts={shifts}
             colleagues={colleagues}
-              colleagueShifts={colleagueShifts}
-              swap={swap}
-              setSwap={setSwap}
-              loadColleagueShifts={loadColleagueShifts}
-              submitSwap={submitSwap}
-            />
+            colleagueShifts={colleagueShifts}
+            swap={swap}
+            setSwap={setSwap}
+            loadColleagueShifts={loadColleagueShifts}
+            submitSwap={submitSwap}
+          />
         </div>
       </header>
 
@@ -420,10 +427,9 @@ function MyRosterPage() {
             <div>
               <h2 className="text-xl font-semibold">My schedule</h2>
               <p className="mt-2 text-sm text-white/75">
-                Viewing shifts for{" "}
-                <strong className="text-white">{emp?.name || "you"}</strong>. Approved leave shows
-                as <span className="font-semibold text-violet-200">Leave</span>; holidays as{" "}
-                <span className="font-semibold text-red-200">PH</span>.
+                Viewing shifts for <strong className="text-white">{emp?.name || "you"}</strong>.
+                Approved leave shows as <span className="font-semibold text-violet-200">Leave</span>
+                ; holidays as <span className="font-semibold text-red-200">PH</span>.
               </p>
             </div>
             {days.length >= maxVisibleDays && (
@@ -521,7 +527,10 @@ function MyRosterPage() {
           <Legend label="Working" className="border-emerald-200 bg-emerald-50 text-emerald-700" />
           <Legend label="Weekly off" className="border-amber-200 bg-amber-50 text-amber-700" />
           <Legend label="Public holiday" className="border-red-200 bg-red-50 text-red-700" />
-          <Legend label="Approved leave" className="border-violet-200 bg-violet-50 text-violet-700" />
+          <Legend
+            label="Approved leave"
+            className="border-violet-200 bg-violet-50 text-violet-700"
+          />
           <span className="inline-flex items-center gap-1 rounded-md border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
             <Clock3 className="size-3.5" />
             Time | break | hours
@@ -606,7 +615,7 @@ function SwapDialog({
   setSwap: Dispatch<SetStateAction<SwapState>>;
   loadColleagueShifts: (empId: string) => Promise<void>;
   submitSwap: () => Promise<void>;
-  }) {
+}) {
   useEffect(() => {
     if (shifts.length === 0) return;
     const hasSelection = shifts.some((shift) => shift.id === swap.my_shift_id);
@@ -778,7 +787,9 @@ function RosterCell({ date, state }: { date: Date; state: CellState }) {
 
 function Legend({ label, className }: { label: string; className: string }) {
   return (
-    <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${className}`}>
+    <span
+      className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${className}`}
+    >
       {label}
     </span>
   );

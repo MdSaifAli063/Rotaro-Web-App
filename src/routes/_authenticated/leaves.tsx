@@ -117,18 +117,19 @@ function LeavesPage() {
 
     const managerView = nextProfile ? isManager(nextProfile) : false;
     const employeeIds = Array.from(new Set((leaves ?? []).map((leave) => leave.employee_id)));
-    const employeeQuery = managerView && nextProfile?.business_id
-      ? supabase
-          .from("employees")
-          .select("id, name, department, employee_code, user_id")
-          .eq("business_id", nextProfile.business_id)
-          .order("name", { ascending: true })
-      : employeeIds.length
+    const employeeQuery =
+      managerView && nextProfile?.business_id
         ? supabase
             .from("employees")
             .select("id, name, department, employee_code, user_id")
-            .in("id", employeeIds)
-        : null;
+            .eq("business_id", nextProfile.business_id)
+            .order("name", { ascending: true })
+        : employeeIds.length
+          ? supabase
+              .from("employees")
+              .select("id, name, department, employee_code, user_id")
+              .in("id", employeeIds)
+          : null;
 
     const { data: employees, error: empError } = employeeQuery
       ? await employeeQuery
@@ -419,9 +420,7 @@ function LeavesPage() {
             <Field label="Leave type">
               <Select
                 value={form.leave_type}
-                onValueChange={(value) =>
-                  setForm((current) => ({ ...current, leave_type: value }))
-                }
+                onValueChange={(value) => setForm((current) => ({ ...current, leave_type: value }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -450,9 +449,10 @@ function LeavesPage() {
                   setForm((current) => ({
                     ...current,
                     from_date: event.target.value,
-                    to_date: new Date(event.target.value) > new Date(current.to_date)
-                      ? event.target.value
-                      : current.to_date,
+                    to_date:
+                      new Date(event.target.value) > new Date(current.to_date)
+                        ? event.target.value
+                        : current.to_date,
                   }))
                 }
               />
@@ -503,80 +503,87 @@ function LeavesPage() {
           </p>
         </div>
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[780px] text-sm">
-          <thead className="bg-secondary/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-5 py-3 font-semibold">Employee</th>
-              <th className="px-5 py-3 font-semibold">Type</th>
-              <th className="px-5 py-3 font-semibold">From</th>
-              <th className="px-5 py-3 font-semibold">To</th>
-              <th className="px-5 py-3 font-semibold">Reason</th>
-              <th className="px-5 py-3 font-semibold">Status</th>
-              {canManage && <th className="px-5 py-3 text-right font-semibold">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
+          <table className="w-full min-w-[780px] text-sm">
+            <thead className="bg-secondary/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <td colSpan={canManage ? 7 : 6} className="px-5 py-12 text-center text-muted-foreground">
-                  No leave requests.
-                </td>
+                <th className="px-5 py-3 font-semibold">Employee</th>
+                <th className="px-5 py-3 font-semibold">Type</th>
+                <th className="px-5 py-3 font-semibold">From</th>
+                <th className="px-5 py-3 font-semibold">To</th>
+                <th className="px-5 py-3 font-semibold">Reason</th>
+                <th className="px-5 py-3 font-semibold">Status</th>
+                {canManage && <th className="px-5 py-3 text-right font-semibold">Actions</th>}
               </tr>
-            ) : (
-              rows.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className="px-5 py-3 font-semibold text-[var(--navy)]">
-                    {r.employees?.name ?? "-"}
-                    <div className="text-xs font-normal text-muted-foreground">
-                      {r.employees?.department ?? r.employees?.employee_code ?? ""}
-                    </div>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={canManage ? 7 : 6}
+                    className="px-5 py-12 text-center text-muted-foreground"
+                  >
+                    No leave requests.
                   </td>
-                  <td className="px-5 py-3 capitalize">{r.leave_type}</td>
-                  <td className="px-5 py-3">{r.from_date}</td>
-                  <td className="px-5 py-3">{r.to_date}</td>
-                  <td className="max-w-xs truncate px-5 py-3 text-muted-foreground">
-                    {r.reason ?? "-"}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        lower(r.status) === "pending"
-                          ? "bg-amber-50 text-amber-700"
-                          : lower(r.status) === "approved"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {lower(r.status) === "approved" && <CheckCircle2 className="size-3.5" />}
-                      {(lower(r.status) === "rejected" || lower(r.status) === "declined") && (
-                        <XCircle className="size-3.5" />
-                      )}
-                      {statusLabel(r.status)}
-                    </span>
-                  </td>
-                  {canManage && (
-                    <td className="px-5 py-3 text-right">
-                      {lower(r.status) === "pending" && (
-                        <div className="flex gap-2 justify-end">
-                          <Button size="sm" variant="outline" onClick={() => decide(r, "rejected")}>
-                            Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => decide(r, "approved")}
-                            className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
-                          >
-                            Approve
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  )}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                rows.map((r) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-5 py-3 font-semibold text-[var(--navy)]">
+                      {r.employees?.name ?? "-"}
+                      <div className="text-xs font-normal text-muted-foreground">
+                        {r.employees?.department ?? r.employees?.employee_code ?? ""}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 capitalize">{r.leave_type}</td>
+                    <td className="px-5 py-3">{r.from_date}</td>
+                    <td className="px-5 py-3">{r.to_date}</td>
+                    <td className="max-w-xs truncate px-5 py-3 text-muted-foreground">
+                      {r.reason ?? "-"}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          lower(r.status) === "pending"
+                            ? "bg-amber-50 text-amber-700"
+                            : lower(r.status) === "approved"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {lower(r.status) === "approved" && <CheckCircle2 className="size-3.5" />}
+                        {(lower(r.status) === "rejected" || lower(r.status) === "declined") && (
+                          <XCircle className="size-3.5" />
+                        )}
+                        {statusLabel(r.status)}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td className="px-5 py-3 text-right">
+                        {lower(r.status) === "pending" && (
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => decide(r, "rejected")}
+                            >
+                              Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => decide(r, "approved")}
+                              className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+                            >
+                              Approve
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
