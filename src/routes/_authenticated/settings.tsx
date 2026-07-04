@@ -803,7 +803,7 @@ function SettingsPage() {
             <div className="rounded-xl border bg-[#F8FAFD] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  In-app: saved. Email: SMTP optional - set EMAIL_ENABLED on server for email
+                  In-app: saved. Email: set EMAIL_ENABLED and RESEND_API_KEY in Vercel for email
                   alerts.
                 </p>
                 <Button
@@ -983,35 +983,16 @@ function SettingsPage() {
             }
           >
             <div className="grid gap-4 md:grid-cols-2">
-              <SwitchRow
-                title="SMTP email enabled"
-                description="Server-side email for alerts and notifications."
-                checked={prefs.integrations.smtp_enabled}
-                onCheckedChange={(checked) => updateIntegration("smtp_enabled", checked)}
+              <ReadOnlyField
+                label="Email delivery"
+                value="Configure EMAIL_ENABLED, EMAIL_FROM, EMAIL_APP_URL, and RESEND_API_KEY in Vercel"
               />
               <ReadOnlyField
                 label="Google Sign-In"
                 value="Configure GOOGLE_CLIENT_ID on the server for login"
               />
-              <SettingField label="SMTP host">
-                <Input
-                  value={prefs.integrations.smtp_host}
-                  onChange={(e) => updateIntegration("smtp_host", e.target.value)}
-                />
-              </SettingField>
-              <SettingField label="SMTP port">
-                <Input
-                  type="number"
-                  value={prefs.integrations.smtp_port}
-                  onChange={(e) => updateIntegration("smtp_port", Number(e.target.value))}
-                />
-              </SettingField>
-              <SettingField label="Email from address">
-                <Input
-                  value={prefs.integrations.smtp_from}
-                  onChange={(e) => updateIntegration("smtp_from", e.target.value)}
-                />
-              </SettingField>
+              <ReadOnlyField label="Provider" value="Resend or custom webhook via env" />
+              <ReadOnlyField label="Email scope" value="Notifications, leave, swaps, messages, attendance, and roster publishes" />
               <SettingField label="Google client ID">
                 <Input
                   value={prefs.integrations.google_client_id}

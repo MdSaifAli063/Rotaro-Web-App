@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -133,6 +134,7 @@ type Employee = {
   role: string | null;
   department: string | null;
   pay_rate: number | null;
+  user_id?: string | null;
   status?: string | null;
 };
 
@@ -539,7 +541,7 @@ export function RosterEditor({
           .single(),
         supabase
           .from("employees")
-          .select("id, name, role, department, pay_rate, status")
+          .select("id, name, role, department, pay_rate, user_id, status")
           .eq("business_id", businessId)
           .order("name"),
         supabase
@@ -750,6 +752,31 @@ export function RosterEditor({
     const { error } = await supabase.from("rosters").update({ status: next }).eq("id", roster.id);
     if (error) return toast.error(error.message);
     toast.success(next === "published" ? "Roster published" : "Roster unpublished");
+    const weekLabel = `${new Date(roster.week_start).toLocaleDateString("en-AU")} - ${new Date(
+      roster.week_end,
+    ).toLocaleDateString("en-AU")}`;
+    const rosteredEmployees = employees.filter(
+      (employee) => employee.user_id && shifts.some((shift) => shift.employee_id === employee.id),
+    );
+    void Promise.allSettled(
+      rosteredEmployees.map((employee) => {
+        const employeeShifts = shifts.filter((shift) => shift.employee_id === employee.id);
+        const totalHours = employeeShifts.reduce(
+          (sum, shift) => sum + Number(shift.total_hours ?? 0),
+          0,
+        );
+        return notify({
+          userId: employee.user_id!,
+          businessId,
+          type: next === "published" ? "roster_published" : "roster_unpublished",
+          message:
+            next === "published"
+              ? `Your roster for ${weekLabel} has been published. You have ${employeeShifts.length} shift${employeeShifts.length === 1 ? "" : "s"} and ${totalHours.toFixed(2)} rostered hours.`
+              : `Your roster for ${weekLabel} has been moved back to draft by your employer.`,
+          relatedId: roster.id,
+        });
+      }),
+    ).catch((notifyError) => console.error(notifyError));
     load();
   };
 

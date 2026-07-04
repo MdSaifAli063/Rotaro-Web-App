@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { sendNotificationEmails } from "@/lib/api/email.functions";
 
 type NotificationInsert = {
   user_id: string;
@@ -30,6 +31,18 @@ export async function notify(opts: {
   if (error) {
     throw new Error(`Unable to create notification: ${error.message}`);
   }
+
+  void sendNotificationEmails({
+    data: {
+      userIds: [opts.userId],
+      businessId: opts.businessId ?? null,
+      type: opts.type,
+      message: opts.message,
+      relatedId: opts.relatedId ?? null,
+    },
+  }).catch((emailError) => {
+    console.error("Notification email failed:", emailError);
+  });
 }
 
 export async function notifyManagers(opts: {
@@ -64,6 +77,18 @@ export async function notifyManagers(opts: {
   if (error) {
     throw new Error(`Unable to create manager notifications: ${error.message}`);
   }
+
+  void sendNotificationEmails({
+    data: {
+      userIds: rows.map((row) => row.user_id),
+      businessId: opts.businessId,
+      type: opts.type,
+      message: opts.message,
+      relatedId: opts.relatedId ?? null,
+    },
+  }).catch((emailError) => {
+    console.error("Manager notification email failed:", emailError);
+  });
 }
 
 async function isUserNotificationAllowed(userId: string, type: string) {
