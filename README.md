@@ -36,7 +36,7 @@ A modern workforce scheduling dashboard built with React, TanStack Start, Tailwi
 
 ## Environment Variables
 
-Create a `.env` file in the project root with these values:
+Create a `.env` file in the project root from `.env.example`, then fill in your Supabase, billing, and email provider values:
 
 ```env
 SUPABASE_URL=https://<project-ref>.supabase.co
@@ -48,6 +48,13 @@ VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_PROJECT_ID=<project-id>
 VITE_SUPABASE_ANON_KEY=<anon-or-publishable-key>
 VITE_SUPABASE_PUBLISHABLE_KEY=<anon-or-publishable-key>
+
+EMAIL_ENABLED=false
+EMAIL_PROVIDER=resend
+EMAIL_FROM="Rotaro <notifications@yourdomain.com>"
+EMAIL_REPLY_TO=support@yourdomain.com
+EMAIL_APP_URL=https://your-vercel-domain.vercel.app
+RESEND_API_KEY=re_your_resend_api_key
 ```
 
 > Note: Use the same public key for both `SUPABASE_ANON_KEY` and `SUPABASE_PUBLISHABLE_KEY` if your Supabase project exposes only one public key.
@@ -84,6 +91,8 @@ npm run preview
 - `npm run build:dev` — build in development mode
 - `npm run preview` — preview production build
 - `npm run lint` — run ESLint
+- `npm run typecheck` — run TypeScript without emitting files
+- `npm run security:audit` — audit production dependencies
 - `npm run format` — run Prettier
 
 ## Notes

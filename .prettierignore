@@ -1,7 +1,12 @@
 node_modules
 dist
+dist-ssr
 .output
+.vercel
 .vinxi
+.nitro
+.tanstack
+coverage
 pnpm-lock.yaml
 package-lock.json
 bun.lock
