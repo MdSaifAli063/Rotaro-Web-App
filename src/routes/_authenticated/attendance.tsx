@@ -63,6 +63,7 @@ type EmployeeRow = {
 
 type RosterShiftRow = {
   id: string;
+  roster_id: string;
   employee_id: string;
   day: string;
   start_time: string | null;
@@ -253,9 +254,25 @@ function AttendancePage() {
     const weekDays = Array.from({ length: 7 }, (_, index) =>
       format(addDays(start, index), "yyyy-MM-dd"),
     );
+    const { data: rosterWeeks, error: rosterWeeksError } = await supabase
+      .from("rosters")
+      .select("id")
+      .eq("business_id", p.business_id)
+      .lte("week_start", format(end, "yyyy-MM-dd"))
+      .gte("week_end", format(start, "yyyy-MM-dd"));
+    if (rosterWeeksError) toast.error(rosterWeeksError.message);
+
+    const rosterIds = (rosterWeeks ?? []).map((roster) => roster.id);
+    if (rosterIds.length === 0) {
+      setRosterRows([]);
+      setManagerLoading(false);
+      return;
+    }
+
     const { data: rosterData, error: rosterError } = await supabase
       .from("roster_shifts")
-      .select("id, employee_id, day, start_time, end_time, break_minutes")
+      .select("id, roster_id, employee_id, day, start_time, end_time, break_minutes")
+      .in("roster_id", rosterIds)
       .in("day", weekDays)
       .order("day", { ascending: true });
     if (rosterError) toast.error(rosterError.message);
@@ -317,6 +334,10 @@ function AttendancePage() {
   const onTime = todayAttendance.filter((row) => isOnTime(row, todayRoster)).length;
   const late = Math.max(todayCheckedIn - onTime, 0);
   const notAttended = Math.max(todayRoster.length - todayCheckedIn, 0);
+  const percentBase = Math.max(todayRoster.length || activeEmployees, 1);
+  const onTimeRate = Math.round((onTime / percentBase) * 100);
+  const lateRate = Math.round((late / percentBase) * 100);
+  const notAttendedRate = todayRoster.length ? Math.round((notAttended / percentBase) * 100) : 0;
   const workingHourRate = todayRoster.length
     ? Math.round(
         (todayAttendance.filter(
@@ -542,12 +563,20 @@ function AttendancePage() {
             <StatCard
               icon={CalendarDays}
               title="Today's Attendance"
-              subtitle="On-roster check-ins for today"
+              subtitle={
+                todayRoster.length
+                  ? `${todayRoster.length} rostered shifts today`
+                  : "No rostered shifts today"
+              }
               value={`${stats.employeeAttendanceRate}%`}
               footer={[
-                { label: "On-Time", value: `${stats.onTime}%`, color: "bg-blue-500" },
-                { label: "Late", value: `${stats.late}%`, color: "bg-amber-500" },
-                { label: "Not Attend Yet", value: `${stats.notAttended}%`, color: "bg-slate-300" },
+                { label: "On-Time", value: `${onTimeRate}%`, color: "bg-blue-500" },
+                { label: "Late", value: `${lateRate}%`, color: "bg-amber-500" },
+                {
+                  label: "Not attended",
+                  value: `${notAttendedRate}%`,
+                  color: "bg-slate-300",
+                },
               ]}
               chart={weekBars.map((item) => ({
                 label: item.day,
@@ -557,7 +586,7 @@ function AttendancePage() {
             />
             <MetricCard
               icon={Users2}
-              title="Employee Attend"
+              title="Employee Attendance"
               value={`${stats.todayCheckedIn}/${stats.todayRostered || stats.activeEmployees}`}
               subtitle={`${stats.activeEmployees} active employees`}
               footer="Last week +0%"
@@ -566,163 +595,187 @@ function AttendancePage() {
               icon={Clock3}
               title="Total Log Hours"
               value={formatHours(stats.totalLogHours)}
-              subtitle={
-                stats.todayRostered ? `${stats.todayRostered} rostered today` : "No shifts rostered"
-              }
+              subtitle={`${weekAttendance.length} attendance records this week`}
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
-            <PerformanceCard value={stats.workingHourRate} />
-            <div className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-xl font-semibold text-[var(--navy)]">Attendance List</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {format(startOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d")} -{" "}
-                    {format(endOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d, yyyy")}
-                  </p>
-                </div>
-                <div className="grid w-full gap-2 sm:grid-cols-3 xl:w-auto xl:flex xl:flex-wrap xl:items-center xl:justify-end">
-                  <Select value={deptFilter} onValueChange={(value) => setDeptFilter(value)}>
-                    <SelectTrigger className="w-full xl:w-[140px]">
-                      <SelectValue placeholder="All departments" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept === "all" ? "All departments" : dept}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-full xl:w-[140px]">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date">Sort by date</SelectItem>
-                      <SelectItem value="hours">Sort by hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" className="w-full gap-2 xl:w-auto">
-                    <Filter className="size-4" />
-                    Filter
-                  </Button>
-                </div>
-              </div>
+          <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.42fr)_minmax(0,0.58fr)]">
+            <PerformanceCard value={stats.workingHourRate} hours={stats.totalLogHours} />
+            <div className="grid gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:grid-cols-3 md:p-6">
+              <MiniStat label="Rostered today" value={String(stats.todayRostered)} />
+              <MiniStat label="Checked in today" value={String(stats.todayCheckedIn)} />
+              <MiniStat label="Missing today" value={String(stats.notAttended)} />
+            </div>
+          </div>
 
-              <div className="mt-6 overflow-x-auto rounded-2xl border">
-                <table className="min-w-[740px] w-full table-fixed text-[13px]">
-                  <thead className="bg-secondary text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold text-[var(--navy)]">Attendance List</h2>
+                <p className="text-sm text-muted-foreground">
+                  {format(startOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d")} -{" "}
+                  {format(endOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d, yyyy")}
+                </p>
+              </div>
+              <div className="grid w-full gap-2 sm:grid-cols-3 xl:w-auto xl:flex xl:flex-wrap xl:items-center xl:justify-end">
+                <Select
+                  value={deptFilter}
+                  onValueChange={(value) => {
+                    setDeptFilter(value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full xl:w-[140px]">
+                    <SelectValue placeholder="All departments" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept === "all" ? "All departments" : dept}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sortBy}
+                  onValueChange={(value) => {
+                    setSortBy(value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full xl:w-[140px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Sort by date</SelectItem>
+                    <SelectItem value="hours">Sort by hours</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 xl:w-auto"
+                  onClick={() => {
+                    setDeptFilter("all");
+                    setSortBy("date");
+                    setPage(1);
+                  }}
+                >
+                  <Filter className="size-4" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-6 overflow-x-auto rounded-2xl border">
+              <table className="min-w-[740px] w-full table-fixed text-[13px]">
+                <thead className="bg-secondary text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="w-10 px-3 py-3">
+                      <input type="checkbox" className="size-4 rounded border-border" />
+                    </th>
+                    <th className="w-[96px] whitespace-nowrap px-3 py-3">Employee ID</th>
+                    <th className="w-[140px] whitespace-nowrap px-3 py-3">Name</th>
+                    <th className="w-[120px] whitespace-nowrap px-3 py-3">Department</th>
+                    <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-in</th>
+                    <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-out</th>
+                    <th className="w-[88px] whitespace-nowrap px-3 py-3">Hours</th>
+                    <th className="w-[88px] whitespace-nowrap px-3 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {managerLoading ? (
                     <tr>
-                      <th className="w-10 px-3 py-3">
-                        <input type="checkbox" className="size-4 rounded border-border" />
-                      </th>
-                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Employee ID</th>
-                      <th className="w-[140px] whitespace-nowrap px-3 py-3">Name</th>
-                      <th className="w-[120px] whitespace-nowrap px-3 py-3">Department</th>
-                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-in</th>
-                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-out</th>
-                      <th className="w-[88px] whitespace-nowrap px-3 py-3">Hours</th>
-                      <th className="w-[88px] whitespace-nowrap px-3 py-3">Status</th>
+                      <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                        Loading attendance...
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {managerLoading ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                          Loading attendance...
+                  ) : pageRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                        No attendance records in this range.
+                      </td>
+                    </tr>
+                  ) : (
+                    pageRows.map((row) => (
+                      <tr key={row.id} className="border-t">
+                        <td className="px-3 py-3">
+                          <input type="checkbox" className="size-4 rounded border-border" />
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
+                          {row.employees?.employee_code ??
+                            row.employee_id.slice(0, 6).toUpperCase()}
+                        </td>
+                        <td className="px-3 py-3 truncate font-medium text-[var(--navy)]">
+                          {row.employees?.name ?? "-"}
+                        </td>
+                        <td className="px-3 py-3 truncate">{row.employees?.department ?? "-"}</td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          {timeLabel(row.check_in_time)}
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          {timeLabel(row.check_out_time)}
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          {formatHours(row.total_hours ?? workedHours(row))}
+                        </td>
+                        <td className="px-3 py-3">
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                          >
+                            {statusLabel(row.status)}
+                          </Badge>
                         </td>
                       </tr>
-                    ) : pageRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
-                          No attendance records in this range.
-                        </td>
-                      </tr>
-                    ) : (
-                      pageRows.map((row) => (
-                        <tr key={row.id} className="border-t">
-                          <td className="px-3 py-3">
-                            <input type="checkbox" className="size-4 rounded border-border" />
-                          </td>
-                          <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
-                            {row.employees?.employee_code ??
-                              row.employee_id.slice(0, 6).toUpperCase()}
-                          </td>
-                          <td className="px-3 py-3 truncate font-medium text-[var(--navy)]">
-                            {row.employees?.name ?? "-"}
-                          </td>
-                          <td className="px-3 py-3 truncate">{row.employees?.department ?? "-"}</td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            {timeLabel(row.check_in_time)}
-                          </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            {timeLabel(row.check_out_time)}
-                          </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            {formatHours(row.total_hours ?? workedHours(row))}
-                          </td>
-                          <td className="px-3 py-3">
-                            <Badge
-                              variant="outline"
-                              className="border-emerald-200 bg-emerald-50 text-emerald-700"
-                            >
-                              {statusLabel(row.status)}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-              <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <div>Total Attendance: {visibleRows.length}</div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                  >
-                    <ChevronLeft className="size-4" />
-                    Previous
-                  </Button>
-                  <Badge variant="outline" className="rounded-md px-3 py-1">
-                    {page}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                  >
-                    Next
-                    <ChevronRight className="size-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span>Show per page</span>
-                  <Select
-                    value={String(pageSize)}
-                    onValueChange={(value) => {
-                      setPageSize(Number(value));
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div>Total Attendance: {visibleRows.length}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Button>
+                <Badge variant="outline" className="rounded-md px-3 py-1">
+                  {page}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span>Show per page</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value));
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -984,7 +1037,7 @@ function StatCard({
   chart: Array<{ label: string; value: number; filled: boolean }>;
 }) {
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
+    <div className="overflow-hidden rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="rounded-2xl bg-[#EEF3FF] p-3 text-[var(--navy)]">
@@ -997,14 +1050,20 @@ function StatCard({
         </div>
         <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">+0%</Badge>
       </div>
-      <div className="mt-6 text-3xl font-bold text-[var(--navy)] sm:text-5xl">{value}</div>
+      <div className="mt-6 text-3xl font-bold leading-none text-[var(--navy)] sm:text-5xl">
+        {value}
+      </div>
       <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3">
         {chart.map((bar) => (
           <div key={bar.label} className="flex flex-col items-center gap-2">
-            <div className="flex h-28 w-full items-end justify-center rounded-xl border bg-[#F8FAFD] px-1 sm:h-36 sm:rounded-2xl sm:px-2">
+            <div className="flex h-28 w-full items-end justify-center overflow-hidden rounded-xl border bg-[#F8FAFD] px-1 sm:h-36 sm:rounded-2xl sm:px-2">
               <div
-                className={`w-full rounded-t-xl ${bar.filled ? "bg-[var(--navy)]" : "bg-slate-100"}`}
-                style={{ height: `${Math.max(bar.value, 10)}%` }}
+                className={`w-full rounded-t-xl transition-[height] duration-300 ${
+                  bar.filled ? "bg-[var(--navy)]" : "bg-slate-100"
+                }`}
+                style={{
+                  height: `${bar.filled ? Math.min(Math.max(bar.value, 8), 100) : 8}%`,
+                }}
               />
             </div>
             <span className="text-xs font-medium text-muted-foreground">{bar.label}</span>
@@ -1058,9 +1117,11 @@ function MetricCard({
 
 function PerformanceCard({
   value,
+  hours,
   label = "Working Hour Performance",
 }: {
   value: number;
+  hours: number;
   label?: string;
 }) {
   return (
@@ -1090,7 +1151,7 @@ function PerformanceCard({
           </div>
           <div>
             <div className="text-muted-foreground">Working Hours</div>
-            <div className="text-lg font-semibold text-[var(--navy)]">{formatHours(0)}</div>
+            <div className="text-lg font-semibold text-[var(--navy)]">{formatHours(hours)}</div>
           </div>
         </div>
       </div>
