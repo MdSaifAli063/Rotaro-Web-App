@@ -14,12 +14,54 @@ import { createServerFn } from "@tanstack/react-start";
 export const seedDemoData = createServerFn({ method: "POST" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const isNetworkReset = (error: unknown) => {
+    const cause =
+      error instanceof Error ? (error.cause as { code?: string } | undefined) : undefined;
+    return (
+      error instanceof TypeError &&
+      error.message === "fetch failed" &&
+      (cause?.code === "ECONNRESET" || cause?.code === "ETIMEDOUT" || cause?.code === "ENOTFOUND")
+    );
+  };
+
+  const listAuthUsers = async () => {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 200,
+        });
+
+        if (error) throw error;
+        return data?.users ?? [];
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) await wait(300 * (attempt + 1));
+      }
+    }
+
+    if (isNetworkReset(lastError)) {
+      console.warn(
+        "[seed] Supabase Auth Admin listUsers failed after retries; skipping demo seed.",
+      );
+      return null;
+    }
+
+    throw lastError;
+  };
+
   // ---------- idempotency check ----------
-  const { data: existing } = await supabaseAdmin.auth.admin.listUsers({
-    page: 1,
-    perPage: 200,
-  });
-  const existingUsers = existing?.users ?? [];
+  const existingUsers = await listAuthUsers();
+  if (!existingUsers) {
+    return {
+      seeded: false,
+      skipped: true,
+      reason: "Supabase Auth Admin was unavailable. Try again after the network recovers.",
+    };
+  }
 
   // ---------- helpers ----------
   const ensureUser = async (
