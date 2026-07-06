@@ -121,7 +121,7 @@ export function SiteHeader() {
                 Staff Login
               </Link>
               <Link to="/auth" search={{ next: undefined }} className="hidden sm:inline-block">
-                <Button className="rounded-full px-5">Get Started</Button>
+                <Button className="rounded-full px-5">Client Login</Button>
               </Link>
             </>
           )}
@@ -198,7 +198,7 @@ export function SiteHeader() {
                     Staff Login
                   </Link>
                   <Link to="/auth" search={{ next: undefined }}>
-                    <Button className="w-full rounded-full">Get Started</Button>
+                    <Button className="w-full rounded-full">Client Login</Button>
                   </Link>
                 </>
               )}
@@ -561,7 +561,7 @@ export function SiteFooter() {
             title="Company"
             links={["About Us", "Pricing", "Industries", "Support", "Contact", "FAQs"]}
           />
-          <FooterCol title="Account" links={["Staff Login", "Employer Login", "Get Started"]} />
+          <FooterCol title="Account" links={["Staff Login", "Employer Login", "Client Login"]} />
         </div>
         <div className="lg:col-span-5">
           <h3 className="text-2xl font-bold">Subscribe to our newsletter</h3>
