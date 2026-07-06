@@ -225,9 +225,9 @@ function Hero() {
           reports — all without the clutter.
         </p>
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-          <Link to="/auth" search={{ next: undefined }}>
+          <Link to="/pricing">
             <Button size="lg" className="h-12 px-8 text-base rounded-full w-full sm:w-auto">
-              Get started free
+              Get started
             </Button>
           </Link>
           <a href="#contact">
