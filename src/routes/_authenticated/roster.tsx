@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { useBusinessPlan } from "@/lib/billing/plans";
 import { notify } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import {
@@ -520,6 +521,7 @@ export function RosterEditor({
   const [loading, setLoading] = useState(true);
   const [businessName, setBusinessName] = useState("");
   const [allRosters, setAllRosters] = useState<Roster[]>([]);
+  const { access } = useBusinessPlan(businessId);
 
   // Toolbar state
   const [deptFilter, setDeptFilter] = useState<string>("ALL");
@@ -748,6 +750,10 @@ export function RosterEditor({
 
   const publish = async () => {
     if (!roster) return;
+    if (!access.features.publishRoster) {
+      toast.error("Publishing rosters is available on Professional and Business plans.");
+      return;
+    }
     const next = roster.status.toLowerCase() === "published" ? "draft" : "published";
     const { error } = await supabase.from("rosters").update({ status: next }).eq("id", roster.id);
     if (error) return toast.error(error.message);
@@ -914,6 +920,11 @@ export function RosterEditor({
             <Button
               size="sm"
               onClick={publish}
+              title={
+                access.features.publishRoster
+                  ? undefined
+                  : "Upgrade to Professional to publish rosters"
+              }
               className="bg-white text-[var(--navy)] hover:bg-white/90 gap-1"
             >
               <Send className="size-4" />
@@ -985,7 +996,15 @@ export function RosterEditor({
             <button
               title="Print"
               className="p-1.5 rounded-md hover:bg-white/10 text-white"
-              onClick={() => window.print()}
+              onClick={() => {
+                if (!access.features.downloadRoster) {
+                  toast.error(
+                    "Roster downloads and printing are available on Professional and Business plans.",
+                  );
+                  return;
+                }
+                window.print();
+              }}
             >
               <Printer className="size-4" />
             </button>
