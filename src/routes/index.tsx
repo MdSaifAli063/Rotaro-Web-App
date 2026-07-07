@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { RotaroMark } from "@/components/RotaroMark";
 import { useSession } from "@/lib/auth";
+import { sendPublicInquiryEmail } from "@/lib/api/email.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -431,14 +432,40 @@ function Industries() {
 
 function ContactSection() {
   const [submitting, setSubmitting] = useState(false);
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const [enquiryType, setEnquiryType] = useState("");
+  const [country, setCountry] = useState("Australia");
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!enquiryType) {
+      toast.error("Please select an enquiry type.");
+      return;
+    }
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    try {
+      await sendPublicInquiryEmail({
+        data: {
+          source: "contact",
+          firstName: String(formData.get("first") || ""),
+          lastName: String(formData.get("last") || ""),
+          company: String(formData.get("company") || ""),
+          phone: String(formData.get("phone") || ""),
+          email: String(formData.get("email") || ""),
+          enquiryType,
+          country,
+          message: String(formData.get("message") || ""),
+        },
+      });
       toast.success("Thanks! We'll be in touch shortly.");
-      (e.target as HTMLFormElement).reset();
-    }, 600);
+      form.reset();
+      setEnquiryType("");
+      setCountry("Australia");
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to send your message.");
+    } finally {
+      setSubmitting(false);
+    }
   };
   return (
     <section id="contact" className="relative bg-background">
@@ -466,7 +493,7 @@ function ContactSection() {
             <Input required name="email" type="email" />
           </Field>
           <Field label="Enquiry type" required>
-            <Select>
+            <Select value={enquiryType} onValueChange={setEnquiryType}>
               <SelectTrigger>
                 <SelectValue placeholder="Select…" />
               </SelectTrigger>
@@ -479,14 +506,15 @@ function ContactSection() {
             </Select>
           </Field>
           <Field label="Country" required>
-            <Select defaultValue="au">
+            <Select value={country} onValueChange={setCountry}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="au">Australia</SelectItem>
-                <SelectItem value="nz">New Zealand</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="Australia">Australia</SelectItem>
+                <SelectItem value="India">India</SelectItem>
+                <SelectItem value="New Zealand">New Zealand</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -533,6 +561,39 @@ function Field({
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
+  const [newsletterSubmitting, setNewsletterSubmitting] = useState(false);
+  const [productUpdates, setProductUpdates] = useState(true);
+  const [tips, setTips] = useState(true);
+
+  const subscribeNewsletter = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setNewsletterSubmitting(true);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    try {
+      await sendPublicInquiryEmail({
+        data: {
+          source: "newsletter",
+          firstName: String(formData.get("firstName") || ""),
+          lastName: String(formData.get("lastName") || ""),
+          email: String(formData.get("email") || ""),
+          interests: [
+            ...(productUpdates ? ["Product Updates"] : []),
+            ...(tips ? ["Tips & Best Practices"] : []),
+          ],
+        },
+      });
+      toast.success("Subscribed!");
+      form.reset();
+      setProductUpdates(true);
+      setTips(true);
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to subscribe right now.");
+    } finally {
+      setNewsletterSubmitting(false);
+    }
+  };
+
   return (
     <footer className="bg-[var(--navy)] text-white">
       <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -579,26 +640,23 @@ export function SiteFooter() {
         </div>
         <div className="lg:col-span-5">
           <h3 className="text-2xl font-bold">Subscribe to our newsletter</h3>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              toast.success("Subscribed!");
-            }}
-            className="mt-5 space-y-3"
-          >
+          <form onSubmit={subscribeNewsletter} className="mt-5 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <Input
+                name="firstName"
                 placeholder="First name*"
                 required
                 className="bg-white/10 border-white/30 text-white placeholder:text-white/60"
               />
               <Input
+                name="lastName"
                 placeholder="Last name*"
                 required
                 className="bg-white/10 border-white/30 text-white placeholder:text-white/60"
               />
             </div>
             <Input
+              name="email"
               placeholder="Email address*"
               type="email"
               required
@@ -607,14 +665,16 @@ export function SiteFooter() {
             <div className="flex flex-wrap gap-5 pt-1">
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
-                  defaultChecked
+                  checked={productUpdates}
+                  onCheckedChange={(checked) => setProductUpdates(checked === true)}
                   className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[var(--navy)]"
                 />
                 Product Updates
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
-                  defaultChecked
+                  checked={tips}
+                  onCheckedChange={(checked) => setTips(checked === true)}
                   className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[var(--navy)]"
                 />
                 Tips & Best Practices
@@ -622,9 +682,10 @@ export function SiteFooter() {
             </div>
             <Button
               type="submit"
+              disabled={newsletterSubmitting}
               className="rounded-full bg-white text-[var(--navy)] hover:bg-white/90"
             >
-              Submit
+              {newsletterSubmitting ? "Submitting..." : "Submit"}
             </Button>
           </form>
         </div>
