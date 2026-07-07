@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   Send,
+  Trash2,
   UsersRound,
   XCircle,
 } from "lucide-react";
@@ -476,6 +477,29 @@ function ApplyLeavePage() {
     }
   };
 
+  const deleteLeave = async (row: LeaveRow) => {
+    if (!profile?.business_id) return;
+    if (!window.confirm("Delete this leave request?")) return;
+
+    if (row.status.toLowerCase() === "approved") {
+      await applyBalanceChange(
+        profile.business_id,
+        row.employee_id,
+        row.leave_type,
+        -row.total_days,
+      );
+    }
+
+    const { error } = await supabase.from("leaves").delete().eq("id", row.id);
+    if (error) {
+      toast.error("Unable to delete leave: " + error.message);
+      return;
+    }
+
+    toast.success("Leave request deleted");
+    await load(profile, employee, { showLoading: false });
+  };
+
   if (loading && !employee) {
     return (
       <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
@@ -678,12 +702,13 @@ function ApplyLeavePage() {
                   <th className="px-5 py-3">Days</th>
                   <th className="px-5 py-3">Reason</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {history.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
                       No leave requests yet.
                     </td>
                   </tr>
@@ -699,6 +724,17 @@ function ApplyLeavePage() {
                       </td>
                       <td className="px-5 py-3">
                         <StatusBadge status={row.status} />
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => deleteLeave(row)}
+                        >
+                          <Trash2 className="mr-1 size-4" />
+                          Delete
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -829,11 +865,13 @@ async function applyBalanceChange(
   if (balance) {
     const { error } = await supabase
       .from("leave_balances")
-      .update({ used_days: Number(balance.used_days ?? 0) + totalDays })
+      .update({ used_days: Math.max(Number(balance.used_days ?? 0) + totalDays, 0) })
       .eq("id", balance.id);
     if (error) toast.error("Leave saved, but balance could not be updated: " + error.message);
     return;
   }
+
+  if (totalDays <= 0) return;
 
   const { error } = await supabase.from("leave_balances").insert({
     business_id: businessId,

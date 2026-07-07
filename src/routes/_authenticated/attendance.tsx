@@ -12,6 +12,7 @@ import {
   LogIn,
   LogOut,
   TimerReset,
+  Trash2,
   Users2,
   Clock3,
 } from "lucide-react";
@@ -407,6 +408,23 @@ function AttendancePage() {
     }
   };
 
+  const deleteAttendance = async (row: AttendanceRow) => {
+    if (!window.confirm("Delete this attendance record?")) return;
+    const { error } = await supabase.from("attendance_records").delete().eq("id", row.id);
+    if (error) {
+      toast.error("Unable to delete attendance: " + error.message);
+      return;
+    }
+    toast.success("Attendance record deleted");
+    if (profile) {
+      if (isManager(profile)) {
+        await loadManager(profile);
+      } else {
+        await loadEmployee(profile);
+      }
+    }
+  };
+
   if (!profile) return null;
 
   if (!isManager(profile)) {
@@ -536,6 +554,7 @@ function AttendancePage() {
             }
             await loadEmployee(profile);
           }}
+          onDelete={deleteAttendance}
         />
       </PlanGate>
     );
@@ -681,7 +700,7 @@ function AttendancePage() {
               </div>
 
               <div className="mt-6 overflow-x-auto rounded-2xl border">
-                <table className="min-w-[740px] w-full table-fixed text-[13px]">
+                <table className="min-w-[840px] w-full table-fixed text-[13px]">
                   <thead className="bg-secondary text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="w-10 px-3 py-3">
@@ -694,18 +713,19 @@ function AttendancePage() {
                       <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-out</th>
                       <th className="w-[88px] whitespace-nowrap px-3 py-3">Hours</th>
                       <th className="w-[88px] whitespace-nowrap px-3 py-3">Status</th>
+                      <th className="w-[104px] whitespace-nowrap px-3 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {managerLoading ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                        <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                           Loading attendance...
                         </td>
                       </tr>
                     ) : pageRows.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                        <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                           No attendance records in this range.
                         </td>
                       </tr>
@@ -739,6 +759,17 @@ function AttendancePage() {
                             >
                               {statusLabel(row.status)}
                             </Badge>
+                          </td>
+                          <td className="px-3 py-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => deleteAttendance(row)}
+                            >
+                              <Trash2 className="mr-1 size-4" />
+                              Delete
+                            </Button>
                           </td>
                         </tr>
                       ))
@@ -914,6 +945,7 @@ function EmployeeView({
   onCheckOut,
   onStartBreak,
   onEndBreak,
+  onDelete,
 }: {
   employeeName: string;
   today: AttendanceRow | null;
@@ -922,6 +954,7 @@ function EmployeeView({
   onCheckOut: () => Promise<void>;
   onStartBreak: () => Promise<void>;
   onEndBreak: () => Promise<void>;
+  onDelete: (row: AttendanceRow) => Promise<void>;
 }) {
   return (
     <div className="space-y-6">
@@ -980,7 +1013,7 @@ function EmployeeView({
             <p className="text-sm text-muted-foreground">Recent attendance history.</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-secondary text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Date</th>
@@ -988,12 +1021,13 @@ function EmployeeView({
                   <th className="px-4 py-3">Check Out</th>
                   <th className="px-4 py-3">Break</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {history.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                       No history yet.
                     </td>
                   </tr>
@@ -1007,6 +1041,17 @@ function EmployeeView({
                         {row.break_start && row.break_end ? `${breakMinutes(row)}m` : "—"}
                       </td>
                       <td className="px-4 py-3">{statusLabel(row.status)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => onDelete(row)}
+                        >
+                          <Trash2 className="mr-1 size-4" />
+                          Delete
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}
