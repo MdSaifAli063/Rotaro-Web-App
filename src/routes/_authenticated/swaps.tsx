@@ -14,6 +14,7 @@ import {
   Clock3,
   Loader2,
   Repeat,
+  Trash2,
   UserCheck,
   UserX,
   XCircle,
@@ -504,6 +505,21 @@ function SwapsPage() {
     }
   };
 
+  const deleteSwap = async (row: SwapRow) => {
+    if (!window.confirm("Delete this shift swap request?")) return;
+    setActioningId(row.id);
+    const { error } = await supabase.from("shift_swaps").delete().eq("id", row.id);
+    setActioningId(null);
+
+    if (error) {
+      toast.error("Unable to delete shift swap: " + error.message);
+      return;
+    }
+
+    setRows((current) => current.filter((item) => item.id !== row.id));
+    toast.success("Shift swap deleted");
+  };
+
   const submitRequest = async () => {
     if (!profile?.business_id || !employee) return;
     if (!requestForm.myShiftId || !requestForm.targetEmployeeId || !requestForm.targetShiftId) {
@@ -777,9 +793,16 @@ function SwapsPage() {
                                 </Button>
                               </>
                             )}
-                            {!showTargetActions && !showRequesterActions && !showManagerActions && (
-                              <span className="text-xs text-muted-foreground">No actions</span>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => deleteSwap(row)}
+                              disabled={actioningId === row.id}
+                            >
+                              <Trash2 className="mr-1 size-4" />
+                              Delete
+                            </Button>
                           </div>
                         </td>
                       </tr>
