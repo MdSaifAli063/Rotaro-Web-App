@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Sparkles, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SiteFooter, SiteHeader } from "./index";
 import { fetchProfile, useSession } from "@/lib/auth";
 import {
+  activateStarterPlan,
   createBillingCheckout,
   type BillingCycle,
   type BillingPlanKey,
@@ -36,44 +37,114 @@ function PricingPage() {
   const { user } = useSession();
   const navigate = useNavigate();
 
-  const startCheckout = async (planKey: BillingPlanKey) => {
-    if (!user) {
-      navigate({ to: "/auth", search: { next: "/billing" } });
-      return;
-    }
+  const startCheckout = useCallback(
+    async (
+      planKey: BillingPlanKey,
+      overrides?: { provider?: BillingProvider; billingCycle?: BillingCycle },
+    ) => {
+      const checkoutProvider = overrides?.provider ?? provider;
+      const checkoutCycle = overrides?.billingCycle ?? billingCycle;
 
-    try {
-      setPendingPlan(planKey);
-      const profile = await fetchProfile();
-      if (!profile?.business_id) throw new Error("We could not find your business account.");
+      if (!user) {
+        window.localStorage.setItem(
+          "rotaro.pendingCheckout",
+          JSON.stringify({ planKey, provider: checkoutProvider, billingCycle: checkoutCycle }),
+        );
+        navigate({
+          to: "/client-login",
+          search: { mode: "signup", next: "/pricing", plan: planKey },
+        });
+        return;
+      }
 
-      const result = await createBillingCheckout({
-        data: {
-          provider,
-          planKey,
-          billingCycle,
-          origin: window.location.origin,
-          businessId: profile.business_id,
-          customerEmail: user.email ?? undefined,
-          customerName: user.user_metadata?.name ?? undefined,
-        },
-      });
+      try {
+        setPendingPlan(planKey);
+        const profile = await fetchProfile();
+        if (!profile?.business_id) {
+          window.localStorage.setItem(
+            "rotaro.pendingCheckout",
+            JSON.stringify({ planKey, provider: checkoutProvider, billingCycle: checkoutCycle }),
+          );
+          navigate({ to: "/onboarding" });
+          return;
+        }
 
-      window.location.assign(result.url);
-    } catch (error: any) {
-      toast.error(error?.message ?? "Unable to start checkout.");
-    } finally {
-      setPendingPlan(null);
-    }
-  };
+        const result = await createBillingCheckout({
+          data: {
+            provider: checkoutProvider,
+            planKey,
+            billingCycle: checkoutCycle,
+            origin: window.location.origin,
+            businessId: profile.business_id,
+            customerEmail: user.email ?? undefined,
+            customerName: user.user_metadata?.name ?? undefined,
+          },
+        });
+
+        window.location.assign(result.url);
+      } catch (error: any) {
+        toast.error(error?.message ?? "Unable to start checkout.");
+      } finally {
+        setPendingPlan(null);
+      }
+    },
+    [billingCycle, navigate, provider, user],
+  );
 
   const openStarter = () => {
-    if (user) {
-      navigate({ to: "/dashboard" });
+    if (!user) {
+      navigate({
+        to: "/client-login",
+        search: { mode: "signup", next: "/onboarding", plan: "starter" },
+      });
       return;
     }
-    navigate({ to: "/auth", search: { next: "/billing" } });
+
+    (async () => {
+      try {
+        const profile = await fetchProfile();
+        if (!profile?.business_id) {
+          navigate({ to: "/onboarding" });
+          return;
+        }
+        await activateStarterPlan({ data: { businessId: profile.business_id } });
+        toast.success("Starter plan activated");
+        navigate({ to: "/dashboard" });
+      } catch (error: any) {
+        toast.error(error?.message ?? "Unable to activate Starter plan.");
+      }
+    })();
   };
+
+  useEffect(() => {
+    if (!user) return;
+    const raw = window.localStorage.getItem("rotaro.pendingCheckout");
+    if (!raw) return;
+
+    try {
+      const pending = JSON.parse(raw) as {
+        planKey?: BillingPlanKey;
+        provider?: BillingProvider;
+        billingCycle?: BillingCycle;
+      };
+      if (
+        pending.planKey &&
+        pending.planKey !== "starter" &&
+        (pending.provider === "stripe" || pending.provider === "razorpay") &&
+        (pending.billingCycle === "monthly" || pending.billingCycle === "annual")
+      ) {
+        window.localStorage.removeItem("rotaro.pendingCheckout");
+        setProvider(pending.provider);
+        setBillingCycle(pending.billingCycle);
+        startCheckout(pending.planKey, {
+          provider: pending.provider,
+          billingCycle: pending.billingCycle,
+        });
+      }
+    } catch {
+      window.localStorage.removeItem("rotaro.pendingCheckout");
+    }
+  }, [startCheckout, user]);
 
   return (
     <div className="min-h-screen bg-background">

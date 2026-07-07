@@ -114,13 +114,12 @@ export function SiteHeader() {
           ) : (
             <>
               <Link
-                to="/auth"
-                search={{ next: undefined }}
+                to="/staff-login"
                 className="hidden sm:inline-block text-sm font-medium text-[var(--navy)] hover:opacity-70 px-2"
               >
                 Staff Login
               </Link>
-              <Link to="/auth" search={{ next: undefined }} className="hidden sm:inline-block">
+              <Link to="/client-login" className="hidden sm:inline-block">
                 <Button className="rounded-full px-5">Client Login</Button>
               </Link>
             </>
@@ -190,14 +189,10 @@ export function SiteHeader() {
                 </Link>
               ) : (
                 <>
-                  <Link
-                    to="/auth"
-                    search={{ next: undefined }}
-                    className="text-sm font-medium text-[var(--navy)] py-2"
-                  >
+                  <Link to="/staff-login" className="text-sm font-medium text-[var(--navy)] py-2">
                     Staff Login
                   </Link>
-                  <Link to="/auth" search={{ next: undefined }}>
+                  <Link to="/client-login">
                     <Button className="w-full rounded-full">Client Login</Button>
                   </Link>
                 </>
@@ -561,7 +556,26 @@ export function SiteFooter() {
             title="Company"
             links={["About Us", "Pricing", "Industries", "Support", "Contact", "FAQs"]}
           />
-          <FooterCol title="Account" links={["Staff Login", "Employer Login", "Client Login"]} />
+          <div>
+            <h4 className="font-bold mb-3">Account</h4>
+            <ul className="space-y-2 text-sm text-white/80">
+              <li>
+                <Link to="/staff-login" className="hover:text-white">
+                  Staff Login
+                </Link>
+              </li>
+              <li>
+                <Link to="/client-login" className="hover:text-white">
+                  Employer Login
+                </Link>
+              </li>
+              <li>
+                <Link to="/pricing" className="hover:text-white">
+                  Client Signup
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
         <div className="lg:col-span-5">
           <h3 className="text-2xl font-bold">Subscribe to our newsletter</h3>
