@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SupportRouteImport } from './routes/support'
+import { Route as StaffLoginRouteImport } from './routes/staff-login'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as ClientLoginRouteImport } from './routes/client-login'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -47,9 +49,19 @@ const SupportRoute = SupportRouteImport.update({
   path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffLoginRoute = StaffLoginRouteImport.update({
+  id: '/staff-login',
+  path: '/staff-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientLoginRoute = ClientLoginRouteImport.update({
+  id: '/client-login',
+  path: '/client-login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -212,7 +224,9 @@ const AuthenticatedRosterEditIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/client-login': typeof ClientLoginRoute
   '/pricing': typeof PricingRoute
+  '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
@@ -245,7 +259,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/client-login': typeof ClientLoginRoute
   '/pricing': typeof PricingRoute
+  '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
@@ -280,7 +296,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/client-login': typeof ClientLoginRoute
   '/pricing': typeof PricingRoute
+  '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/_authenticated/apply-leave': typeof AuthenticatedApplyLeaveRoute
   '/_authenticated/attendance': typeof AuthenticatedAttendanceRoute
@@ -315,7 +333,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/client-login'
     | '/pricing'
+    | '/staff-login'
     | '/support'
     | '/apply-leave'
     | '/attendance'
@@ -348,7 +368,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/client-login'
     | '/pricing'
+    | '/staff-login'
     | '/support'
     | '/apply-leave'
     | '/attendance'
@@ -382,7 +404,9 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/client-login'
     | '/pricing'
+    | '/staff-login'
     | '/support'
     | '/_authenticated/apply-leave'
     | '/_authenticated/attendance'
@@ -417,7 +441,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ClientLoginRoute: typeof ClientLoginRoute
   PricingRoute: typeof PricingRoute
+  StaffLoginRoute: typeof StaffLoginRoute
   SupportRoute: typeof SupportRoute
 }
 
@@ -430,11 +456,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff-login': {
+      id: '/staff-login'
+      path: '/staff-login'
+      fullPath: '/staff-login'
+      preLoaderRoute: typeof StaffLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/client-login': {
+      id: '/client-login'
+      path: '/client-login'
+      fullPath: '/client-login'
+      preLoaderRoute: typeof ClientLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -738,7 +778,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ClientLoginRoute: ClientLoginRoute,
   PricingRoute: PricingRoute,
+  StaffLoginRoute: StaffLoginRoute,
   SupportRoute: SupportRoute,
 }
 export const routeTree = rootRouteImport

@@ -27,9 +27,11 @@ import {
   HelpCircle,
   LayoutGrid,
   MoreHorizontal,
+  LockKeyhole,
 } from "lucide-react";
 import type { Profile } from "@/lib/auth";
 import { isManager } from "@/lib/auth";
+import { hasPlanAtLeast, type AppPlanKey, useBusinessPlan } from "@/lib/billing/plans";
 import { NotificationBell } from "@/components/NotificationBell";
 import { RotaroMark } from "@/components/RotaroMark";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -43,26 +45,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const managerNav = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  minPlan?: AppPlanKey;
+};
+
+const managerNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/roster", label: "Rosters", icon: CalendarDays },
-  { to: "/shifts", label: "Shift Templates", icon: LayoutTemplate },
+  { to: "/shifts", label: "Shift Templates", icon: LayoutTemplate, minPlan: "professional" },
   { to: "/staff", label: "Staff", icon: Users },
-  { to: "/leaves", label: "Leave Requests", icon: FileText },
-  { to: "/swaps", label: "Shift Swaps", icon: Repeat },
-  { to: "/attendance", label: "Attendance", icon: ClipboardList },
-  { to: "/holidays", label: "Holidays", icon: CalendarCheck },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/leaves", label: "Leave Requests", icon: FileText, minPlan: "professional" },
+  { to: "/swaps", label: "Shift Swaps", icon: Repeat, minPlan: "professional" },
+  { to: "/attendance", label: "Attendance", icon: ClipboardList, minPlan: "professional" },
+  { to: "/holidays", label: "Holidays", icon: CalendarCheck, minPlan: "professional" },
+  { to: "/reports", label: "Reports", icon: BarChart3, minPlan: "professional" },
   { to: "/billing", label: "Billing", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
-const employeeNav = [
+const employeeNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/my-roster", label: "My Roster", icon: CalendarDays },
-  { to: "/apply-leave", label: "Apply Leave", icon: FileText },
-  { to: "/attendance", label: "My Attendance", icon: Clock4 },
-  { to: "/swaps", label: "Shift Swaps", icon: Repeat },
+  { to: "/apply-leave", label: "Apply Leave", icon: FileText, minPlan: "professional" },
+  { to: "/attendance", label: "My Attendance", icon: Clock4, minPlan: "professional" },
+  { to: "/swaps", label: "Shift Swaps", icon: Repeat, minPlan: "professional" },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -80,6 +89,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = isManager(profile) ? managerNav : employeeNav;
+  const { planKey } = useBusinessPlan(profile.business_id);
   const tools = isManager(profile)
     ? headerTools
     : headerTools.filter((tool) => tool.to !== "/organization");
@@ -116,7 +126,7 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    navigate({ to: "/auth", search: { next: undefined }, replace: true });
+    navigate({ to: "/client-login", search: { next: undefined }, replace: true });
   };
 
   const SidebarBody = ({ collapsed = false }: { collapsed?: boolean }) => (
@@ -174,23 +184,27 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
         </div>
       )}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-auto">
-        {nav.map(({ to, label, icon: Icon }) => {
+        {nav.map(({ to, label, icon: Icon, minPlan }) => {
           const active = pathname === to || pathname.startsWith(to + "/");
+          const locked = !!minPlan && !hasPlanAtLeast(planKey, minPlan);
           return (
             <Link
               key={to}
-              to={to}
-              title={collapsed ? label : undefined}
+              to={locked ? "/pricing" : to}
+              title={collapsed ? (locked ? `${label} - upgrade required` : label) : undefined}
               className={`flex items-center rounded-md text-sm transition-colors ${
                 collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
               } ${
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "hover:bg-sidebar-accent/60"
+                  : locked
+                    ? "text-sidebar-foreground/60 hover:bg-sidebar-accent/40"
+                    : "hover:bg-sidebar-accent/60"
               }`}
             >
               <Icon className="size-4 shrink-0" />
               {!collapsed && <span className="truncate">{label}</span>}
+              {!collapsed && locked && <LockKeyhole className="ml-auto size-3.5 opacity-70" />}
             </Link>
           );
         })}
