@@ -19,6 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PlanGate } from "@/components/PlanGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -563,238 +564,247 @@ function SwapsPage() {
   if (!profile) return null;
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Workforce</span>
-            <span>/</span>
-            <span className="font-semibold text-[var(--navy)]">Shift Swaps</span>
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-[var(--navy)]">Swaps</div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)] sm:text-4xl">
-              Shift Swaps
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {canManage
-                ? "Review employee swap requests, approve the handover, and keep the roster live."
-                : "Request swaps, answer requests from colleagues, and track what is waiting on you."}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {!canManage && (
-            <Button
-              onClick={() => setRequestOpen(true)}
-              className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-            >
-              <Repeat className="mr-2 size-4" />
-              Request swap
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={reload}
-            disabled={loading}
-            className="border-[var(--navy)] text-[var(--navy)] hover:bg-[var(--navy)] hover:text-white"
-          >
-            <Loader2 className={`mr-2 size-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </header>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          label={canManage ? "Pending manager review" : "My requests"}
-          value={canManage ? summary.pendingForManager : summary.mySent}
-          icon={ArrowRightLeft}
-        />
-        <SummaryCard
-          label={canManage ? "Awaiting employee response" : "Waiting on me"}
-          value={
-            canManage ? rows.filter((row) => row.status === "pending").length : summary.waitingOnMe
-          }
-          icon={Clock3}
-        />
-        <SummaryCard label="Approved" value={summary.approved} icon={CheckCircle2} />
-        <SummaryCard label="Closed" value={summary.closed} icon={XCircle} />
-      </section>
-
-      <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
-        <div className="border-b bg-[var(--navy)] p-5 text-white">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <PlanGate
+      businessId={profile.business_id}
+      required="professional"
+      title="Shift Swaps are a Professional feature"
+      description="Employee swap requests, colleague acceptance, manager approvals, and realtime swap notifications are included with Professional and Business plans."
+    >
+      <div className="space-y-6">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Workforce</span>
+              <span>/</span>
+              <span className="font-semibold text-[var(--navy)]">Shift Swaps</span>
+            </div>
             <div>
-              <h2 className="text-xl font-semibold">
-                {canManage ? "Manager approval queue" : "My swap requests"}
-              </h2>
-              <p className="mt-2 text-sm text-white/75">
+              <div className="text-sm font-semibold text-[var(--navy)]">Swaps</div>
+              <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)] sm:text-4xl">
+                Shift Swaps
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {canManage
-                  ? "Requests appear here as soon as employees submit them. Approve only after the other employee accepts."
-                  : "You can see your outgoing requests and incoming swap requests in one place."}
+                  ? "Review employee swap requests, approve the handover, and keep the roster live."
+                  : "Request swaps, answer requests from colleagues, and track what is waiting on you."}
               </p>
             </div>
-            {!canManage && (
-              <Badge className="w-fit border-white/20 bg-white/10 text-white hover:bg-white/10">
-                {summary.waitingOnMe} waiting on you
-              </Badge>
-            )}
           </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead className="bg-secondary/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-5 py-3">Requester</th>
-                <th className="px-5 py-3">Requester shift</th>
-                <th className="px-5 py-3">Target</th>
-                <th className="px-5 py-3">Target shift</th>
-                <th className="px-5 py-3">Note</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Created</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
-                    Loading shift swaps...
-                  </td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
-                    No swap requests yet.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => {
-                  const isRequester = employee?.id === row.requester_employee_id;
-                  const isTarget = employee?.id === row.target_employee_id;
-                  const status = lower(row.status);
-                  const showManagerActions =
-                    canManage && ["pending", "target_accepted"].includes(status);
-                  const showTargetActions = !canManage && isTarget && status === "pending";
-                  const showRequesterActions =
-                    !canManage && isRequester && ["pending", "target_accepted"].includes(status);
+          <div className="flex flex-wrap items-center gap-2">
+            {!canManage && (
+              <Button
+                onClick={() => setRequestOpen(true)}
+                className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+              >
+                <Repeat className="mr-2 size-4" />
+                Request swap
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={reload}
+              disabled={loading}
+              className="border-[var(--navy)] text-[var(--navy)] hover:bg-[var(--navy)] hover:text-white"
+            >
+              <Loader2 className={`mr-2 size-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+        </header>
 
-                  return (
-                    <tr key={row.id} className="border-t align-top">
-                      <td className="px-5 py-4">
-                        <div className="font-medium text-[var(--navy)]">
-                          {row.requester?.name ?? "-"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.requester?.department ?? "No department"}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <ShiftLabel shift={row.requester_shift} />
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="font-medium text-[var(--navy)]">
-                          {row.target?.name ?? "-"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.target?.department ?? "No department"}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <ShiftLabel shift={row.target_shift} />
-                      </td>
-                      <td className="px-5 py-4 text-muted-foreground">{row.note ?? "-"}</td>
-                      <td className="px-5 py-4">
-                        <SwapStatusBadge status={row.status} />
-                      </td>
-                      <td className="px-5 py-4 text-xs text-muted-foreground">
-                        {new Date(row.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
-                          {showTargetActions && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => respond(row, "target_declined")}
-                                disabled={actioningId === row.id}
-                              >
-                                <UserX className="mr-2 size-4" />
-                                Decline
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-                                onClick={() => respond(row, "target_accepted")}
-                                disabled={actioningId === row.id}
-                              >
-                                <UserCheck className="mr-2 size-4" />
-                                Accept
-                              </Button>
-                            </>
-                          )}
-                          {showRequesterActions && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => respond(row, "cancelled")}
-                              disabled={actioningId === row.id}
-                            >
-                              <XCircle className="mr-2 size-4" />
-                              Cancel
-                            </Button>
-                          )}
-                          {showManagerActions && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => respond(row, "rejected")}
-                                disabled={actioningId === row.id}
-                              >
-                                Reject
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-                                onClick={() => respond(row, "approved")}
-                                disabled={actioningId === row.id}
-                              >
-                                Approve
-                              </Button>
-                            </>
-                          )}
-                          {!showTargetActions && !showRequesterActions && !showManagerActions && (
-                            <span className="text-xs text-muted-foreground">No actions</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            label={canManage ? "Pending manager review" : "My requests"}
+            value={canManage ? summary.pendingForManager : summary.mySent}
+            icon={ArrowRightLeft}
+          />
+          <SummaryCard
+            label={canManage ? "Awaiting employee response" : "Waiting on me"}
+            value={
+              canManage
+                ? rows.filter((row) => row.status === "pending").length
+                : summary.waitingOnMe
+            }
+            icon={Clock3}
+          />
+          <SummaryCard label="Approved" value={summary.approved} icon={CheckCircle2} />
+          <SummaryCard label="Closed" value={summary.closed} icon={XCircle} />
+        </section>
+
+        <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+          <div className="border-b bg-[var(--navy)] p-5 text-white">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  {canManage ? "Manager approval queue" : "My swap requests"}
+                </h2>
+                <p className="mt-2 text-sm text-white/75">
+                  {canManage
+                    ? "Requests appear here as soon as employees submit them. Approve only after the other employee accepts."
+                    : "You can see your outgoing requests and incoming swap requests in one place."}
+                </p>
+              </div>
+              {!canManage && (
+                <Badge className="w-fit border-white/20 bg-white/10 text-white hover:bg-white/10">
+                  {summary.waitingOnMe} waiting on you
+                </Badge>
               )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            </div>
+          </div>
 
-      {!canManage && (
-        <RequestDialog
-          open={requestOpen}
-          setOpen={setRequestOpen}
-          myShifts={myShifts}
-          colleagues={colleagues}
-          targetShifts={targetShifts}
-          form={requestForm}
-          setForm={setRequestForm}
-          submit={submitRequest}
-        />
-      )}
-    </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-sm">
+              <thead className="bg-secondary/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-5 py-3">Requester</th>
+                  <th className="px-5 py-3">Requester shift</th>
+                  <th className="px-5 py-3">Target</th>
+                  <th className="px-5 py-3">Target shift</th>
+                  <th className="px-5 py-3">Note</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Created</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
+                      Loading shift swaps...
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
+                      No swap requests yet.
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => {
+                    const isRequester = employee?.id === row.requester_employee_id;
+                    const isTarget = employee?.id === row.target_employee_id;
+                    const status = lower(row.status);
+                    const showManagerActions =
+                      canManage && ["pending", "target_accepted"].includes(status);
+                    const showTargetActions = !canManage && isTarget && status === "pending";
+                    const showRequesterActions =
+                      !canManage && isRequester && ["pending", "target_accepted"].includes(status);
+
+                    return (
+                      <tr key={row.id} className="border-t align-top">
+                        <td className="px-5 py-4">
+                          <div className="font-medium text-[var(--navy)]">
+                            {row.requester?.name ?? "-"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {row.requester?.department ?? "No department"}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <ShiftLabel shift={row.requester_shift} />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="font-medium text-[var(--navy)]">
+                            {row.target?.name ?? "-"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {row.target?.department ?? "No department"}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <ShiftLabel shift={row.target_shift} />
+                        </td>
+                        <td className="px-5 py-4 text-muted-foreground">{row.note ?? "-"}</td>
+                        <td className="px-5 py-4">
+                          <SwapStatusBadge status={row.status} />
+                        </td>
+                        <td className="px-5 py-4 text-xs text-muted-foreground">
+                          {new Date(row.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex justify-end gap-2">
+                            {showTargetActions && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => respond(row, "target_declined")}
+                                  disabled={actioningId === row.id}
+                                >
+                                  <UserX className="mr-2 size-4" />
+                                  Decline
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+                                  onClick={() => respond(row, "target_accepted")}
+                                  disabled={actioningId === row.id}
+                                >
+                                  <UserCheck className="mr-2 size-4" />
+                                  Accept
+                                </Button>
+                              </>
+                            )}
+                            {showRequesterActions && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => respond(row, "cancelled")}
+                                disabled={actioningId === row.id}
+                              >
+                                <XCircle className="mr-2 size-4" />
+                                Cancel
+                              </Button>
+                            )}
+                            {showManagerActions && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => respond(row, "rejected")}
+                                  disabled={actioningId === row.id}
+                                >
+                                  Reject
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+                                  onClick={() => respond(row, "approved")}
+                                  disabled={actioningId === row.id}
+                                >
+                                  Approve
+                                </Button>
+                              </>
+                            )}
+                            {!showTargetActions && !showRequesterActions && !showManagerActions && (
+                              <span className="text-xs text-muted-foreground">No actions</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {!canManage && (
+          <RequestDialog
+            open={requestOpen}
+            setOpen={setRequestOpen}
+            myShifts={myShifts}
+            colleagues={colleagues}
+            targetShifts={targetShifts}
+            form={requestForm}
+            setForm={setRequestForm}
+            submit={submitRequest}
+          />
+        )}
+      </div>
+    </PlanGate>
   );
 }
 
