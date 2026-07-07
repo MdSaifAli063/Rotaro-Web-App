@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PlanGate } from "@/components/PlanGate";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 
@@ -439,312 +440,321 @@ function HolidaysPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <div className="text-sm text-muted-foreground">
-          <span className="text-[var(--navy)]">Operations</span> /{" "}
-          <span className="font-semibold text-[var(--navy)]">Holidays</span>
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Holidays</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage public holidays, imports, and location-specific dates.
-          </p>
-        </div>
-      </header>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="rounded-lg border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-[var(--navy)]">Add Holiday</h2>
-          <div className="mt-4 grid gap-4">
-            <Field label="Date" error={fieldErrors.holiday_date}>
-              <Input
-                type="date"
-                value={form.holiday_date}
-                onChange={(e) => setForm({ ...form, holiday_date: e.target.value })}
-              />
-            </Field>
-            <Field label="Holiday Name" error={fieldErrors.holiday_name}>
-              <Input
-                value={form.holiday_name}
-                maxLength={150}
-                onChange={(e) => setForm({ ...form, holiday_name: e.target.value })}
-                placeholder="Christmas Day"
-              />
-            </Field>
-            <CheckRow
-              checked={form.is_national}
-              onCheckedChange={(checked) =>
-                setForm({ ...form, is_national: checked, plant: checked ? "" : form.plant })
-              }
-              label="National holiday"
-            />
-            {!form.is_national && (
-              <Field label="Plant">
-                <Select
-                  value={form.plant || allPlantsValue}
-                  onValueChange={(value) =>
-                    setForm({ ...form, plant: value === allPlantsValue ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All plants" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={allPlantsValue}>All plants</SelectItem>
-                    {plants.map((plant) => (
-                      <SelectItem key={plant} value={plant}>
-                        {plant}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-            <CheckRow
-              checked={form.is_paid}
-              onCheckedChange={(checked) => setForm({ ...form, is_paid: checked })}
-              label="Paid holiday"
-            />
-            <Button
-              onClick={addHoliday}
-              disabled={saving}
-              className="w-full bg-[var(--navy)] text-white hover:bg-[var(--navy-light)] sm:w-fit"
-            >
-              {saving ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 size-4" />
-              )}{" "}
-              Add
-            </Button>
+    <PlanGate
+      businessId={profile.business_id}
+      required="professional"
+      title="Holiday Import is a Professional feature"
+      description="Public holiday import, CSV import, paid holiday rules, and custom holiday management are included with Professional and Business plans."
+    >
+      <div className="space-y-6">
+        <header className="space-y-2">
+          <div className="text-sm text-muted-foreground">
+            <span className="text-[var(--navy)]">Operations</span> /{" "}
+            <span className="font-semibold text-[var(--navy)]">Holidays</span>
           </div>
-        </section>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Holidays</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage public holidays, imports, and location-specific dates.
+            </p>
+          </div>
+        </header>
+
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-[var(--navy)]">Add Holiday</h2>
+            <div className="mt-4 grid gap-4">
+              <Field label="Date" error={fieldErrors.holiday_date}>
+                <Input
+                  type="date"
+                  value={form.holiday_date}
+                  onChange={(e) => setForm({ ...form, holiday_date: e.target.value })}
+                />
+              </Field>
+              <Field label="Holiday Name" error={fieldErrors.holiday_name}>
+                <Input
+                  value={form.holiday_name}
+                  maxLength={150}
+                  onChange={(e) => setForm({ ...form, holiday_name: e.target.value })}
+                  placeholder="Christmas Day"
+                />
+              </Field>
+              <CheckRow
+                checked={form.is_national}
+                onCheckedChange={(checked) =>
+                  setForm({ ...form, is_national: checked, plant: checked ? "" : form.plant })
+                }
+                label="National holiday"
+              />
+              {!form.is_national && (
+                <Field label="Plant">
+                  <Select
+                    value={form.plant || allPlantsValue}
+                    onValueChange={(value) =>
+                      setForm({ ...form, plant: value === allPlantsValue ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All plants" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={allPlantsValue}>All plants</SelectItem>
+                      {plants.map((plant) => (
+                        <SelectItem key={plant} value={plant}>
+                          {plant}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+              <CheckRow
+                checked={form.is_paid}
+                onCheckedChange={(checked) => setForm({ ...form, is_paid: checked })}
+                label="Paid holiday"
+              />
+              <Button
+                onClick={addHoliday}
+                disabled={saving}
+                className="w-full bg-[var(--navy)] text-white hover:bg-[var(--navy-light)] sm:w-fit"
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 size-4" />
+                )}{" "}
+                Add
+              </Button>
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-[var(--navy)]">
+              Import public holidays (Nager API)
+            </h2>
+            <div className="mt-4 grid gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <Field label="Country">
+                  <Select
+                    value={country}
+                    onValueChange={(value) => setCountry(value.toUpperCase())}
+                    disabled={countriesLoading && countryOptions.length === 0}
+                  >
+                    <SelectTrigger className="w-full sm:w-60">
+                      <SelectValue
+                        placeholder={countriesLoading ? "Loading countries..." : "Select country"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-80">
+                      {countryOptions.map((item) => (
+                        <SelectItem key={item.countryCode} value={item.countryCode}>
+                          {item.name} ({item.countryCode})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <YearStepper year={year} setYear={setYear} />
+                <CheckRow checked={markPaid} onCheckedChange={setMarkPaid} label="Mark as paid" />
+              </div>
+              <Button
+                variant="outline"
+                onClick={importNager}
+                disabled={importingNager}
+                className="w-full border-[var(--navy)] text-[var(--navy)] sm:w-fit"
+              >
+                {importingNager && <Loader2 className="mr-2 size-4 animate-spin" />} Fetch {year}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                India and Australia are listed first. Common codes: {COMMON_COUNTRIES}.{" "}
+                <a
+                  className="font-medium text-[var(--navy)] underline"
+                  href="https://date.nager.at/Country"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View all supported countries
+                </a>
+              </p>
+            </div>
+          </section>
+        </div>
 
         <section className="rounded-lg border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-[var(--navy)]">
-            Import public holidays (Nager API)
-          </h2>
-          <div className="mt-4 grid gap-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <Field label="Country">
-                <Select
-                  value={country}
-                  onValueChange={(value) => setCountry(value.toUpperCase())}
-                  disabled={countriesLoading && countryOptions.length === 0}
-                >
-                  <SelectTrigger className="w-full sm:w-60">
-                    <SelectValue
-                      placeholder={countriesLoading ? "Loading countries..." : "Select country"}
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-80">
-                    {countryOptions.map((item) => (
-                      <SelectItem key={item.countryCode} value={item.countryCode}>
-                        {item.name} ({item.countryCode})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <YearStepper year={year} setYear={setYear} />
-              <CheckRow checked={markPaid} onCheckedChange={setMarkPaid} label="Mark as paid" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-[var(--navy)]">Bulk Import (CSV)</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Format: date,name,plant_code,national(Y/N)
+              </p>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
+                2025-12-25,Christmas,,Y
+              </p>
             </div>
             <Button
               variant="outline"
-              onClick={importNager}
-              disabled={importingNager}
-              className="w-full border-[var(--navy)] text-[var(--navy)] sm:w-fit"
-            >
-              {importingNager && <Loader2 className="mr-2 size-4 animate-spin" />} Fetch {year}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              India and Australia are listed first. Common codes: {COMMON_COUNTRIES}.{" "}
-              <a
-                className="font-medium text-[var(--navy)] underline"
-                href="https://date.nager.at/Country"
-                target="_blank"
-                rel="noreferrer"
-              >
-                View all supported countries
-              </a>
-            </p>
-          </div>
-        </section>
-      </div>
-
-      <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--navy)]">Bulk Import (CSV)</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Format: date,name,plant_code,national(Y/N)
-            </p>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">2025-12-25,Christmas,,Y</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadTemplate}
-            className="border-[var(--navy)] text-[var(--navy)]"
-          >
-            <Download className="mr-2 size-4" /> Download CSV Template
-          </Button>
-        </div>
-        <Textarea
-          className="mt-4 min-h-32 font-mono"
-          value={csvText}
-          onChange={(e) => setCsvText(e.target.value)}
-          placeholder={DEFAULT_CSV}
-        />
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CheckRow
-            checked={csvPaid}
-            onCheckedChange={setCsvPaid}
-            label="Mark imported rows as paid"
-          />
-          <Button
-            onClick={importCsv}
-            disabled={importingCsv}
-            className="w-full bg-[var(--navy)] text-white hover:bg-[var(--navy-light)] sm:w-fit"
-          >
-            {importingCsv && <Loader2 className="mr-2 size-4 animate-spin" />} Import
-          </Button>
-        </div>
-        {csvErrors.length > 0 && <ErrorList errors={csvErrors} />}
-      </section>
-
-      <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-bold text-[var(--navy)]">Holidays {year}</h2>
-          <Select
-            value={String(year)}
-            onValueChange={(value) => {
-              setYear(Number(value));
-              setVisibleRows(30);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((item) => (
-                <SelectItem key={item} value={String(item)}>
-                  {item}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="max-h-[600px] overflow-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="sticky top-0 bg-secondary text-left">
-              <tr>
-                <SortableHeader
-                  label="Date"
-                  active={sortKey === "holiday_date"}
-                  dir={sortDir}
-                  onClick={() => toggleSort("holiday_date")}
-                />
-                <SortableHeader
-                  label="Name"
-                  active={sortKey === "holiday_name"}
-                  dir={sortDir}
-                  onClick={() => toggleSort("holiday_name")}
-                />
-                <th className="px-4 py-3 font-medium">Plant</th>
-                <th className="px-4 py-3 font-medium">National</th>
-                <th className="px-4 py-3 font-medium">Paid</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <SkeletonRows />
-              ) : visibleHolidays.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                    No holidays found for {year}. Import public holidays or add a custom holiday
-                    above.
-                  </td>
-                </tr>
-              ) : (
-                visibleHolidays.map((holiday) => (
-                  <tr key={holiday.id} className="border-t hover:bg-[#F3F6FA]">
-                    <td className="sticky left-0 bg-inherit px-4 py-3 font-medium text-[var(--navy)]">
-                      {holiday.holiday_date}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-[var(--navy)]">
-                      {holiday.holiday_name}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{holiday.plant || "-"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {holiday.is_national ? "Yes" : "No"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        className="font-medium text-[var(--navy)] disabled:opacity-50"
-                        disabled={togglingId === holiday.id}
-                        onClick={() => togglePaid(holiday)}
-                      >
-                        {togglingId === holiday.id
-                          ? "Saving..."
-                          : holiday.is_paid
-                            ? "Paid"
-                            : "Unpaid"}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {confirmDeleteId === holiday.id ? (
-                        <span className="inline-flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Delete?</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-600 text-red-600"
-                            disabled={deletingId === holiday.id}
-                            onClick={() => deleteHoliday(holiday)}
-                          >
-                            Delete
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setConfirmDeleteId(null)}
-                          >
-                            Cancel
-                          </Button>
-                        </span>
-                      ) : (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setConfirmDeleteId(holiday.id)}
-                          aria-label={`Delete ${holiday.holiday_name}`}
-                        >
-                          <Trash2 className="size-4 text-red-600" />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {visibleRows < sortedHolidays.length && (
-          <div className="border-t p-4 text-center">
-            <Button
-              variant="outline"
-              onClick={() => setVisibleRows((old) => old + 30)}
+              size="sm"
+              onClick={downloadTemplate}
               className="border-[var(--navy)] text-[var(--navy)]"
             >
-              Load more
+              <Download className="mr-2 size-4" /> Download CSV Template
             </Button>
           </div>
-        )}
-      </section>
-    </div>
+          <Textarea
+            className="mt-4 min-h-32 font-mono"
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+            placeholder={DEFAULT_CSV}
+          />
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CheckRow
+              checked={csvPaid}
+              onCheckedChange={setCsvPaid}
+              label="Mark imported rows as paid"
+            />
+            <Button
+              onClick={importCsv}
+              disabled={importingCsv}
+              className="w-full bg-[var(--navy)] text-white hover:bg-[var(--navy-light)] sm:w-fit"
+            >
+              {importingCsv && <Loader2 className="mr-2 size-4 animate-spin" />} Import
+            </Button>
+          </div>
+          {csvErrors.length > 0 && <ErrorList errors={csvErrors} />}
+        </section>
+
+        <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-bold text-[var(--navy)]">Holidays {year}</h2>
+            <Select
+              value={String(year)}
+              onValueChange={(value) => {
+                setYear(Number(value));
+                setVisibleRows(30);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((item) => (
+                  <SelectItem key={item} value={String(item)}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="max-h-[600px] overflow-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="sticky top-0 bg-secondary text-left">
+                <tr>
+                  <SortableHeader
+                    label="Date"
+                    active={sortKey === "holiday_date"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("holiday_date")}
+                  />
+                  <SortableHeader
+                    label="Name"
+                    active={sortKey === "holiday_name"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("holiday_name")}
+                  />
+                  <th className="px-4 py-3 font-medium">Plant</th>
+                  <th className="px-4 py-3 font-medium">National</th>
+                  <th className="px-4 py-3 font-medium">Paid</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <SkeletonRows />
+                ) : visibleHolidays.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                      No holidays found for {year}. Import public holidays or add a custom holiday
+                      above.
+                    </td>
+                  </tr>
+                ) : (
+                  visibleHolidays.map((holiday) => (
+                    <tr key={holiday.id} className="border-t hover:bg-[#F3F6FA]">
+                      <td className="sticky left-0 bg-inherit px-4 py-3 font-medium text-[var(--navy)]">
+                        {holiday.holiday_date}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-[var(--navy)]">
+                        {holiday.holiday_name}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{holiday.plant || "-"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {holiday.is_national ? "Yes" : "No"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          className="font-medium text-[var(--navy)] disabled:opacity-50"
+                          disabled={togglingId === holiday.id}
+                          onClick={() => togglePaid(holiday)}
+                        >
+                          {togglingId === holiday.id
+                            ? "Saving..."
+                            : holiday.is_paid
+                              ? "Paid"
+                              : "Unpaid"}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {confirmDeleteId === holiday.id ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Delete?</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-600 text-red-600"
+                              disabled={deletingId === holiday.id}
+                              onClick={() => deleteHoliday(holiday)}
+                            >
+                              Delete
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setConfirmDeleteId(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </span>
+                        ) : (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setConfirmDeleteId(holiday.id)}
+                            aria-label={`Delete ${holiday.holiday_name}`}
+                          >
+                            <Trash2 className="size-4 text-red-600" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {visibleRows < sortedHolidays.length && (
+            <div className="border-t p-4 text-center">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleRows((old) => old + 30)}
+                className="border-[var(--navy)] text-[var(--navy)]"
+              >
+                Load more
+              </Button>
+            </div>
+          )}
+        </section>
+      </div>
+    </PlanGate>
   );
 }
 

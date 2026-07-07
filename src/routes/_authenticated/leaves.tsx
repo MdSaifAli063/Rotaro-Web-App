@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PlanGate } from "@/components/PlanGate";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2, Send, UserRoundPlus, XCircle } from "lucide-react";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
@@ -362,231 +363,240 @@ function LeavesPage() {
   if (!profile) return null;
   const canManage = isManager(profile);
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="text-sm font-semibold text-primary">Workforce</div>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-[var(--navy)]">Leave</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {canManage
-              ? "Review, approve, and submit employee leave requests."
-              : "Track your leave requests and approval status."}
-          </p>
-        </div>
-        {canManage && (
-          <div className="rounded-xl border bg-card px-4 py-3 text-sm shadow-sm">
-            <div className="font-semibold text-[var(--navy)]">{rows.length}</div>
-            <div className="text-muted-foreground">requests in view</div>
+    <PlanGate
+      businessId={profile.business_id}
+      required="professional"
+      title="Leave Management is a Professional feature"
+      description="Employee leave requests, manager approvals, leave balances, and approval notifications are included with Professional and Business plans."
+    >
+      <div className="space-y-6">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-primary">Workforce</div>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-[var(--navy)]">Leave</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {canManage
+                ? "Review, approve, and submit employee leave requests."
+                : "Track your leave requests and approval status."}
+            </p>
           </div>
-        )}
-      </header>
+          {canManage && (
+            <div className="rounded-xl border bg-card px-4 py-3 text-sm shadow-sm">
+              <div className="font-semibold text-[var(--navy)]">{rows.length}</div>
+              <div className="text-muted-foreground">requests in view</div>
+            </div>
+          )}
+        </header>
 
-      {canManage && (
-        <section className="rounded-xl border bg-card shadow-sm">
-          <div className="flex items-start gap-3 border-b p-5">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-[var(--navy)]">
-              <UserRoundPlus className="size-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-[var(--navy)]">
-                Submit leave for an employee
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Employer-created leave is approved immediately and updates the employee balance.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-5 p-5 md:grid-cols-2 xl:grid-cols-4">
-            <Field label="Employee" className="xl:col-span-2">
-              <Select
-                value={form.employee_id}
-                onValueChange={(value) =>
-                  setForm((current) => ({ ...current, employee_id: value }))
-                }
-                disabled={team.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {team.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {[employee.name, employee.employee_code].filter(Boolean).join(" - ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Leave type">
-              <Select
-                value={form.leave_type}
-                onValueChange={(value) => setForm((current) => ({ ...current, leave_type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LEAVE_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <div className="rounded-lg border bg-[#F8FAFD] p-4 text-sm">
-              <div className="font-medium text-muted-foreground">Approval</div>
-              <div className="mt-2 flex items-center gap-2 font-semibold text-emerald-700">
-                <CheckCircle2 className="size-4" />
-                Approved on submit
+        {canManage && (
+          <section className="rounded-xl border bg-card shadow-sm">
+            <div className="flex items-start gap-3 border-b p-5">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-[var(--navy)]">
+                <UserRoundPlus className="size-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-[var(--navy)]">
+                  Submit leave for an employee
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Employer-created leave is approved immediately and updates the employee balance.
+                </p>
               </div>
             </div>
-            <Field label="Start">
-              <Input
-                type="date"
-                value={form.from_date}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    from_date: event.target.value,
-                    to_date:
-                      new Date(event.target.value) > new Date(current.to_date)
-                        ? event.target.value
-                        : current.to_date,
-                  }))
-                }
-              />
-            </Field>
-            <Field label="End">
-              <Input
-                type="date"
-                min={form.from_date}
-                value={form.to_date}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, to_date: event.target.value }))
-                }
-              />
-            </Field>
-            <Field label="Notes" className="md:col-span-2">
-              <Textarea
-                value={form.reason}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, reason: event.target.value }))
-                }
-                rows={3}
-                placeholder="Add the reason or manager note..."
-              />
-            </Field>
-            <div className="flex items-end md:col-span-2 xl:col-span-4">
-              <Button
-                onClick={submitForEmployee}
-                disabled={submitting || team.length === 0}
-                className="w-full bg-[var(--navy)] hover:bg-[var(--navy-light)] sm:w-auto"
-              >
-                {submitting ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <Send className="mr-2 size-4" />
-                )}
-                Submit leave
-              </Button>
+            <div className="grid gap-5 p-5 md:grid-cols-2 xl:grid-cols-4">
+              <Field label="Employee" className="xl:col-span-2">
+                <Select
+                  value={form.employee_id}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, employee_id: value }))
+                  }
+                  disabled={team.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {team.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {[employee.name, employee.employee_code].filter(Boolean).join(" - ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Leave type">
+                <Select
+                  value={form.leave_type}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, leave_type: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LEAVE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div className="rounded-lg border bg-[#F8FAFD] p-4 text-sm">
+                <div className="font-medium text-muted-foreground">Approval</div>
+                <div className="mt-2 flex items-center gap-2 font-semibold text-emerald-700">
+                  <CheckCircle2 className="size-4" />
+                  Approved on submit
+                </div>
+              </div>
+              <Field label="Start">
+                <Input
+                  type="date"
+                  value={form.from_date}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      from_date: event.target.value,
+                      to_date:
+                        new Date(event.target.value) > new Date(current.to_date)
+                          ? event.target.value
+                          : current.to_date,
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="End">
+                <Input
+                  type="date"
+                  min={form.from_date}
+                  value={form.to_date}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, to_date: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Notes" className="md:col-span-2">
+                <Textarea
+                  value={form.reason}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, reason: event.target.value }))
+                  }
+                  rows={3}
+                  placeholder="Add the reason or manager note..."
+                />
+              </Field>
+              <div className="flex items-end md:col-span-2 xl:col-span-4">
+                <Button
+                  onClick={submitForEmployee}
+                  disabled={submitting || team.length === 0}
+                  className="w-full bg-[var(--navy)] hover:bg-[var(--navy-light)] sm:w-auto"
+                >
+                  {submitting ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 size-4" />
+                  )}
+                  Submit leave
+                </Button>
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="flex flex-col gap-1 border-b p-5">
-          <h2 className="text-xl font-semibold text-[var(--navy)]">Leave requests</h2>
-          <p className="text-sm text-muted-foreground">
-            Updates from employees and managers appear here in realtime.
-          </p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[780px] text-sm">
-            <thead className="bg-secondary/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Employee</th>
-                <th className="px-5 py-3 font-semibold">Type</th>
-                <th className="px-5 py-3 font-semibold">From</th>
-                <th className="px-5 py-3 font-semibold">To</th>
-                <th className="px-5 py-3 font-semibold">Reason</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
-                {canManage && <th className="px-5 py-3 text-right font-semibold">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="flex flex-col gap-1 border-b p-5">
+            <h2 className="text-xl font-semibold text-[var(--navy)]">Leave requests</h2>
+            <p className="text-sm text-muted-foreground">
+              Updates from employees and managers appear here in realtime.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[780px] text-sm">
+              <thead className="bg-secondary/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <td
-                    colSpan={canManage ? 7 : 6}
-                    className="px-5 py-12 text-center text-muted-foreground"
-                  >
-                    No leave requests.
-                  </td>
+                  <th className="px-5 py-3 font-semibold">Employee</th>
+                  <th className="px-5 py-3 font-semibold">Type</th>
+                  <th className="px-5 py-3 font-semibold">From</th>
+                  <th className="px-5 py-3 font-semibold">To</th>
+                  <th className="px-5 py-3 font-semibold">Reason</th>
+                  <th className="px-5 py-3 font-semibold">Status</th>
+                  {canManage && <th className="px-5 py-3 text-right font-semibold">Actions</th>}
                 </tr>
-              ) : (
-                rows.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="px-5 py-3 font-semibold text-[var(--navy)]">
-                      {r.employees?.name ?? "-"}
-                      <div className="text-xs font-normal text-muted-foreground">
-                        {r.employees?.department ?? r.employees?.employee_code ?? ""}
-                      </div>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={canManage ? 7 : 6}
+                      className="px-5 py-12 text-center text-muted-foreground"
+                    >
+                      No leave requests.
                     </td>
-                    <td className="px-5 py-3 capitalize">{r.leave_type}</td>
-                    <td className="px-5 py-3">{r.from_date}</td>
-                    <td className="px-5 py-3">{r.to_date}</td>
-                    <td className="max-w-xs truncate px-5 py-3 text-muted-foreground">
-                      {r.reason ?? "-"}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          lower(r.status) === "pending"
-                            ? "bg-amber-50 text-amber-700"
-                            : lower(r.status) === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {lower(r.status) === "approved" && <CheckCircle2 className="size-3.5" />}
-                        {(lower(r.status) === "rejected" || lower(r.status) === "declined") && (
-                          <XCircle className="size-3.5" />
-                        )}
-                        {statusLabel(r.status)}
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td className="px-5 py-3 text-right">
-                        {lower(r.status) === "pending" && (
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => decide(r, "rejected")}
-                            >
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => decide(r, "approved")}
-                              className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
-                            >
-                              Approve
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    )}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  rows.map((r) => (
+                    <tr key={r.id} className="border-t">
+                      <td className="px-5 py-3 font-semibold text-[var(--navy)]">
+                        {r.employees?.name ?? "-"}
+                        <div className="text-xs font-normal text-muted-foreground">
+                          {r.employees?.department ?? r.employees?.employee_code ?? ""}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 capitalize">{r.leave_type}</td>
+                      <td className="px-5 py-3">{r.from_date}</td>
+                      <td className="px-5 py-3">{r.to_date}</td>
+                      <td className="max-w-xs truncate px-5 py-3 text-muted-foreground">
+                        {r.reason ?? "-"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            lower(r.status) === "pending"
+                              ? "bg-amber-50 text-amber-700"
+                              : lower(r.status) === "approved"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {lower(r.status) === "approved" && <CheckCircle2 className="size-3.5" />}
+                          {(lower(r.status) === "rejected" || lower(r.status) === "declined") && (
+                            <XCircle className="size-3.5" />
+                          )}
+                          {statusLabel(r.status)}
+                        </span>
+                      </td>
+                      {canManage && (
+                        <td className="px-5 py-3 text-right">
+                          {lower(r.status) === "pending" && (
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => decide(r, "rejected")}
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => decide(r, "approved")}
+                                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+                              >
+                                Approve
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
+    </PlanGate>
   );
 }
 
