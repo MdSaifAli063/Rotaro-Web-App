@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { PlanGate } from "@/components/PlanGate";
 import {
   Select,
   SelectContent,
@@ -485,220 +486,229 @@ function ApplyLeavePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-[var(--navy)]/70">My work</div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Apply Leave</h1>
-          <p className="text-sm text-muted-foreground">
-            Submit a leave request, track approvals, and keep your balances clear.
-          </p>
-        </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm lg:min-w-[280px]">
-          <div className="text-sm font-medium text-muted-foreground">Employee</div>
-          <div className="mt-1 text-lg font-semibold text-[var(--navy)]">
-            {employee?.name || profile?.name || "Employee"}
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {[employee?.employee_code, employee?.department].filter(Boolean).join(" - ") ||
-              "Leave portal"}
-          </div>
-        </div>
-      </header>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {LEAVE_TYPES.map((type) => (
-          <BalanceCard key={type} type={type} balance={findBalance(balances, type)} />
-        ))}
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="rounded-xl border bg-card shadow-sm">
-          <div className="border-b p-5">
-            <h2 className="text-xl font-semibold text-[var(--navy)]">New leave request</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Managers will receive a notification as soon as you submit.
-            </p>
-          </div>
-          <div className="grid gap-5 p-5 md:grid-cols-2">
-            <Field label="Leave type">
-              <Select
-                value={form.leave_type}
-                onValueChange={(value) => setForm((current) => ({ ...current, leave_type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LEAVE_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <div className="rounded-lg border bg-[#F8FAFD] p-4">
-              <div className="text-sm font-medium text-muted-foreground">Approval path</div>
-              <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--navy)]">
-                {autoApprove ? (
-                  <>
-                    <CheckCircle2 className="size-4 text-emerald-600" />
-                    Auto-approved
-                  </>
-                ) : (
-                  <>
-                    <Clock3 className="size-4 text-amber-500" />
-                    Manager approval required
-                  </>
-                )}
-              </div>
-            </div>
-            <Field label="From">
-              <Input
-                type="date"
-                min={todayKey}
-                value={form.from_date}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    from_date: event.target.value,
-                    to_date: isAfter(parseISO(event.target.value), parseISO(current.to_date))
-                      ? event.target.value
-                      : current.to_date,
-                  }))
-                }
-              />
-            </Field>
-            <Field label="To">
-              <Input
-                type="date"
-                min={form.from_date || todayKey}
-                value={form.to_date}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, to_date: event.target.value }))
-                }
-              />
-            </Field>
-            <Field label="Reason" className="md:col-span-2">
-              <Textarea
-                value={form.reason}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, reason: event.target.value }))
-                }
-                rows={4}
-                placeholder="Add a short note for your manager..."
-              />
-            </Field>
-            <div className="md:col-span-2">
-              <Button
-                onClick={submit}
-                disabled={submitting || loading || invalidDateRange || exceedsBalance}
-                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
-              >
-                {submitting ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <Send className="mr-2 size-4" />
-                )}
-                Submit request
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <aside className="space-y-4">
-          <div className="rounded-xl border bg-card p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <CalendarCheck className="size-5 text-[var(--navy)]" />
-              <h2 className="text-lg font-semibold text-[var(--navy)]">Request preview</h2>
-            </div>
-            <div className="mt-5 space-y-4 text-sm">
-              <PreviewRow label="Type" value={form.leave_type} />
-              <PreviewRow
-                label="Dates"
-                value={`${dateLabel(form.from_date)} - ${dateLabel(form.to_date)}`}
-              />
-              <PreviewRow
-                label="Total days"
-                value={invalidDateRange ? "Invalid" : String(requestedDays)}
-              />
-              <PreviewRow
-                label="Balance after"
-                value={
-                  form.leave_type.toLowerCase() === "unpaid"
-                    ? "Not deducted"
-                    : `${Math.max(selectedRemaining - requestedDays, 0)} days`
-                }
-              />
-            </div>
-            {exceedsBalance && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                This request is more than your available balance.
-              </div>
-            )}
-          </div>
-
-          <Link
-            to="/my-roster"
-            className="flex items-center justify-between rounded-xl border bg-card p-4 text-sm font-semibold text-[var(--navy)] shadow-sm hover:bg-secondary/40"
-          >
-            View my roster
-            <ArrowUpRight className="size-4" />
-          </Link>
-        </aside>
-      </section>
-
-      <section className="rounded-xl border bg-card shadow-sm">
-        <div className="flex items-center gap-2 border-b p-5">
-          <FileText className="size-5 text-[var(--navy)]" />
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--navy)]">Leave history</h2>
+    <PlanGate
+      businessId={profile?.business_id}
+      required="professional"
+      title="Leave Management is a Professional feature"
+      description="Employee leave requests, manager-created leave, approval workflows, and leave balances are included with Professional and Business plans."
+    >
+      <div className="space-y-6">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-[var(--navy)]/70">My work</div>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Apply Leave</h1>
             <p className="text-sm text-muted-foreground">
-              Status changes update here automatically.
+              Submit a leave request, track approvals, and keep your balances clear.
             </p>
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[780px] text-sm">
-            <thead className="bg-secondary/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-5 py-3">Type</th>
-                <th className="px-5 py-3">From</th>
-                <th className="px-5 py-3">To</th>
-                <th className="px-5 py-3">Days</th>
-                <th className="px-5 py-3">Reason</th>
-                <th className="px-5 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.length === 0 ? (
+          <div className="rounded-xl border bg-card p-4 shadow-sm lg:min-w-[280px]">
+            <div className="text-sm font-medium text-muted-foreground">Employee</div>
+            <div className="mt-1 text-lg font-semibold text-[var(--navy)]">
+              {employee?.name || profile?.name || "Employee"}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {[employee?.employee_code, employee?.department].filter(Boolean).join(" - ") ||
+                "Leave portal"}
+            </div>
+          </div>
+        </header>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {LEAVE_TYPES.map((type) => (
+            <BalanceCard key={type} type={type} balance={findBalance(balances, type)} />
+          ))}
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="rounded-xl border bg-card shadow-sm">
+            <div className="border-b p-5">
+              <h2 className="text-xl font-semibold text-[var(--navy)]">New leave request</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Managers will receive a notification as soon as you submit.
+              </p>
+            </div>
+            <div className="grid gap-5 p-5 md:grid-cols-2">
+              <Field label="Leave type">
+                <Select
+                  value={form.leave_type}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, leave_type: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LEAVE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div className="rounded-lg border bg-[#F8FAFD] p-4">
+                <div className="text-sm font-medium text-muted-foreground">Approval path</div>
+                <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--navy)]">
+                  {autoApprove ? (
+                    <>
+                      <CheckCircle2 className="size-4 text-emerald-600" />
+                      Auto-approved
+                    </>
+                  ) : (
+                    <>
+                      <Clock3 className="size-4 text-amber-500" />
+                      Manager approval required
+                    </>
+                  )}
+                </div>
+              </div>
+              <Field label="From">
+                <Input
+                  type="date"
+                  min={todayKey}
+                  value={form.from_date}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      from_date: event.target.value,
+                      to_date: isAfter(parseISO(event.target.value), parseISO(current.to_date))
+                        ? event.target.value
+                        : current.to_date,
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="To">
+                <Input
+                  type="date"
+                  min={form.from_date || todayKey}
+                  value={form.to_date}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, to_date: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Reason" className="md:col-span-2">
+                <Textarea
+                  value={form.reason}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, reason: event.target.value }))
+                  }
+                  rows={4}
+                  placeholder="Add a short note for your manager..."
+                />
+              </Field>
+              <div className="md:col-span-2">
+                <Button
+                  onClick={submit}
+                  disabled={submitting || loading || invalidDateRange || exceedsBalance}
+                  className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+                >
+                  {submitting ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 size-4" />
+                  )}
+                  Submit request
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <aside className="space-y-4">
+            <div className="rounded-xl border bg-card p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <CalendarCheck className="size-5 text-[var(--navy)]" />
+                <h2 className="text-lg font-semibold text-[var(--navy)]">Request preview</h2>
+              </div>
+              <div className="mt-5 space-y-4 text-sm">
+                <PreviewRow label="Type" value={form.leave_type} />
+                <PreviewRow
+                  label="Dates"
+                  value={`${dateLabel(form.from_date)} - ${dateLabel(form.to_date)}`}
+                />
+                <PreviewRow
+                  label="Total days"
+                  value={invalidDateRange ? "Invalid" : String(requestedDays)}
+                />
+                <PreviewRow
+                  label="Balance after"
+                  value={
+                    form.leave_type.toLowerCase() === "unpaid"
+                      ? "Not deducted"
+                      : `${Math.max(selectedRemaining - requestedDays, 0)} days`
+                  }
+                />
+              </div>
+              {exceedsBalance && (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  This request is more than your available balance.
+                </div>
+              )}
+            </div>
+
+            <Link
+              to="/my-roster"
+              className="flex items-center justify-between rounded-xl border bg-card p-4 text-sm font-semibold text-[var(--navy)] shadow-sm hover:bg-secondary/40"
+            >
+              View my roster
+              <ArrowUpRight className="size-4" />
+            </Link>
+          </aside>
+        </section>
+
+        <section className="rounded-xl border bg-card shadow-sm">
+          <div className="flex items-center gap-2 border-b p-5">
+            <FileText className="size-5 text-[var(--navy)]" />
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--navy)]">Leave history</h2>
+              <p className="text-sm text-muted-foreground">
+                Status changes update here automatically.
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[780px] text-sm">
+              <thead className="bg-secondary/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
-                    No leave requests yet.
-                  </td>
+                  <th className="px-5 py-3">Type</th>
+                  <th className="px-5 py-3">From</th>
+                  <th className="px-5 py-3">To</th>
+                  <th className="px-5 py-3">Days</th>
+                  <th className="px-5 py-3">Reason</th>
+                  <th className="px-5 py-3">Status</th>
                 </tr>
-              ) : (
-                history.map((row) => (
-                  <tr key={row.id} className="border-t">
-                    <td className="px-5 py-3 font-medium text-[var(--navy)]">{row.leave_type}</td>
-                    <td className="px-5 py-3">{dateLabel(row.from_date)}</td>
-                    <td className="px-5 py-3">{dateLabel(row.to_date)}</td>
-                    <td className="px-5 py-3">{row.total_days}</td>
-                    <td className="max-w-[260px] truncate px-5 py-3 text-muted-foreground">
-                      {row.reason || "-"}
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge status={row.status} />
+              </thead>
+              <tbody>
+                {history.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                      No leave requests yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+                ) : (
+                  history.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="px-5 py-3 font-medium text-[var(--navy)]">{row.leave_type}</td>
+                      <td className="px-5 py-3">{dateLabel(row.from_date)}</td>
+                      <td className="px-5 py-3">{dateLabel(row.to_date)}</td>
+                      <td className="px-5 py-3">{row.total_days}</td>
+                      <td className="max-w-[260px] truncate px-5 py-3 text-muted-foreground">
+                        {row.reason || "-"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <StatusBadge status={row.status} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </PlanGate>
   );
 }
 
