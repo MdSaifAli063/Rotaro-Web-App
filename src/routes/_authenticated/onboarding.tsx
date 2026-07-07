@@ -63,14 +63,48 @@ function OnboardingPage() {
         .select()
         .single();
       if (error) throw error;
-      const { error: pErr } = await supabase
+      const { data: existingProfile, error: profileLoadError } = await supabase
         .from("profiles")
-        .update({ business_id: biz.id })
-        .eq("id", u.user.id);
-      if (pErr) throw pErr;
-      await supabase.from("settings").insert({ business_id: biz.id });
+        .select("id")
+        .eq("id", u.user.id)
+        .maybeSingle();
+      if (profileLoadError) throw profileLoadError;
+
+      const profilePayload = {
+        id: u.user.id,
+        email: u.user.email ?? "",
+        name: (u.user.user_metadata?.name as string | undefined) ?? "",
+        role: "employer" as const,
+        business_id: biz.id,
+      };
+
+      const { error: profileError } = existingProfile
+        ? await supabase.from("profiles").update({ business_id: biz.id }).eq("id", u.user.id)
+        : await supabase.from("profiles").insert(profilePayload);
+      if (profileError) throw profileError;
+
+      const { error: settingsError } = await supabase
+        .from("settings")
+        .insert({ business_id: biz.id });
+      if (settingsError) throw settingsError;
+
+      const { error: billingError } = await supabase.from("billing_subscriptions" as any).upsert(
+        {
+          business_id: biz.id,
+          provider: "manual",
+          plan_key: "starter",
+          plan_name: "Starter",
+          status: "active",
+          billing_interval: "monthly",
+          currency: "AUD",
+          amount_cents: 0,
+        },
+        { onConflict: "business_id" },
+      );
+      if (billingError) throw billingError;
       toast.success("Business set up!");
-      navigate({ to: "/dashboard" });
+      const pendingCheckout = window.localStorage.getItem("rotaro.pendingCheckout");
+      navigate({ to: pendingCheckout ? "/pricing" : "/dashboard" });
     } catch (e: any) {
       toast.error(e.message ?? "Failed to save");
     } finally {

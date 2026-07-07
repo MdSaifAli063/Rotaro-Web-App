@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { PlanGate } from "@/components/PlanGate";
 
 export const Route = createFileRoute("/_authenticated/reports")({ component: ReportsPage });
 
@@ -234,207 +235,214 @@ function ReportsPage() {
       );
   };
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <div className="text-sm text-muted-foreground">
-          <span className="text-[var(--navy)]">Operations</span> /{" "}
-          <span className="font-semibold text-[var(--navy)]">Reports</span>
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Reports</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Hours, wages, attendance summaries, and exports.
-          </p>
-        </div>
-      </header>
-
-      <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[var(--navy)]">Date range</h2>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
-          <Field label="Start" error={errors.start}>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </Field>
-          <Field label="End" error={errors.end}>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </Field>
-          <Field label="Group By">
-            <Select value={groupBy} onValueChange={(value) => setGroupBy(value as GroupBy)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="day">Day</SelectItem>
-                <SelectItem value="week">Week</SelectItem>
-                <SelectItem value="month">Month</SelectItem>
-                <SelectItem value="quarter">Quarter</SelectItem>
-                <SelectItem value="half_year">Half-Year</SelectItem>
-                <SelectItem value="year">Year</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              className="border-[var(--navy)] text-[var(--navy)]"
-              onClick={() => rosterExport("excel")}
-            >
-              Roster Excel
-            </Button>
-            <Button
-              variant="outline"
-              className="border-[var(--navy)] text-[var(--navy)]"
-              onClick={() => rosterExport("pdf")}
-            >
-              Roster PDF
-            </Button>
+    <PlanGate
+      businessId={profile.business_id}
+      required="professional"
+      title="Reports are a Professional feature"
+      description="Hours, wages, comparison reports, roster exports, and PDF downloads are available on Professional and Business plans."
+    >
+      <div className="space-y-6">
+        <header className="space-y-2">
+          <div className="text-sm text-muted-foreground">
+            <span className="text-[var(--navy)]">Operations</span> /{" "}
+            <span className="font-semibold text-[var(--navy)]">Reports</span>
           </div>
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Employee">
-            <Select value={employeeId} onValueChange={setEmployeeId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All employees</SelectItem>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Department">
-            <Select value={department} onValueChange={setDepartment}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All departments</SelectItem>
-                {departments.map((item) => (
-                  <SelectItem key={item} value={item}>
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-      </section>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Reports</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Hours, wages, attendance summaries, and exports.
+            </p>
+          </div>
+        </header>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <ReportActionCard
-          title="Hours report"
-          loading={loading === "hours"}
-          onGenerate={() => generate("hours")}
-          onExcel={() => exportReport("hours", "excel")}
-          onPdf={() => exportReport("hours", "pdf")}
-        />
-        <ReportActionCard
-          title="Wages report"
-          loading={loading === "wages"}
-          onGenerate={() => generate("wages")}
-          onExcel={() => exportReport("wages", "excel")}
-          onPdf={() => exportReport("wages", "pdf")}
-        />
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[var(--navy)]">Date range</h2>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
+            <Field label="Start" error={errors.start}>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </Field>
+            <Field label="End" error={errors.end}>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </Field>
+            <Field label="Group By">
+              <Select value={groupBy} onValueChange={(value) => setGroupBy(value as GroupBy)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Day</SelectItem>
+                  <SelectItem value="week">Week</SelectItem>
+                  <SelectItem value="month">Month</SelectItem>
+                  <SelectItem value="quarter">Quarter</SelectItem>
+                  <SelectItem value="half_year">Half-Year</SelectItem>
+                  <SelectItem value="year">Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="border-[var(--navy)] text-[var(--navy)]"
+                onClick={() => rosterExport("excel")}
+              >
+                Roster Excel
+              </Button>
+              <Button
+                variant="outline"
+                className="border-[var(--navy)] text-[var(--navy)]"
+                onClick={() => rosterExport("pdf")}
+              >
+                Roster PDF
+              </Button>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Employee">
+              <Select value={employeeId} onValueChange={setEmployeeId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All employees</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Department">
+              <Select value={department} onValueChange={setDepartment}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All departments</SelectItem>
+                  {departments.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        </section>
+
+        <div className="grid gap-5 lg:grid-cols-2">
+          <ReportActionCard
+            title="Hours report"
+            loading={loading === "hours"}
+            onGenerate={() => generate("hours")}
+            onExcel={() => exportReport("hours", "excel")}
+            onPdf={() => exportReport("hours", "pdf")}
+          />
+          <ReportActionCard
+            title="Wages report"
+            loading={loading === "wages"}
+            onGenerate={() => generate("wages")}
+            onExcel={() => exportReport("wages", "excel")}
+            onPdf={() => exportReport("wages", "pdf")}
+          />
+        </div>
+        {result?.kind === "hours" && (
+          <StandardResults
+            kind="hours"
+            result={result}
+            onExcel={() => exportReport("hours", "excel")}
+            onPdf={() => exportReport("hours", "pdf")}
+          />
+        )}
+        {result?.kind === "wages" && (
+          <StandardResults
+            kind="wages"
+            result={result}
+            onExcel={() => exportReport("wages", "excel")}
+            onPdf={() => exportReport("wages", "pdf")}
+          />
+        )}
+
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[var(--navy)]">Combined (hours + wages)</h2>
+          <Button
+            className="mt-4 bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+            disabled={loading === "combined"}
+            onClick={() => generate("combined")}
+          >
+            {loading === "combined" && <Loader2 className="mr-2 size-4 animate-spin" />} Generate
+            combined
+          </Button>
+        </section>
+        {result?.kind === "combined" && (
+          <StandardResults
+            kind="combined"
+            result={result}
+            onExcel={() => exportReport("combined", "excel")}
+            onPdf={() => exportReport("combined", "pdf")}
+          />
+        )}
+
+        <section className="rounded-lg border bg-white p-5 shadow-sm lg:w-1/2">
+          <h2 className="text-lg font-bold text-[var(--navy)]">Comparison vs previous period</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Previous Start" error={errors.previousStart}>
+              <Input
+                type="date"
+                value={previousStart}
+                onChange={(e) => setPreviousStart(e.target.value)}
+              />
+            </Field>
+            <Field label="Previous End" error={errors.previousEnd}>
+              <Input
+                type="date"
+                value={previousEnd}
+                onChange={(e) => setPreviousEnd(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Button
+            className="mt-4 bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+            disabled={loading === "comparison"}
+            onClick={() => generate("comparison")}
+          >
+            {loading === "comparison" && <Loader2 className="mr-2 size-4 animate-spin" />} Compare
+          </Button>
+        </section>
+        {result?.kind === "comparison" && (
+          <ComparisonResults
+            result={result}
+            metric={comparisonMetric}
+            setMetric={setComparisonMetric}
+            startDate={startDate}
+            endDate={endDate}
+            previousStart={previousStart}
+            previousEnd={previousEnd}
+            onExcel={() => exportReport("comparison", "excel")}
+            onPdf={() => exportReport("comparison", "pdf")}
+          />
+        )}
+
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[var(--navy)]">Attendance summary</h2>
+          <Button
+            variant="outline"
+            className="mt-4 border-[var(--navy)] text-[var(--navy)]"
+            disabled={loading === "attendance"}
+            onClick={() => generate("attendance")}
+          >
+            {loading === "attendance" && <Loader2 className="mr-2 size-4 animate-spin" />} Generate
+          </Button>
+        </section>
+        {result?.kind === "attendance" && (
+          <AttendanceResults
+            result={result}
+            onExcel={() => exportReport("attendance", "excel")}
+            onPdf={() => exportReport("attendance", "pdf")}
+          />
+        )}
       </div>
-      {result?.kind === "hours" && (
-        <StandardResults
-          kind="hours"
-          result={result}
-          onExcel={() => exportReport("hours", "excel")}
-          onPdf={() => exportReport("hours", "pdf")}
-        />
-      )}
-      {result?.kind === "wages" && (
-        <StandardResults
-          kind="wages"
-          result={result}
-          onExcel={() => exportReport("wages", "excel")}
-          onPdf={() => exportReport("wages", "pdf")}
-        />
-      )}
-
-      <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[var(--navy)]">Combined (hours + wages)</h2>
-        <Button
-          className="mt-4 bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-          disabled={loading === "combined"}
-          onClick={() => generate("combined")}
-        >
-          {loading === "combined" && <Loader2 className="mr-2 size-4 animate-spin" />} Generate
-          combined
-        </Button>
-      </section>
-      {result?.kind === "combined" && (
-        <StandardResults
-          kind="combined"
-          result={result}
-          onExcel={() => exportReport("combined", "excel")}
-          onPdf={() => exportReport("combined", "pdf")}
-        />
-      )}
-
-      <section className="rounded-lg border bg-white p-5 shadow-sm lg:w-1/2">
-        <h2 className="text-lg font-bold text-[var(--navy)]">Comparison vs previous period</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Previous Start" error={errors.previousStart}>
-            <Input
-              type="date"
-              value={previousStart}
-              onChange={(e) => setPreviousStart(e.target.value)}
-            />
-          </Field>
-          <Field label="Previous End" error={errors.previousEnd}>
-            <Input
-              type="date"
-              value={previousEnd}
-              onChange={(e) => setPreviousEnd(e.target.value)}
-            />
-          </Field>
-        </div>
-        <Button
-          className="mt-4 bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-          disabled={loading === "comparison"}
-          onClick={() => generate("comparison")}
-        >
-          {loading === "comparison" && <Loader2 className="mr-2 size-4 animate-spin" />} Compare
-        </Button>
-      </section>
-      {result?.kind === "comparison" && (
-        <ComparisonResults
-          result={result}
-          metric={comparisonMetric}
-          setMetric={setComparisonMetric}
-          startDate={startDate}
-          endDate={endDate}
-          previousStart={previousStart}
-          previousEnd={previousEnd}
-          onExcel={() => exportReport("comparison", "excel")}
-          onPdf={() => exportReport("comparison", "pdf")}
-        />
-      )}
-
-      <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[var(--navy)]">Attendance summary</h2>
-        <Button
-          variant="outline"
-          className="mt-4 border-[var(--navy)] text-[var(--navy)]"
-          disabled={loading === "attendance"}
-          onClick={() => generate("attendance")}
-        >
-          {loading === "attendance" && <Loader2 className="mr-2 size-4 animate-spin" />} Generate
-        </Button>
-      </section>
-      {result?.kind === "attendance" && (
-        <AttendanceResults
-          result={result}
-          onExcel={() => exportReport("attendance", "excel")}
-          onPdf={() => exportReport("attendance", "pdf")}
-        />
-      )}
-    </div>
+    </PlanGate>
   );
 }
 
