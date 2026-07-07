@@ -14,7 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { PlanGate } from "@/components/PlanGate";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, Send, UserRoundPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, Send, Trash2, UserRoundPlus, XCircle } from "lucide-react";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { findEmployeeForUser } from "@/lib/employee";
 import { notify } from "@/lib/notify";
@@ -360,6 +360,31 @@ function LeavesPage() {
     load(profile);
   };
 
+  const deleteLeave = async (row: LeaveRow) => {
+    if (!window.confirm("Delete this leave request?")) return;
+    try {
+      if (lower(row.status) === "approved") {
+        await applyLeaveBalanceDelta(
+          row.business_id,
+          row.employee_id,
+          row.leave_type,
+          -leaveDays(row),
+        );
+      }
+    } catch (error: any) {
+      toast.error("Failed to update leave balance: " + (error.message ?? "Unknown error"));
+      return;
+    }
+
+    const { error } = await supabase.from("leaves").delete().eq("id", row.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Leave request deleted");
+    load(profile);
+  };
+
   if (!profile) return null;
   const canManage = isManager(profile);
   return (
@@ -568,24 +593,35 @@ function LeavesPage() {
                       </td>
                       {canManage && (
                         <td className="px-5 py-3 text-right">
-                          {lower(r.status) === "pending" && (
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => decide(r, "rejected")}
-                              >
-                                Reject
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => decide(r, "approved")}
-                                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
-                              >
-                                Approve
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex justify-end gap-2">
+                            {lower(r.status) === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => decide(r, "rejected")}
+                                >
+                                  Reject
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => decide(r, "approved")}
+                                  className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+                                >
+                                  Approve
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => deleteLeave(r)}
+                            >
+                              <Trash2 className="mr-1 size-4" />
+                              Delete
+                            </Button>
+                          </div>
                         </td>
                       )}
                     </tr>
