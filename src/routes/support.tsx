@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { BookOpen, MessageSquare, HelpCircle, Headphones, LayoutDashboard } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/routes/index";
+import { sendPublicInquiryEmail } from "@/lib/api/email.functions";
 
 export const Route = createFileRoute("/support")({
   head: () => ({
@@ -246,14 +247,36 @@ function GettingStarted() {
 
 function SupportForm() {
   const [submitting, setSubmitting] = useState(false);
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const [issueType, setIssueType] = useState("");
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!issueType) {
+      toast.error("Please select an issue type.");
+      return;
+    }
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    try {
+      await sendPublicInquiryEmail({
+        data: {
+          source: "support",
+          firstName: String(formData.get("first") || ""),
+          lastName: String(formData.get("last") || ""),
+          email: String(formData.get("email") || ""),
+          phone: String(formData.get("phone") || ""),
+          issueType,
+          message: String(formData.get("message") || ""),
+        },
+      });
       toast.success("Thanks! Our support team will get back to you shortly.");
-      (e.target as HTMLFormElement).reset();
-    }, 600);
+      form.reset();
+      setIssueType("");
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to send your message.");
+    } finally {
+      setSubmitting(false);
+    }
   };
   return (
     <section className="bg-[#EEF1F6]">
@@ -278,7 +301,7 @@ function SupportForm() {
             <Input name="phone" type="tel" className="bg-white" />
           </Field>
           <Field label="Issue type" required className="md:col-span-2">
-            <Select>
+            <Select value={issueType} onValueChange={setIssueType}>
               <SelectTrigger className="bg-white">
                 <SelectValue placeholder="Select an issue type…" />
               </SelectTrigger>
