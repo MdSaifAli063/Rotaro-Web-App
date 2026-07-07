@@ -43,6 +43,14 @@ const stripeFinalizeInputSchema = z.object({
   sessionId: z.string().min(1),
 });
 
+const razorpayFinalizeInputSchema = z.object({
+  businessId: z.string().min(1),
+});
+
+const starterInputSchema = z.object({
+  businessId: z.string().min(1),
+});
+
 const PLAN_META: Record<
   Exclude<BillingPlanKey, "starter">,
   Record<
@@ -255,6 +263,34 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
     return { provider: "razorpay" as const, url };
   });
 
+export const activateStarterPlan = createServerFn({ method: "POST" })
+  .validator(starterInputSchema)
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("billing_subscriptions" as any).upsert(
+      {
+        business_id: data.businessId,
+        provider: "manual",
+        plan_key: "starter",
+        plan_name: "Starter",
+        status: "active",
+        billing_interval: "monthly",
+        currency: "AUD",
+        amount_cents: 0,
+        provider_customer_id: null,
+        provider_subscription_id: null,
+        provider_checkout_url: null,
+        current_period_end: null,
+        trial_ends_at: null,
+        cancel_at_period_end: false,
+      },
+      { onConflict: "business_id" },
+    );
+
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 export const finalizeStripeBillingCheckout = createServerFn({ method: "POST" })
   .validator(stripeFinalizeInputSchema)
   .handler(async ({ data }) => {
@@ -321,6 +357,90 @@ export const finalizeStripeBillingCheckout = createServerFn({ method: "POST" })
     if (error) {
       throw new Error(error.message);
     }
+
+    return { ok: true as const };
+  });
+
+export const finalizeRazorpayBillingCheckout = createServerFn({ method: "POST" })
+  .validator(razorpayFinalizeInputSchema)
+  .handler(async ({ data }) => {
+    const config = getServerConfig();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (!config.billing.razorpayKeyId || !config.billing.razorpayKeySecret) {
+      throw new Error("Razorpay key ID or secret is missing.");
+    }
+
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from("billing_subscriptions" as any)
+      .select("provider_subscription_id,plan_key,billing_interval")
+      .eq("business_id", data.businessId)
+      .eq("provider", "razorpay")
+      .maybeSingle();
+
+    if (existingError) throw new Error(existingError.message);
+
+    const subscriptionId = (existing as { provider_subscription_id?: string | null } | null)
+      ?.provider_subscription_id;
+    if (!subscriptionId) {
+      throw new Error("No pending Razorpay subscription was found for this business.");
+    }
+
+    const response = await fetch(
+      `https://api.razorpay.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      {
+        headers: {
+          Authorization:
+            "Basic " +
+            Buffer.from(
+              `${config.billing.razorpayKeyId}:${config.billing.razorpayKeySecret}`,
+            ).toString("base64"),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Razorpay subscription lookup failed (${response.status}).`);
+    }
+
+    const subscription = (await response.json()) as {
+      id: string;
+      status?: string;
+      current_end?: number;
+    };
+    const providerStatus = subscription.status ?? "pending";
+    if (!["active", "authenticated"].includes(providerStatus)) {
+      throw new Error(`Razorpay subscription is not active yet (${providerStatus}).`);
+    }
+
+    const existingRow = existing as {
+      plan_key?: string | null;
+      billing_interval?: string | null;
+    } | null;
+    const planKey = existingRow?.plan_key === "business" ? "business" : "professional";
+    const billingCycle = existingRow?.billing_interval === "year" ? "annual" : "monthly";
+    const planMeta = PLAN_META[planKey][billingCycle];
+
+    const { error } = await supabaseAdmin.from("billing_subscriptions" as any).upsert(
+      {
+        business_id: data.businessId,
+        provider: "razorpay",
+        plan_key: planKey,
+        plan_name: planMeta.planName,
+        status: "active",
+        billing_interval: planMeta.interval,
+        currency: planMeta.currency,
+        amount_cents: planMeta.amountCents,
+        provider_subscription_id: subscription.id,
+        provider_checkout_url: null,
+        current_period_end: subscription.current_end
+          ? new Date(subscription.current_end * 1000).toISOString()
+          : null,
+      },
+      { onConflict: "business_id" },
+    );
+
+    if (error) throw new Error(error.message);
 
     return { ok: true as const };
   });
