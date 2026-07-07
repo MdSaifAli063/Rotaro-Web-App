@@ -12,6 +12,20 @@ const notificationEmailSchema = z.object({
   subject: z.string().optional(),
 });
 
+const publicInquirySchema = z.object({
+  source: z.enum(["contact", "support", "newsletter"]),
+  firstName: z.string().trim().min(1).max(80),
+  lastName: z.string().trim().min(1).max(80),
+  email: z.string().trim().email().max(160),
+  phone: z.string().trim().max(40).optional(),
+  company: z.string().trim().max(160).optional(),
+  country: z.string().trim().max(80).optional(),
+  enquiryType: z.string().trim().max(80).optional(),
+  issueType: z.string().trim().max(80).optional(),
+  message: z.string().trim().max(4000).optional(),
+  interests: z.array(z.string().trim().max(80)).max(8).optional(),
+});
+
 type ProfileRecipient = {
   id: string;
   name: string | null;
@@ -24,6 +38,80 @@ type BusinessSummary = {
   name: string | null;
   business_email?: string | null;
 };
+
+export const sendPublicInquiryEmail = createServerFn({ method: "POST" })
+  .validator(publicInquirySchema)
+  .handler(async ({ data }) => {
+    const config = getServerConfig();
+    if (!config.email.enabled) {
+      throw new Error("Email delivery is not configured. Set EMAIL_ENABLED and provider keys.");
+    }
+
+    const to =
+      data.source === "support"
+        ? config.email.supportTo
+        : data.source === "newsletter"
+          ? config.email.newsletterTo
+          : config.email.contactTo;
+    if (!isValidEmail(to)) {
+      throw new Error("Public form recipient email is not configured.");
+    }
+    const recipientEmail = to as string;
+
+    const fullName = `${data.firstName} ${data.lastName}`.trim();
+    const sourceLabel =
+      data.source === "support"
+        ? "Support request"
+        : data.source === "newsletter"
+          ? "Newsletter signup"
+          : "Contact enquiry";
+    const detailRows = publicInquiryRows(data);
+    const subject = `Rotaro ${sourceLabel}: ${fullName}`;
+
+    await sendOneEmail({
+      provider: config.email.provider,
+      resendApiKey: config.email.resendApiKey,
+      webhookUrl: config.email.webhookUrl,
+      webhookSecret: config.email.webhookSecret,
+      from: config.email.from,
+      replyTo: data.email,
+      to: recipientEmail,
+      subject,
+      html: renderPublicInquiryHtml({ title: sourceLabel, rows: detailRows }),
+      text: renderPublicInquiryText(sourceLabel, detailRows),
+      metadata: {
+        source: data.source,
+        email: data.email,
+        type: "public_inquiry",
+      },
+    });
+
+    await sendOneEmail({
+      provider: config.email.provider,
+      resendApiKey: config.email.resendApiKey,
+      webhookUrl: config.email.webhookUrl,
+      webhookSecret: config.email.webhookSecret,
+      from: config.email.from,
+      replyTo: config.email.replyTo || recipientEmail,
+      to: data.email,
+      subject:
+        data.source === "newsletter"
+          ? "You're subscribed to Rotaro updates"
+          : "We received your message",
+      html: renderAcknowledgementHtml({
+        firstName: data.firstName,
+        source: data.source,
+      }),
+      text: renderAcknowledgementText(data.firstName, data.source),
+      metadata: {
+        source: data.source,
+        email: data.email,
+        type: "public_inquiry_acknowledgement",
+      },
+    });
+
+    return { sent: true };
+  });
 
 export const sendNotificationEmails = createServerFn({ method: "POST" })
   .validator(notificationEmailSchema)
@@ -109,6 +197,20 @@ async function loadBusiness(
 
 function isValidEmail(value?: string | null) {
   return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function publicInquiryRows(data: z.infer<typeof publicInquirySchema>) {
+  return [
+    ["Name", `${data.firstName} ${data.lastName}`.trim()],
+    ["Email", data.email],
+    ["Phone", data.phone],
+    ["Company", data.company],
+    ["Country", data.country],
+    ["Enquiry type", data.enquiryType],
+    ["Issue type", data.issueType],
+    ["Interests", data.interests?.join(", ")],
+    ["Message", data.message],
+  ].filter(([, value]) => !!value) as Array<[string, string]>;
 }
 
 function isEmailPreferenceAllowed(profile: ProfileRecipient, type: string) {
@@ -215,6 +317,86 @@ function renderEmailText({
   url?: string;
 }) {
   return `${businessName || "Rotaro"} update\n\n${message}${url ? `\n\nOpen: ${url}` : ""}`;
+}
+
+function renderPublicInquiryHtml({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<[string, string]>;
+}) {
+  const body = rows
+    .map(
+      ([label, value]) => `
+        <tr>
+          <td style="padding:10px 0;color:#7b879d;width:150px;vertical-align:top">${escapeHtml(label)}</td>
+          <td style="padding:10px 0;color:#17233b;white-space:pre-wrap">${escapeHtml(value)}</td>
+        </tr>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f5f7fb;font-family:Arial,sans-serif;color:#17233b">
+    <div style="max-width:680px;margin:0 auto;padding:28px 16px">
+      <div style="background:#ffffff;border:1px solid #dfe5ee;border-radius:12px;overflow:hidden">
+        <div style="background:#17233b;color:#ffffff;padding:20px 24px;font-size:18px;font-weight:700">Rotaro</div>
+        <div style="padding:24px">
+          <h1 style="font-size:22px;line-height:1.3;margin:0 0 16px">${escapeHtml(title)}</h1>
+          <table style="width:100%;border-collapse:collapse;font-size:15px;line-height:1.5">${body}</table>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+function renderPublicInquiryText(title: string, rows: Array<[string, string]>) {
+  return `${title}\n\n${rows.map(([label, value]) => `${label}: ${value}`).join("\n")}`;
+}
+
+function renderAcknowledgementHtml({
+  firstName,
+  source,
+}: {
+  firstName: string;
+  source: "contact" | "support" | "newsletter";
+}) {
+  const message =
+    source === "newsletter"
+      ? "You are subscribed to Rotaro product updates and workforce scheduling tips."
+      : source === "support"
+        ? "Our support team received your message and will get back to you within 1 business day."
+        : "Our team received your enquiry and will get back to you shortly.";
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f5f7fb;font-family:Arial,sans-serif;color:#17233b">
+    <div style="max-width:620px;margin:0 auto;padding:28px 16px">
+      <div style="background:#ffffff;border:1px solid #dfe5ee;border-radius:12px;overflow:hidden">
+        <div style="background:#17233b;color:#ffffff;padding:20px 24px;font-size:18px;font-weight:700">Rotaro</div>
+        <div style="padding:24px">
+          <h1 style="font-size:22px;line-height:1.3;margin:0 0 16px">Thanks, ${escapeHtml(firstName)}</h1>
+          <p style="font-size:15px;line-height:1.6;margin:0;color:#33415c">${message}</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+function renderAcknowledgementText(
+  firstName: string,
+  source: "contact" | "support" | "newsletter",
+) {
+  if (source === "newsletter") {
+    return `Thanks, ${firstName}.\n\nYou are subscribed to Rotaro product updates and workforce scheduling tips.`;
+  }
+  if (source === "support") {
+    return `Thanks, ${firstName}.\n\nOur support team received your message and will get back to you within 1 business day.`;
+  }
+  return `Thanks, ${firstName}.\n\nOur team received your enquiry and will get back to you shortly.`;
 }
 
 async function sendOneEmail(options: {
