@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PlanGate } from "@/components/PlanGate";
 import {
   Select,
   SelectContent,
@@ -410,482 +411,498 @@ function AttendancePage() {
 
   if (!isManager(profile)) {
     return (
-      <EmployeeView
-        employeeName={employeeState.employeeName}
-        today={employeeState.today}
-        history={employeeState.history}
-        onCheckIn={async () => {
-          if (!employeeState.employeeId || !profile.business_id) return;
-          const todayStr = todayKey();
-          const { data: existing } = await supabase
-            .from("attendance_records")
-            .select("*")
-            .eq("employee_id", employeeState.employeeId)
-            .eq("date", todayStr)
-            .is("check_out_time", null)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (existing?.check_in_time) {
-            toast.info("You are already checked in");
-            setEmployeeState((prev) => ({ ...prev, today: existing as AttendanceRow }));
-            return;
-          }
+      <PlanGate
+        businessId={profile.business_id}
+        required="professional"
+        title="Attendance is a Professional feature"
+        description="Employee check-in/out, break tracking, attendance dashboards, and roster comparison are included with Professional and Business plans."
+      >
+        <EmployeeView
+          employeeName={employeeState.employeeName}
+          today={employeeState.today}
+          history={employeeState.history}
+          onCheckIn={async () => {
+            if (!employeeState.employeeId || !profile.business_id) return;
+            const todayStr = todayKey();
+            const { data: existing } = await supabase
+              .from("attendance_records")
+              .select("*")
+              .eq("employee_id", employeeState.employeeId)
+              .eq("date", todayStr)
+              .is("check_out_time", null)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (existing?.check_in_time) {
+              toast.info("You are already checked in");
+              setEmployeeState((prev) => ({ ...prev, today: existing as AttendanceRow }));
+              return;
+            }
 
-          const checkedInAt = new Date();
-          const { data: inserted, error } = await supabase
-            .from("attendance_records")
-            .insert({
-              business_id: profile.business_id,
-              employee_id: employeeState.employeeId,
+            const checkedInAt = new Date();
+            const { data: inserted, error } = await supabase
+              .from("attendance_records")
+              .insert({
+                business_id: profile.business_id,
+                employee_id: employeeState.employeeId,
+                user_id: profile.id,
+                date: todayStr,
+                check_in_time: checkedInAt.toISOString(),
+                status: "checked_in",
+              })
+              .select("id")
+              .single();
+            if (error) {
+              toast.error(error.message);
+              return;
+            }
+
+            await notifyManagers({
+              businessId: profile.business_id,
+              type: "attendance_checked_in",
+              message: `${employeeState.employeeName} checked in at ${timeLabel(checkedInAt.toISOString())}.`,
+              relatedId: inserted.id,
+            }).catch((notifyError) => console.error(notifyError));
+            toast.success("Checked in");
+            await loadEmployee(profile);
+          }}
+          onCheckOut={async () => {
+            if (!employeeState.today?.check_in_time || !employeeState.employeeId) return;
+            const out = new Date();
+            const patch = {
+              check_out_time: out.toISOString(),
+              total_hours: workedHours(employeeState.today, out),
+              status: "completed",
               user_id: profile.id,
-              date: todayStr,
-              check_in_time: checkedInAt.toISOString(),
-              status: "checked_in",
-            })
-            .select("id")
-            .single();
-          if (error) {
-            toast.error(error.message);
-            return;
-          }
-
-          await notifyManagers({
-            businessId: profile.business_id,
-            type: "attendance_checked_in",
-            message: `${employeeState.employeeName} checked in at ${timeLabel(checkedInAt.toISOString())}.`,
-            relatedId: inserted.id,
-          }).catch((notifyError) => console.error(notifyError));
-          toast.success("Checked in");
-          await loadEmployee(profile);
-        }}
-        onCheckOut={async () => {
-          if (!employeeState.today?.check_in_time || !employeeState.employeeId) return;
-          const out = new Date();
-          const patch = {
-            check_out_time: out.toISOString(),
-            total_hours: workedHours(employeeState.today, out),
-            status: "completed",
-            user_id: profile.id,
-          };
-          const { error } = await supabase
-            .from("attendance_records")
-            .update(patch)
-            .eq("id", employeeState.today.id);
-          if (error) {
-            toast.error(error.message);
-            return;
-          }
-          if (profile.business_id) {
-            await notifyManagers({
-              businessId: profile.business_id,
-              type: "attendance_checked_out",
-              message: `${employeeState.employeeName} checked out at ${timeLabel(out.toISOString())}.`,
-              relatedId: employeeState.today.id,
-            }).catch((notifyError) => console.error(notifyError));
-          }
-          toast.success("Checked out");
-          await loadEmployee(profile);
-        }}
-        onStartBreak={async () => {
-          if (!employeeState.today?.id) return;
-          const started = new Date();
-          const { error } = await supabase
-            .from("attendance_records")
-            .update({ break_start: started.toISOString(), user_id: profile.id })
-            .eq("id", employeeState.today.id);
-          if (error) {
-            toast.error(error.message);
-            return;
-          }
-          if (profile.business_id) {
-            await notifyManagers({
-              businessId: profile.business_id,
-              type: "attendance_break_started",
-              message: `${employeeState.employeeName} started a break at ${timeLabel(started.toISOString())}.`,
-              relatedId: employeeState.today.id,
-            }).catch((notifyError) => console.error(notifyError));
-          }
-          await loadEmployee(profile);
-        }}
-        onEndBreak={async () => {
-          if (!employeeState.today?.id) return;
-          const ended = new Date();
-          const { error } = await supabase
-            .from("attendance_records")
-            .update({ break_end: ended.toISOString(), user_id: profile.id })
-            .eq("id", employeeState.today.id);
-          if (error) {
-            toast.error(error.message);
-            return;
-          }
-          if (profile.business_id) {
-            await notifyManagers({
-              businessId: profile.business_id,
-              type: "attendance_break_ended",
-              message: `${employeeState.employeeName} ended a break at ${timeLabel(ended.toISOString())}.`,
-              relatedId: employeeState.today.id,
-            }).catch((notifyError) => console.error(notifyError));
-          }
-          await loadEmployee(profile);
-        }}
-      />
+            };
+            const { error } = await supabase
+              .from("attendance_records")
+              .update(patch)
+              .eq("id", employeeState.today.id);
+            if (error) {
+              toast.error(error.message);
+              return;
+            }
+            if (profile.business_id) {
+              await notifyManagers({
+                businessId: profile.business_id,
+                type: "attendance_checked_out",
+                message: `${employeeState.employeeName} checked out at ${timeLabel(out.toISOString())}.`,
+                relatedId: employeeState.today.id,
+              }).catch((notifyError) => console.error(notifyError));
+            }
+            toast.success("Checked out");
+            await loadEmployee(profile);
+          }}
+          onStartBreak={async () => {
+            if (!employeeState.today?.id) return;
+            const started = new Date();
+            const { error } = await supabase
+              .from("attendance_records")
+              .update({ break_start: started.toISOString(), user_id: profile.id })
+              .eq("id", employeeState.today.id);
+            if (error) {
+              toast.error(error.message);
+              return;
+            }
+            if (profile.business_id) {
+              await notifyManagers({
+                businessId: profile.business_id,
+                type: "attendance_break_started",
+                message: `${employeeState.employeeName} started a break at ${timeLabel(started.toISOString())}.`,
+                relatedId: employeeState.today.id,
+              }).catch((notifyError) => console.error(notifyError));
+            }
+            await loadEmployee(profile);
+          }}
+          onEndBreak={async () => {
+            if (!employeeState.today?.id) return;
+            const ended = new Date();
+            const { error } = await supabase
+              .from("attendance_records")
+              .update({ break_end: ended.toISOString(), user_id: profile.id })
+              .eq("id", employeeState.today.id);
+            if (error) {
+              toast.error(error.message);
+              return;
+            }
+            if (profile.business_id) {
+              await notifyManagers({
+                businessId: profile.business_id,
+                type: "attendance_break_ended",
+                message: `${employeeState.employeeName} ended a break at ${timeLabel(ended.toISOString())}.`,
+                relatedId: employeeState.today.id,
+              }).catch((notifyError) => console.error(notifyError));
+            }
+            await loadEmployee(profile);
+          }}
+        />
+      </PlanGate>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Attendance</h1>
-        <p className="text-sm text-muted-foreground">
-          Track employee attendance and manage daily records.
-        </p>
-      </header>
+    <PlanGate
+      businessId={profile.business_id}
+      required="professional"
+      title="Attendance is a Professional feature"
+      description="Employee check-in/out, break tracking, attendance dashboards, and roster comparison are included with Professional and Business plans."
+    >
+      <div className="space-y-6">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Attendance</h1>
+          <p className="text-sm text-muted-foreground">
+            Track employee attendance and manage daily records.
+          </p>
+        </header>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="h-auto rounded-2xl bg-transparent p-0">
-          <TabsTrigger
-            value="overview"
-            className="rounded-xl border px-4 py-2 data-[state=active]:border-[var(--navy)] data-[state=active]:bg-white data-[state=active]:text-[var(--navy)]"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="roster"
-            className="rounded-xl border px-4 py-2 data-[state=active]:border-[var(--navy)] data-[state=active]:bg-white data-[state=active]:text-[var(--navy)]"
-          >
-            Roster comparison
-          </TabsTrigger>
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="h-auto rounded-2xl bg-transparent p-0">
+            <TabsTrigger
+              value="overview"
+              className="rounded-xl border px-4 py-2 data-[state=active]:border-[var(--navy)] data-[state=active]:bg-white data-[state=active]:text-[var(--navy)]"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="roster"
+              className="rounded-xl border px-4 py-2 data-[state=active]:border-[var(--navy)] data-[state=active]:bg-white data-[state=active]:text-[var(--navy)]"
+            >
+              Roster comparison
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,0.7fr)]">
-            <StatCard
-              icon={CalendarDays}
-              title="Today's Attendance"
-              subtitle={
-                todayRoster.length
-                  ? `${todayRoster.length} rostered shifts today`
-                  : "No rostered shifts today"
-              }
-              value={`${stats.employeeAttendanceRate}%`}
-              footer={[
-                { label: "On-Time", value: `${onTimeRate}%`, color: "bg-blue-500" },
-                { label: "Late", value: `${lateRate}%`, color: "bg-amber-500" },
-                {
-                  label: "Not attended",
-                  value: `${notAttendedRate}%`,
-                  color: "bg-slate-300",
-                },
-              ]}
-              chart={weekBars.map((item) => ({
-                label: item.day,
-                value: item.rate,
-                filled: item.filled,
-              }))}
-            />
-            <MetricCard
-              icon={Users2}
-              title="Employee Attendance"
-              value={`${stats.todayCheckedIn}/${stats.todayRostered || stats.activeEmployees}`}
-              subtitle={`${stats.activeEmployees} active employees`}
-              footer="Last week +0%"
-            />
-            <MetricCard
-              icon={Clock3}
-              title="Total Log Hours"
-              value={formatHours(stats.totalLogHours)}
-              subtitle={`${weekAttendance.length} attendance records this week`}
-            />
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.42fr)_minmax(0,0.58fr)]">
-            <PerformanceCard value={stats.workingHourRate} hours={stats.totalLogHours} />
-            <div className="grid gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:grid-cols-3 md:p-6">
-              <MiniStat label="Rostered today" value={String(stats.todayRostered)} />
-              <MiniStat label="Checked in today" value={String(stats.todayCheckedIn)} />
-              <MiniStat label="Missing today" value={String(stats.notAttended)} />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-xl font-semibold text-[var(--navy)]">Attendance List</h2>
-                <p className="text-sm text-muted-foreground">
-                  {format(startOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d")} -{" "}
-                  {format(endOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d, yyyy")}
-                </p>
-              </div>
-              <div className="grid w-full gap-2 sm:grid-cols-3 xl:w-auto xl:flex xl:flex-wrap xl:items-center xl:justify-end">
-                <Select
-                  value={deptFilter}
-                  onValueChange={(value) => {
-                    setDeptFilter(value);
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-full xl:w-[140px]">
-                    <SelectValue placeholder="All departments" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept === "all" ? "All departments" : dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={sortBy}
-                  onValueChange={(value) => {
-                    setSortBy(value);
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-full xl:w-[140px]">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date">Sort by date</SelectItem>
-                    <SelectItem value="hours">Sort by hours</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 xl:w-auto"
-                  onClick={() => {
-                    setDeptFilter("all");
-                    setSortBy("date");
-                    setPage(1);
-                  }}
-                >
-                  <Filter className="size-4" />
-                  Reset
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-6 overflow-x-auto rounded-2xl border">
-              <table className="min-w-[740px] w-full table-fixed text-[13px]">
-                <thead className="bg-secondary text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="w-10 px-3 py-3">
-                      <input type="checkbox" className="size-4 rounded border-border" />
-                    </th>
-                    <th className="w-[96px] whitespace-nowrap px-3 py-3">Employee ID</th>
-                    <th className="w-[140px] whitespace-nowrap px-3 py-3">Name</th>
-                    <th className="w-[120px] whitespace-nowrap px-3 py-3">Department</th>
-                    <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-in</th>
-                    <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-out</th>
-                    <th className="w-[88px] whitespace-nowrap px-3 py-3">Hours</th>
-                    <th className="w-[88px] whitespace-nowrap px-3 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {managerLoading ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                        Loading attendance...
-                      </td>
-                    </tr>
-                  ) : pageRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
-                        No attendance records in this range.
-                      </td>
-                    </tr>
-                  ) : (
-                    pageRows.map((row) => (
-                      <tr key={row.id} className="border-t">
-                        <td className="px-3 py-3">
-                          <input type="checkbox" className="size-4 rounded border-border" />
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
-                          {row.employees?.employee_code ??
-                            row.employee_id.slice(0, 6).toUpperCase()}
-                        </td>
-                        <td className="px-3 py-3 truncate font-medium text-[var(--navy)]">
-                          {row.employees?.name ?? "-"}
-                        </td>
-                        <td className="px-3 py-3 truncate">{row.employees?.department ?? "-"}</td>
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          {timeLabel(row.check_in_time)}
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          {timeLabel(row.check_out_time)}
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          {formatHours(row.total_hours ?? workedHours(row))}
-                        </td>
-                        <td className="px-3 py-3">
-                          <Badge
-                            variant="outline"
-                            className="border-emerald-200 bg-emerald-50 text-emerald-700"
-                          >
-                            {statusLabel(row.status)}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <div>Total Attendance: {visibleRows.length}</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                >
-                  <ChevronLeft className="size-4" />
-                  Previous
-                </Button>
-                <Badge variant="outline" className="rounded-md px-3 py-1">
-                  {page}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                >
-                  Next
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span>Show per page</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    setPageSize(Number(value));
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="roster" className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant={mismatchesOnly ? "outline" : "default"}
-                className={
-                  mismatchesOnly
-                    ? "border-[var(--navy)] bg-white text-[var(--navy)] hover:bg-secondary"
-                    : "bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,0.7fr)]">
+              <StatCard
+                icon={CalendarDays}
+                title="Today's Attendance"
+                subtitle={
+                  todayRoster.length
+                    ? `${todayRoster.length} rostered shifts today`
+                    : "No rostered shifts today"
                 }
-                onClick={() => setMismatchesOnly((v) => !v)}
-              >
-                Mismatches only
-              </Button>
-              <Button
-                variant="outline"
-                className="border-border bg-white text-[var(--navy)] hover:bg-secondary"
-                onClick={sendRosterSummary}
-              >
-                <Mail className="mr-2 size-4" />
-                Email HR
-              </Button>
+                value={`${stats.employeeAttendanceRate}%`}
+                footer={[
+                  { label: "On-Time", value: `${onTimeRate}%`, color: "bg-blue-500" },
+                  { label: "Late", value: `${lateRate}%`, color: "bg-amber-500" },
+                  {
+                    label: "Not attended",
+                    value: `${notAttendedRate}%`,
+                    color: "bg-slate-300",
+                  },
+                ]}
+                chart={weekBars.map((item) => ({
+                  label: item.day,
+                  value: item.rate,
+                  filled: item.filled,
+                }))}
+              />
+              <MetricCard
+                icon={Users2}
+                title="Employee Attendance"
+                value={`${stats.todayCheckedIn}/${stats.todayRostered || stats.activeEmployees}`}
+                subtitle={`${stats.activeEmployees} active employees`}
+                footer="Last week +0%"
+              />
+              <MetricCard
+                icon={Clock3}
+                title="Total Log Hours"
+                value={formatHours(stats.totalLogHours)}
+                subtitle={`${weekAttendance.length} attendance records this week`}
+              />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <KpiCard accent="purple" value={mismatchCount} label="Mismatches in range" />
-              <KpiCard accent="navy" value={comparisonRows.length} label="Employees tracked" />
-              <KpiCard accent="blue" value={comparisonDays.length} label="Days in view" />
+            <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.42fr)_minmax(0,0.58fr)]">
+              <PerformanceCard value={stats.workingHourRate} hours={stats.totalLogHours} />
+              <div className="grid gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:grid-cols-3 md:p-6">
+                <MiniStat label="Rostered today" value={String(stats.todayRostered)} />
+                <MiniStat label="Checked in today" value={String(stats.todayCheckedIn)} />
+                <MiniStat label="Missing today" value={String(stats.notAttended)} />
+              </div>
             </div>
 
-            <div className="rounded-2xl border bg-card p-4 shadow-sm">
-              <div className="overflow-auto rounded-2xl border">
-                <table className="w-full min-w-[1100px] text-sm">
-                  <thead>
-                    <tr className="bg-secondary text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="sticky left-0 z-20 bg-secondary px-4 py-4">Emp Code</th>
-                      <th className="sticky left-[110px] z-20 bg-secondary px-4 py-4">Emp Name</th>
-                      {comparisonDays.map((day) => (
-                        <th
-                          key={day.key}
-                          className={`px-4 py-4 text-center ${day.isToday ? "bg-blue-50 text-[var(--navy)]" : ""} ${
-                            day.isWeekend ? "bg-slate-200" : ""
-                          }`}
-                        >
-                          <div className="text-xs font-semibold uppercase tracking-widest">
-                            {day.day}
-                          </div>
-                          <div
-                            className={`text-lg font-bold ${day.isToday ? "text-blue-600" : "text-[var(--navy)]"}`}
-                          >
-                            {day.label}
-                          </div>
-                        </th>
+            <div className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-semibold text-[var(--navy)]">Attendance List</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {format(startOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d")} -{" "}
+                    {format(endOfWeek(new Date(), { weekStartsOn: 1 }), "MMMM d, yyyy")}
+                  </p>
+                </div>
+                <div className="grid w-full gap-2 sm:grid-cols-3 xl:w-auto xl:flex xl:flex-wrap xl:items-center xl:justify-end">
+                  <Select
+                    value={deptFilter}
+                    onValueChange={(value) => {
+                      setDeptFilter(value);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full xl:w-[140px]">
+                      <SelectValue placeholder="All departments" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept === "all" ? "All departments" : dept}
+                        </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={sortBy}
+                    onValueChange={(value) => {
+                      setSortBy(value);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full xl:w-[140px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Sort by date</SelectItem>
+                      <SelectItem value="hours">Sort by hours</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 xl:w-auto"
+                    onClick={() => {
+                      setDeptFilter("all");
+                      setSortBy("date");
+                      setPage(1);
+                    }}
+                  >
+                    <Filter className="size-4" />
+                    Reset
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-6 overflow-x-auto rounded-2xl border">
+                <table className="min-w-[740px] w-full table-fixed text-[13px]">
+                  <thead className="bg-secondary text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="w-10 px-3 py-3">
+                        <input type="checkbox" className="size-4 rounded border-border" />
+                      </th>
+                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Employee ID</th>
+                      <th className="w-[140px] whitespace-nowrap px-3 py-3">Name</th>
+                      <th className="w-[120px] whitespace-nowrap px-3 py-3">Department</th>
+                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-in</th>
+                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-out</th>
+                      <th className="w-[88px] whitespace-nowrap px-3 py-3">Hours</th>
+                      <th className="w-[88px] whitespace-nowrap px-3 py-3">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(mismatchesOnly
-                      ? comparisonRows.filter((row) => row.hasMismatch)
-                      : comparisonRows
-                    ).map((row) => (
-                      <tr key={row.employeeId} className="border-t">
-                        <td className="sticky left-0 z-10 bg-card px-4 py-4 font-mono text-sm text-muted-foreground">
-                          {row.employeeCode}
+                    {managerLoading ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                          Loading attendance...
                         </td>
-                        <td className="sticky left-[110px] z-10 bg-card px-4 py-4 font-medium text-[var(--navy)]">
-                          {row.employeeName}
-                        </td>
-                        {row.cells.map((cell) => (
-                          <td key={`${row.employeeId}-${cell.key}`} className="px-3 py-3">
-                            <div
-                              className={`rounded-xl border px-3 py-3 text-center text-xs font-semibold ${
-                                cell.kind === "working"
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : cell.kind === "mismatch"
-                                    ? "border-violet-200 bg-violet-50 text-violet-700"
-                                    : cell.kind === "scheduled"
-                                      ? "border-blue-100 bg-blue-50 text-[var(--navy)]"
-                                      : cell.kind === "leave"
-                                        ? "border-purple-200 bg-purple-50 text-purple-700"
-                                        : "border-border bg-secondary text-muted-foreground"
-                              }`}
-                            >
-                              {cell.label}
-                            </div>
-                          </td>
-                        ))}
                       </tr>
-                    ))}
+                    ) : pageRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                          No attendance records in this range.
+                        </td>
+                      </tr>
+                    ) : (
+                      pageRows.map((row) => (
+                        <tr key={row.id} className="border-t">
+                          <td className="px-3 py-3">
+                            <input type="checkbox" className="size-4 rounded border-border" />
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
+                            {row.employees?.employee_code ??
+                              row.employee_id.slice(0, 6).toUpperCase()}
+                          </td>
+                          <td className="px-3 py-3 truncate font-medium text-[var(--navy)]">
+                            {row.employees?.name ?? "-"}
+                          </td>
+                          <td className="px-3 py-3 truncate">{row.employees?.department ?? "-"}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            {timeLabel(row.check_in_time)}
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            {timeLabel(row.check_out_time)}
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            {formatHours(row.total_hours ?? workedHours(row))}
+                          </td>
+                          <td className="px-3 py-3">
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                            >
+                              {statusLabel(row.status)}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                <Legend label="Working" color="bg-emerald-500" />
-                <Legend label="Weekly off" color="bg-amber-400" />
-                <Legend label="Public holiday" color="bg-rose-400" />
-                <Legend label="Approved leave" color="bg-purple-400" />
-                <Legend label="Mismatch" color="bg-violet-500" />
+              <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                <div>Total Attendance: {visibleRows.length}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                  >
+                    <ChevronLeft className="size-4" />
+                    Previous
+                  </Button>
+                  <Badge variant="outline" className="rounded-md px-3 py-1">
+                    {page}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                  >
+                    Next
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>Show per page</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(value) => {
+                      setPageSize(Number(value));
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+          </TabsContent>
+
+          <TabsContent value="roster" className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant={mismatchesOnly ? "outline" : "default"}
+                  className={
+                    mismatchesOnly
+                      ? "border-[var(--navy)] bg-white text-[var(--navy)] hover:bg-secondary"
+                      : "bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
+                  }
+                  onClick={() => setMismatchesOnly((v) => !v)}
+                >
+                  Mismatches only
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-border bg-white text-[var(--navy)] hover:bg-secondary"
+                  onClick={sendRosterSummary}
+                >
+                  <Mail className="mr-2 size-4" />
+                  Email HR
+                </Button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <KpiCard accent="purple" value={mismatchCount} label="Mismatches in range" />
+                <KpiCard accent="navy" value={comparisonRows.length} label="Employees tracked" />
+                <KpiCard accent="blue" value={comparisonDays.length} label="Days in view" />
+              </div>
+
+              <div className="rounded-2xl border bg-card p-4 shadow-sm">
+                <div className="overflow-auto rounded-2xl border">
+                  <table className="w-full min-w-[1100px] text-sm">
+                    <thead>
+                      <tr className="bg-secondary text-left text-xs uppercase tracking-wide text-muted-foreground">
+                        <th className="sticky left-0 z-20 bg-secondary px-4 py-4">Emp Code</th>
+                        <th className="sticky left-[110px] z-20 bg-secondary px-4 py-4">
+                          Emp Name
+                        </th>
+                        {comparisonDays.map((day) => (
+                          <th
+                            key={day.key}
+                            className={`px-4 py-4 text-center ${day.isToday ? "bg-blue-50 text-[var(--navy)]" : ""} ${
+                              day.isWeekend ? "bg-slate-200" : ""
+                            }`}
+                          >
+                            <div className="text-xs font-semibold uppercase tracking-widest">
+                              {day.day}
+                            </div>
+                            <div
+                              className={`text-lg font-bold ${day.isToday ? "text-blue-600" : "text-[var(--navy)]"}`}
+                            >
+                              {day.label}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(mismatchesOnly
+                        ? comparisonRows.filter((row) => row.hasMismatch)
+                        : comparisonRows
+                      ).map((row) => (
+                        <tr key={row.employeeId} className="border-t">
+                          <td className="sticky left-0 z-10 bg-card px-4 py-4 font-mono text-sm text-muted-foreground">
+                            {row.employeeCode}
+                          </td>
+                          <td className="sticky left-[110px] z-10 bg-card px-4 py-4 font-medium text-[var(--navy)]">
+                            {row.employeeName}
+                          </td>
+                          {row.cells.map((cell) => (
+                            <td key={`${row.employeeId}-${cell.key}`} className="px-3 py-3">
+                              <div
+                                className={`rounded-xl border px-3 py-3 text-center text-xs font-semibold ${
+                                  cell.kind === "working"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : cell.kind === "mismatch"
+                                      ? "border-violet-200 bg-violet-50 text-violet-700"
+                                      : cell.kind === "scheduled"
+                                        ? "border-blue-100 bg-blue-50 text-[var(--navy)]"
+                                        : cell.kind === "leave"
+                                          ? "border-purple-200 bg-purple-50 text-purple-700"
+                                          : "border-border bg-secondary text-muted-foreground"
+                                }`}
+                              >
+                                {cell.label}
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                  <Legend label="Working" color="bg-emerald-500" />
+                  <Legend label="Weekly off" color="bg-amber-400" />
+                  <Legend label="Public holiday" color="bg-rose-400" />
+                  <Legend label="Approved leave" color="bg-purple-400" />
+                  <Legend label="Mismatch" color="bg-violet-500" />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </PlanGate>
   );
 }
 

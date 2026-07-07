@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  finalizeRazorpayBillingCheckout,
   finalizeStripeBillingCheckout,
   getBillingProviderStatus,
   type BillingProviderStatus,
@@ -20,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { isDemoFullAccessEmail } from "@/lib/billing/plans";
 import {
   Table,
   TableBody,
@@ -74,24 +76,42 @@ const plans = [
     name: "Starter",
     price: "$0",
     interval: "Free forever",
-    description: "For small teams getting organized.",
-    features: ["Roster planning", "Leave requests", "Attendance tracking"],
+    description: "For small teams getting started with basic roster planning.",
+    features: ["Up to 5 employees", "1 location", "Basic roster (create + view)", "Email support"],
   },
   {
     key: "professional",
     name: "Professional",
-    price: "$49",
+    price: "$29",
     interval: "per month",
-    description: "For growing teams that need approvals and templates.",
-    features: ["Shift templates", "Auto approvals", "Notifications"],
+    description: "For growing teams that need the full workforce toolkit.",
+    features: [
+      "Up to 25 employees",
+      "3 locations",
+      "Full roster (create, publish, send, download)",
+      "All reports (hours, wages, comparison)",
+      "Holiday import",
+      "Leave management",
+      "PDF extractor",
+      "Priority email support",
+    ],
   },
   {
     key: "business",
     name: "Business",
-    price: "$89",
+    price: "$79",
     interval: "per month",
-    description: "For larger teams with reporting and control.",
-    features: ["Advanced reports", "Unlimited locations", "Priority support"],
+    description: "For larger teams that need finance, custom setup, and priority support.",
+    features: [
+      "Unlimited employees & locations",
+      "Everything in Professional",
+      "Finance organiser",
+      "Email-to-extract",
+      "Roster -> Finance data feed",
+      "Custom holiday setup",
+      "Phone + priority support",
+      "Early access to new features",
+    ],
   },
 ] as const;
 
@@ -141,6 +161,24 @@ function BillingPage() {
           window.history.replaceState({}, "", nextUrl);
         } catch (error: any) {
           toast.error(error?.message ?? "Could not sync your Stripe subscription yet.");
+        }
+      }
+      if (searchParams.get("success") === "1" && searchParams.get("provider") === "razorpay") {
+        try {
+          await finalizeRazorpayBillingCheckout({
+            data: {
+              businessId: nextProfile.business_id,
+            },
+          });
+          toast.success("Razorpay subscription synced to Billing.");
+          searchParams.delete("success");
+          searchParams.delete("provider");
+          searchParams.delete("plan");
+          searchParams.delete("cycle");
+          const nextUrl = `${window.location.pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+          window.history.replaceState({}, "", nextUrl);
+        } catch (error: any) {
+          toast.error(error?.message ?? "Could not sync your Razorpay subscription yet.");
         }
       }
 
@@ -206,10 +244,11 @@ function BillingPage() {
     );
   }
 
-  const currentPlan = subscription?.plan_name ?? "Starter";
-  const currentStatus = subscription?.status ?? "active";
-  const currentProvider = subscription?.provider ?? "manual";
-  const amount = (subscription?.amount_cents ?? 0) / 100;
+  const demoFullAccess = isDemoFullAccessEmail(profile.email);
+  const currentPlan = demoFullAccess ? "Business (Demo)" : (subscription?.plan_name ?? "Starter");
+  const currentStatus = demoFullAccess ? "active" : (subscription?.status ?? "active");
+  const currentProvider = demoFullAccess ? "manual" : (subscription?.provider ?? "manual");
+  const amount = demoFullAccess ? 0 : (subscription?.amount_cents ?? 0) / 100;
 
   return (
     <div className="space-y-6">
