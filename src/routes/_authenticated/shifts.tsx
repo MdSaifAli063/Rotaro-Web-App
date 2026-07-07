@@ -14,6 +14,7 @@ import {
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { PlanGate } from "@/components/PlanGate";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
   component: ShiftsPage,
@@ -127,172 +128,179 @@ function ShiftsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Shift Templates</h1>
-          <p className="text-sm text-muted-foreground mt-1">Reusable presets for the roster.</p>
-        </div>
-        {canManage && (
-          <Button
-            onClick={() => {
-              setEditing({ ...empty });
-              setOpen(true);
-            }}
-            className="bg-[var(--navy)] hover:bg-[var(--navy-light)] w-full sm:w-auto"
-          >
-            <Plus className="size-4 mr-2" /> New template
-          </Button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {loading ? (
-          <div className="col-span-full bg-card border rounded-xl p-12 text-center text-sm text-muted-foreground">
-            Loading shift templates...
+    <PlanGate
+      businessId={profile?.business_id}
+      required="professional"
+      title="Shift Templates are a Professional feature"
+      description="Reusable roster presets are included with Professional and Business plans."
+    >
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Shift Templates</h1>
+            <p className="text-sm text-muted-foreground mt-1">Reusable presets for the roster.</p>
           </div>
-        ) : rows.length === 0 ? (
-          <div className="col-span-full bg-card border rounded-xl p-12 text-center text-sm text-muted-foreground">
-            No shift templates yet.
-          </div>
-        ) : null}
-        {rows.map((t) => (
-          <div key={t.id} className="bg-card border rounded-xl p-5 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="size-3 rounded-full"
-                    style={{ background: t.color ?? "#1E2A45" }}
-                  />
-                  <div className="font-semibold">{t.name}</div>
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  {normalizeTime(t.start_time)} - {normalizeTime(t.end_time)} - {t.break_minutes}m
-                  break
-                </div>
-                {t.department && (
-                  <div className="text-xs text-muted-foreground mt-1">Dept: {t.department}</div>
-                )}
-                <div className="text-xs text-muted-foreground mt-1">
-                  Min staff: {t.min_staff_required ?? 1}
-                </div>
-              </div>
-              {canManage && (
-                <div className="flex gap-1">
-                  <button
-                    className="p-1.5 hover:bg-secondary rounded"
-                    onClick={() => {
-                      setEditing(t);
-                      setOpen(true);
-                    }}
-                  >
-                    <Pencil className="size-4" />
-                  </button>
-                  <button className="p-1.5 hover:bg-secondary rounded" onClick={() => del(t.id)}>
-                    <Trash2 className="size-4 text-destructive" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing?.id ? "Edit template" : "New shift template"}</DialogTitle>
-          </DialogHeader>
-          {editing && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-              <div className="sm:col-span-2 space-y-1.5">
-                <Label>Name *</Label>
-                <Input
-                  value={editing.name ?? ""}
-                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                  placeholder="Morning, Evening, Night..."
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Start time</Label>
-                <Input
-                  type="time"
-                  value={editing.start_time ?? ""}
-                  onChange={(e) => setEditing({ ...editing, start_time: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>End time</Label>
-                <Input
-                  type="time"
-                  value={editing.end_time ?? ""}
-                  onChange={(e) => setEditing({ ...editing, end_time: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Break (min)</Label>
-                <Input
-                  type="number"
-                  value={editing.break_minutes ?? 0}
-                  onChange={(e) =>
-                    setEditing({ ...editing, break_minutes: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Min staff required</Label>
-                <Input
-                  type="number"
-                  value={editing.min_staff_required ?? 1}
-                  onChange={(e) =>
-                    setEditing({ ...editing, min_staff_required: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Department</Label>
-                <Input
-                  value={editing.department ?? ""}
-                  onChange={(e) => setEditing({ ...editing, department: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Color</Label>
-                <Input
-                  type="color"
-                  value={editing.color ?? "#1E2A45"}
-                  onChange={(e) => setEditing({ ...editing, color: e.target.value })}
-                />
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-label={`Use ${color}`}
-                      className={`size-7 rounded-md border ${
-                        (editing.color ?? "#1E2A45").toLowerCase() === color.toLowerCase()
-                          ? "ring-2 ring-[var(--navy)] ring-offset-2"
-                          : ""
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setEditing({ ...editing, color })}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+          {canManage && (
+            <Button
+              onClick={() => {
+                setEditing({ ...empty });
+                setOpen(true);
+              }}
+              className="bg-[var(--navy)] hover:bg-[var(--navy-light)] w-full sm:w-auto"
+            >
+              <Plus className="size-4 mr-2" /> New template
+            </Button>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={save} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="col-span-full bg-card border rounded-xl p-12 text-center text-sm text-muted-foreground">
+              Loading shift templates...
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="col-span-full bg-card border rounded-xl p-12 text-center text-sm text-muted-foreground">
+              No shift templates yet.
+            </div>
+          ) : null}
+          {rows.map((t) => (
+            <div key={t.id} className="bg-card border rounded-xl p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="size-3 rounded-full"
+                      style={{ background: t.color ?? "#1E2A45" }}
+                    />
+                    <div className="font-semibold">{t.name}</div>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {normalizeTime(t.start_time)} - {normalizeTime(t.end_time)} - {t.break_minutes}m
+                    break
+                  </div>
+                  {t.department && (
+                    <div className="text-xs text-muted-foreground mt-1">Dept: {t.department}</div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Min staff: {t.min_staff_required ?? 1}
+                  </div>
+                </div>
+                {canManage && (
+                  <div className="flex gap-1">
+                    <button
+                      className="p-1.5 hover:bg-secondary rounded"
+                      onClick={() => {
+                        setEditing(t);
+                        setOpen(true);
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button className="p-1.5 hover:bg-secondary rounded" onClick={() => del(t.id)}>
+                      <Trash2 className="size-4 text-destructive" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editing?.id ? "Edit template" : "New shift template"}</DialogTitle>
+            </DialogHeader>
+            {editing && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label>Name *</Label>
+                  <Input
+                    value={editing.name ?? ""}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    placeholder="Morning, Evening, Night..."
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Start time</Label>
+                  <Input
+                    type="time"
+                    value={editing.start_time ?? ""}
+                    onChange={(e) => setEditing({ ...editing, start_time: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>End time</Label>
+                  <Input
+                    type="time"
+                    value={editing.end_time ?? ""}
+                    onChange={(e) => setEditing({ ...editing, end_time: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Break (min)</Label>
+                  <Input
+                    type="number"
+                    value={editing.break_minutes ?? 0}
+                    onChange={(e) =>
+                      setEditing({ ...editing, break_minutes: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Min staff required</Label>
+                  <Input
+                    type="number"
+                    value={editing.min_staff_required ?? 1}
+                    onChange={(e) =>
+                      setEditing({ ...editing, min_staff_required: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Department</Label>
+                  <Input
+                    value={editing.department ?? ""}
+                    onChange={(e) => setEditing({ ...editing, department: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Color</Label>
+                  <Input
+                    type="color"
+                    value={editing.color ?? "#1E2A45"}
+                    onChange={(e) => setEditing({ ...editing, color: e.target.value })}
+                  />
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-label={`Use ${color}`}
+                        className={`size-7 rounded-md border ${
+                          (editing.color ?? "#1E2A45").toLowerCase() === color.toLowerCase()
+                            ? "ring-2 ring-[var(--navy)] ring-offset-2"
+                            : ""
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setEditing({ ...editing, color })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={save} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </PlanGate>
   );
 }

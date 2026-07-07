@@ -32,6 +32,7 @@ import {
 import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
+import { useBusinessPlan } from "@/lib/billing/plans";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffPage,
@@ -90,6 +91,7 @@ function StaffPage() {
   };
 
   const canManage = isManager(profile);
+  const { access } = useBusinessPlan(profile?.business_id);
 
   const departments = useMemo(
     () => Array.from(new Set(rows.map((r) => r.department).filter(Boolean))) as string[],
@@ -112,6 +114,12 @@ function StaffPage() {
   });
 
   const openCreate = () => {
+    if (access.employeeLimit != null && rows.length >= access.employeeLimit) {
+      toast.error(
+        `${access.name} allows up to ${access.employeeLimit} employees. Upgrade to add more staff.`,
+      );
+      return;
+    }
     setEditing({ ...empty });
     setSkillInput("");
     setOpen(true);
@@ -138,6 +146,12 @@ function StaffPage() {
     if (!editing || !profile?.business_id) return;
     if (!editing.name) {
       toast.error("Name is required");
+      return;
+    }
+    if (!editing.id && access.employeeLimit != null && rows.length >= access.employeeLimit) {
+      toast.error(
+        `${access.name} allows up to ${access.employeeLimit} employees. Upgrade to add more staff.`,
+      );
       return;
     }
     const payload: any = {
