@@ -113,17 +113,27 @@
 }
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   * {
     border-color: var(--color-border);
   }
 
   html {
     scroll-behavior: smooth;
+    width: 100%;
+    max-width: 100%;
   }
 
   html,
   body {
     font-family: var(--font-sans);
+    width: 100%;
+    max-width: 100%;
   }
 
   body {
@@ -131,6 +141,25 @@
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+  }
+
+  main,
+  section,
+  article,
+  header,
+  footer,
+  nav,
+  aside,
+  div,
+  form {
+    min-width: 0;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    max-width: 100%;
   }
 
   img,
@@ -142,6 +171,10 @@
 
   table {
     border-spacing: 0;
+  }
+
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 1rem);
   }
 }
 
