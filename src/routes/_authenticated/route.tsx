@@ -28,6 +28,10 @@ function AuthenticatedLayout() {
           throw new Error("Unable to load your profile. Please sign in again.");
         }
         setProfile(p);
+        if (p.first_login) {
+          navigate({ to: "/change-password" as any, replace: true });
+          return;
+        }
         if (p.role === "employer" && !p.business_id) {
           navigate({ to: "/onboarding" });
         }
