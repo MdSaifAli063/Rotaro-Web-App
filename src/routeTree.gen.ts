@@ -13,6 +13,7 @@ import { Route as SupportRouteImport } from './routes/support'
 import { Route as StaffLoginRouteImport } from './routes/staff-login'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ClientLoginRouteImport } from './routes/client-login'
+import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -62,6 +63,11 @@ const PricingRoute = PricingRouteImport.update({
 const ClientLoginRoute = ClientLoginRouteImport.update({
   id: '/client-login',
   path: '/client-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangePasswordRoute = ChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -224,6 +230,7 @@ const AuthenticatedRosterEditIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/change-password': typeof ChangePasswordRoute
   '/client-login': typeof ClientLoginRoute
   '/pricing': typeof PricingRoute
   '/staff-login': typeof StaffLoginRoute
@@ -259,6 +266,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/change-password': typeof ChangePasswordRoute
   '/client-login': typeof ClientLoginRoute
   '/pricing': typeof PricingRoute
   '/staff-login': typeof StaffLoginRoute
@@ -296,6 +304,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/change-password': typeof ChangePasswordRoute
   '/client-login': typeof ClientLoginRoute
   '/pricing': typeof PricingRoute
   '/staff-login': typeof StaffLoginRoute
@@ -333,6 +342,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/change-password'
     | '/client-login'
     | '/pricing'
     | '/staff-login'
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/change-password'
     | '/client-login'
     | '/pricing'
     | '/staff-login'
@@ -404,6 +415,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/change-password'
     | '/client-login'
     | '/pricing'
     | '/staff-login'
@@ -441,6 +453,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ChangePasswordRoute: typeof ChangePasswordRoute
   ClientLoginRoute: typeof ClientLoginRoute
   PricingRoute: typeof PricingRoute
   StaffLoginRoute: typeof StaffLoginRoute
@@ -475,6 +488,13 @@ declare module '@tanstack/react-router' {
       path: '/client-login'
       fullPath: '/client-login'
       preLoaderRoute: typeof ClientLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/change-password': {
+      id: '/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -778,6 +798,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ChangePasswordRoute: ChangePasswordRoute,
   ClientLoginRoute: ClientLoginRoute,
   PricingRoute: PricingRoute,
   StaffLoginRoute: StaffLoginRoute,
