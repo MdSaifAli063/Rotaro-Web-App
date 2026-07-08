@@ -196,14 +196,22 @@ function MessagesPage() {
   }, [participantMessages, people, profile]);
 
   useEffect(() => {
-    if (
-      selectedPersonId &&
-      conversations.some((conversation) => conversation.personId === selectedPersonId)
-    ) {
+    if (!selectedPersonId) {
+      setSelectedPersonId(conversations[0]?.personId ?? null);
       return;
     }
+
+    const selectedExistsInPeople = people.some((person) => person.id === selectedPersonId);
+    const selectedExistsInConversations = conversations.some(
+      (conversation) => conversation.personId === selectedPersonId,
+    );
+
+    if (selectedExistsInPeople || selectedExistsInConversations) {
+      return;
+    }
+
     setSelectedPersonId(conversations[0]?.personId ?? null);
-  }, [conversations, selectedPersonId]);
+  }, [conversations, people, selectedPersonId]);
 
   const selectedConversation =
     conversations.find((conversation) => conversation.personId === selectedPersonId) ?? null;
