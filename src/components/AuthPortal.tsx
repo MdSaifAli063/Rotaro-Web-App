@@ -71,6 +71,10 @@ export function AuthPortal({ portal, mode = "signin", plan, next }: AuthPortalPr
       await supabase.auth.signOut();
       throw new Error("This is a client account. Please use Client Login.");
     }
+    if (profile?.first_login) {
+      navigate({ to: "/change-password" as any });
+      return;
+    }
     navigate({ to: afterLogin });
   };
 
