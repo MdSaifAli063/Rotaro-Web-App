@@ -11,6 +11,9 @@ export type Profile = {
   role: AppRole;
   business_id: string | null;
   department?: string | null;
+  first_login?: boolean | null;
+  password_changed_at?: string | null;
+  last_login_at?: string | null;
 };
 
 export function isManager(p: Profile | null) {
@@ -40,13 +43,20 @@ export async function fetchProfile(): Promise<Profile | null> {
   if (!data.user) return null;
 
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, name, email, role, business_id, department")
+    .from("profiles" as any)
+    .select(
+      "id, name, email, role, business_id, department, first_login, password_changed_at, last_login_at",
+    )
     .eq("id", data.user.id)
     .maybeSingle();
 
   if (profile) {
-    return profile as Profile;
+    const typed = profile as Profile;
+    void supabase
+      .from("profiles" as any)
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("id", data.user.id);
+    return typed;
   }
 
   const user = data.user;
@@ -61,6 +71,7 @@ export async function fetchProfile(): Promise<Profile | null> {
     role,
     business_id: null,
     department: null,
+    first_login: false,
   };
 
   const { error } = await supabase.from("profiles").insert({
@@ -79,4 +90,33 @@ export async function fetchProfile(): Promise<Profile | null> {
   }
 
   return fallbackProfile;
+}
+
+export async function changeFirstLoginPassword(newPassword: string, confirmPassword: string) {
+  if (newPassword !== confirmPassword) {
+    throw new Error("Passwords do not match");
+  }
+  if (newPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+  if (!/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[@#$!%*?&]/.test(newPassword)) {
+    throw new Error("Password must include uppercase, number, and special character.");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+
+  const { data } = await supabase.auth.getUser();
+  if (data.user) {
+    await supabase
+      .from("profiles" as any)
+      .update({
+        first_login: false,
+        password_changed_at: new Date().toISOString(),
+        last_login_at: new Date().toISOString(),
+      })
+      .eq("id", data.user.id);
+  }
+
+  return { success: true };
 }
