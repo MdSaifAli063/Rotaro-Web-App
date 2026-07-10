@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { sendNotificationEmails } from "@/lib/api/email.functions";
+import { sendNotificationEmails } from "@/lib/emailjs";
 
 type NotificationInsert = {
   user_id: string;
