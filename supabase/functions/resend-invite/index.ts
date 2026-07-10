@@ -27,45 +27,8 @@ async function sendInviteEmail(args: {
   temp_password: string;
   login_url: string;
 }) {
-  const resendKey = Deno.env.get("RESEND_API_KEY");
-  const emailEnabled = (Deno.env.get("EMAIL_ENABLED") ?? "true").toLowerCase() !== "false";
-  if (!emailEnabled || !resendKey) return { sent: false, reason: "Email is not configured" };
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px">
-      <div style="max-width:580px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">
-        <div style="background:#1E2A45;color:#fff;padding:28px 32px">
-          <h1 style="margin:0;font-size:24px">Rotaro</h1>
-          <p style="margin:6px 0 0;color:#cbd5e1">New login credentials</p>
-        </div>
-        <div style="padding:32px">
-          <p style="color:#475569;line-height:1.6">Hi ${args.employee_name}, use these temporary credentials to sign in to ${args.business_name}. You will be asked to set a new password.</p>
-          <div style="background:#f1f5f9;border-radius:10px;padding:18px;margin:22px 0">
-            <p><strong>Employee ID:</strong> ${args.employee_code}</p>
-            <p><strong>Email:</strong> ${args.to_email}</p>
-            <p><strong>Temporary password:</strong> <code>${args.temp_password}</code></p>
-          </div>
-          <a href="${args.login_url}" style="display:block;text-align:center;background:#1E2A45;color:#fff;text-decoration:none;border-radius:8px;padding:14px 18px;font-weight:700">Login to Rotaro</a>
-        </div>
-      </div>
-    </div>`;
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: Deno.env.get("EMAIL_FROM") || "Rotaro <noreply@rotaro.com>",
-      to: [args.to_email],
-      subject: `Your Rotaro login credentials - ${args.business_name}`,
-      html,
-    }),
-  });
-
-  if (!response.ok) return { sent: false, reason: await response.text() };
-  return { sent: true };
+  void args;
+  return { sent: false, reason: "EmailJS is handled in the browser." };
 }
 
 serve(async (req) => {
@@ -140,14 +103,13 @@ serve(async (req) => {
       .eq("id", callerProfile.business_id)
       .maybeSingle();
 
-    const appUrl = Deno.env.get("APP_URL") || Deno.env.get("EMAIL_APP_URL") || "http://localhost:3000";
     const emailResult = await sendInviteEmail({
       to_email: employee.email,
       employee_name: employee.name,
       business_name: business?.name || "your organisation",
       employee_code: employee.employee_code || "",
       temp_password: tempPassword,
-      login_url: `${appUrl.replace(/\/$/, "")}/staff-login`,
+      login_url: "",
     });
 
     return json({
