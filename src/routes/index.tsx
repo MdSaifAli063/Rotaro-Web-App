@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { RotaroMark } from "@/components/RotaroMark";
 import { useSession } from "@/lib/auth";
-import { sendPublicInquiryEmail } from "@/lib/api/email.functions";
+import { sendPublicInquiryEmail } from "@/lib/emailjs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
