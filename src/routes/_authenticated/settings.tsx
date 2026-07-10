@@ -803,7 +803,7 @@ function SettingsPage() {
             <div className="rounded-xl border bg-[#F8FAFD] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  In-app: saved. Email: set EMAIL_ENABLED and RESEND_API_KEY in Vercel for email
+                  In-app: saved. Email: set VITE_EMAILJS_* values in Vercel for email
                   alerts.
                 </p>
                 <Button
@@ -985,13 +985,13 @@ function SettingsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <ReadOnlyField
                 label="Email delivery"
-                value="Configure EMAIL_ENABLED, EMAIL_FROM, EMAIL_APP_URL, and RESEND_API_KEY in Vercel"
+                value="Configure VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_PUBLIC_KEY, template IDs, and VITE_APP_URL in Vercel"
               />
               <ReadOnlyField
                 label="Google Sign-In"
                 value="Configure GOOGLE_CLIENT_ID on the server for login"
               />
-              <ReadOnlyField label="Provider" value="Resend or custom webhook via env" />
+              <ReadOnlyField label="Provider" value="EmailJS via Vite environment variables" />
               <ReadOnlyField
                 label="Email scope"
                 value="Notifications, leave, swaps, messages, attendance, and roster publishes"
