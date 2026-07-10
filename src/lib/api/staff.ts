@@ -52,18 +52,6 @@ function isValidEmail(value?: string | null) {
   return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-async function sendInviteEmail(args: {
-  to_email: string;
-  employee_name: string;
-  business_name: string;
-  employee_code: string;
-  temp_password: string;
-  login_url: string;
-}) {
-  void args;
-  return { sent: false, reason: "EmailJS is sent from the browser after employee creation." };
-}
-
 async function loadCaller(accessToken: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
@@ -228,20 +216,11 @@ export const inviteEmployeeOnServer = createServerFn({ method: "POST" })
       throw new Error(employeeError?.message || "Failed to create employee.");
     }
 
-    const emailResult = await sendInviteEmail({
-      to_email: email,
-      employee_name: name,
-      business_name: business?.name || "your organisation",
-      employee_code: employeeCode || "",
-      temp_password: tempPassword,
-      login_url: "",
-    });
-
     return {
       success: true,
       employee,
-      email_sent: emailResult.sent,
-      email_reason: emailResult.reason ?? null,
+      email_sent: false,
+      email_reason: "Invite email is sent from the staff screen.",
       credentials: {
         employee_code: String(employeeCode || ""),
         email,
@@ -306,19 +285,10 @@ export const resendEmployeeOnServer = createServerFn({ method: "POST" })
       .eq("id", callerProfile.business_id)
       .maybeSingle();
 
-    const emailResult = await sendInviteEmail({
-      to_email: employee.email,
-      employee_name: employee.name,
-      business_name: business?.name || "your organisation",
-      employee_code: employee.employee_code || "",
-      temp_password: tempPassword,
-      login_url: "",
-    });
-
     return {
       success: true,
-      email_sent: emailResult.sent,
-      email_reason: emailResult.reason ?? null,
+      email_sent: false,
+      email_reason: "Invite email is sent from the staff screen.",
       credentials: {
         employee_code: String(employee.employee_code || ""),
         email: employee.email,
