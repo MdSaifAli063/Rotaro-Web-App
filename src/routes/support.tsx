@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { BookOpen, MessageSquare, HelpCircle, Headphones, LayoutDashboard } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/routes/index";
-import { sendPublicInquiryEmail } from "@/lib/api/email.functions";
+import { sendPublicInquiryEmail } from "@/lib/emailjs";
 
 export const Route = createFileRoute("/support")({
   head: () => ({
