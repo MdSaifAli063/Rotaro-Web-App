@@ -62,6 +62,26 @@ export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffPage,
 });
 
+async function sendInviteWithEmailJs(result: InviteResult, employeeName: string): Promise<InviteResult> {
+  try {
+    await sendEmployeeWelcomeEmail({
+      employee_name: employeeName,
+      employee_email: result.credentials.email,
+      employee_code: result.credentials.employee_code,
+      temp_password: result.credentials.temp_password,
+      business_name: result.business_name || "your organisation",
+    });
+    return { ...result, email_sent: true, email_reason: null };
+  } catch (error) {
+    console.error("Employee invite email failed:", error);
+    return {
+      ...result,
+      email_sent: false,
+      email_reason: error instanceof Error ? error.message : "Email could not be sent. Share these login details manually.",
+    };
+  }
+}
+
 type Employee = {
   id: string;
   business_id: string;
@@ -708,26 +728,6 @@ function StaffPage() {
       </AlertDialog>
     </div>
   );
-}
-
-async function sendInviteWithEmailJs(result: InviteResult, employeeName: string): Promise<InviteResult> {
-  try {
-    await sendEmployeeWelcomeEmail({
-      employee_name: employeeName,
-      employee_email: result.credentials.email,
-      employee_code: result.credentials.employee_code,
-      temp_password: result.credentials.temp_password,
-      business_name: result.business_name || "your organisation",
-    });
-    return { ...result, email_sent: true, email_reason: null };
-  } catch (error) {
-    console.error("Employee invite email failed:", error);
-    return {
-      ...result,
-      email_sent: false,
-      email_reason: "Email could not be sent. Share these login details manually.",
-    };
-  }
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

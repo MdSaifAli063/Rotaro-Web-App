@@ -196,27 +196,33 @@ function MessagesPage() {
   }, [participantMessages, people, profile]);
 
   useEffect(() => {
-    if (!selectedPersonId) {
-      setSelectedPersonId(conversations[0]?.personId ?? null);
-      return;
+    if (selectedPersonId) {
+      const selectedExistsInPeople = people.some((person) => person.id === selectedPersonId);
+      const selectedExistsInConversations = conversations.some(
+        (conversation) => conversation.personId === selectedPersonId,
+      );
+
+      if (selectedExistsInPeople || selectedExistsInConversations) {
+        return;
+      }
     }
 
-    const selectedExistsInPeople = people.some((person) => person.id === selectedPersonId);
-    const selectedExistsInConversations = conversations.some(
-      (conversation) => conversation.personId === selectedPersonId,
-    );
-
-    if (selectedExistsInPeople || selectedExistsInConversations) {
-      return;
+    const fallback = conversations[0]?.personId ?? people[0]?.id ?? null;
+    if (fallback !== selectedPersonId) {
+      setSelectedPersonId(fallback);
+      setRecipientId(fallback ?? "");
     }
-
-    setSelectedPersonId(conversations[0]?.personId ?? null);
   }, [conversations, people, selectedPersonId]);
 
   const selectedConversation =
     conversations.find((conversation) => conversation.personId === selectedPersonId) ?? null;
-  const selectedPerson =
-    selectedConversation?.person ?? people.find((person) => person.id === selectedPersonId) ?? null;
+  const selectedPerson = useMemo(
+    () =>
+      people.find((person) => person.id === selectedPersonId) ??
+      selectedConversation?.person ??
+      null,
+    [people, selectedConversation?.person, selectedPersonId],
+  );
 
   const unreadCount = conversations.reduce((sum, conversation) => sum + conversation.unread, 0);
 
@@ -300,6 +306,42 @@ function MessagesPage() {
     toast.success("Message deleted");
   };
 
+  const deleteConversation = async () => {
+    if (!profile || !selectedConversation) return;
+    const confirmed = window.confirm(
+      `Delete the entire conversation with ${personLabel(selectedConversation.person)}? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setSavingId("conversation-delete");
+    const personId = selectedConversation.personId;
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .eq("business_id", profile.business_id)
+      .or(
+        `and(sender_id.eq.${profile.id},recipient_id.eq.${personId}),and(sender_id.eq.${personId},recipient_id.eq.${profile.id})`,
+      );
+    setSavingId(null);
+
+    if (error) {
+      toast.error("Unable to delete conversation: " + error.message);
+      return;
+    }
+
+    setMessages((current) =>
+      current.filter((message) => {
+        const sameThread =
+          (message.sender_id === profile.id && message.recipient_id === personId) ||
+          (message.sender_id === personId && message.recipient_id === profile.id);
+        return !sameThread;
+      }),
+    );
+    setSelectedPersonId(conversations.find((conversation) => conversation.personId !== personId)?.personId ?? null);
+    setRecipientId((current) => (current === personId ? "" : current));
+    toast.success("Conversation deleted");
+  };
+
   const selectRecipient = (personId: string) => {
     setSelectedPersonId(personId);
     setRecipientId(personId);
@@ -372,7 +414,7 @@ function MessagesPage() {
         </div>
       </header>
 
-      <section className="grid min-h-[680px] gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+      <section className="grid min-h-[560px] gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="rounded-2xl border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -460,7 +502,7 @@ function MessagesPage() {
 
         <div className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
           {selectedPerson ? (
-            <div className="flex min-h-[680px] flex-col">
+            <div className="flex min-h-[560px] flex-col">
               <div className="border-b p-4 sm:p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
@@ -476,15 +518,27 @@ function MessagesPage() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={markThreadRead}
-                    disabled={!selectedConversation?.unread || savingId === "thread-read"}
-                  >
-                    <CheckCheck className="size-4" />
-                    Mark read
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={markThreadRead}
+                      disabled={!selectedConversation?.unread || savingId === "thread-read"}
+                    >
+                      <CheckCheck className="size-4" />
+                      Mark read
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={deleteConversation}
+                      disabled={savingId === "conversation-delete"}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <Trash2 className="size-4" />
+                      Delete chat
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -577,6 +631,7 @@ function MessagesPage() {
                         value={body}
                         onChange={(event) => setBody(event.target.value)}
                         placeholder={`Message ${personLabel(selectedPerson)}`}
+                        className="min-h-[120px] flex-1"
                       />
                       <Button
                         onClick={sendMessage}
