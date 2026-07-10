@@ -34,6 +34,7 @@ export type InviteResult = {
   current_plan?: string;
   current_count?: number;
   max_employees?: number;
+  business_name?: string;
 };
 
 const staffProxyInputSchema = z.object({
@@ -59,82 +60,8 @@ async function sendInviteEmail(args: {
   temp_password: string;
   login_url: string;
 }) {
-  const { getServerConfig } = await import("@/lib/config.server");
-  const config = getServerConfig();
-  if (!config.email.enabled) {
-    return { sent: false, reason: "Email is not configured" };
-  }
-
-  const provider = config.email.provider || "resend";
-  const html = `
-    <div style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px">
-      <div style="max-width:580px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">
-        <div style="background:#1E2A45;color:#fff;padding:28px 32px">
-          <h1 style="margin:0;font-size:24px">Rotaro</h1>
-          <p style="margin:6px 0 0;color:#cbd5e1">Your staff account is ready</p>
-        </div>
-        <div style="padding:32px">
-          <h2 style="color:#1E2A45;margin:0 0 12px">Welcome, ${args.employee_name}</h2>
-          <p style="color:#475569;line-height:1.6">You have been added to <strong>${args.business_name}</strong>. Use the temporary credentials below to sign in. You will be asked to set a new password.</p>
-          <div style="background:#f1f5f9;border-radius:10px;padding:18px;margin:22px 0">
-            <p><strong>Employee ID:</strong> ${args.employee_code}</p>
-            <p><strong>Email:</strong> ${args.to_email}</p>
-            <p><strong>Temporary password:</strong> <code>${args.temp_password}</code></p>
-          </div>
-          <a href="${args.login_url}" style="display:block;text-align:center;background:#1E2A45;color:#fff;text-decoration:none;border-radius:8px;padding:14px 18px;font-weight:700">Login to Rotaro</a>
-        </div>
-      </div>
-    </div>`;
-
-  const text = `Welcome, ${args.employee_name}\n\nYou have been added to ${args.business_name}.\nEmployee ID: ${args.employee_code}\nEmail: ${args.to_email}\nTemporary password: ${args.temp_password}\nLogin: ${args.login_url}`;
-
-  const from = config.email.from;
-  if (provider === "webhook") {
-    if (!config.email.webhookUrl) {
-      return { sent: false, reason: "EMAIL_WEBHOOK_URL is missing." };
-    }
-    const response = await fetch(config.email.webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(config.email.webhookSecret ? { Authorization: `Bearer ${config.email.webhookSecret}` } : {}),
-      },
-      body: JSON.stringify({
-        from,
-        to: args.to_email,
-        subject: `Your Rotaro login credentials - ${args.business_name}`,
-        html,
-        text,
-      }),
-    });
-    if (!response.ok) {
-      return { sent: false, reason: `Email webhook failed (${response.status}).` };
-    }
-    return { sent: true };
-  }
-
-  if (!config.email.resendApiKey) {
-    return { sent: false, reason: "RESEND_API_KEY is missing." };
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.email.resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [args.to_email],
-      subject: `Your Rotaro login credentials - ${args.business_name}`,
-      html,
-      text,
-    }),
-  });
-  if (!response.ok) {
-    return { sent: false, reason: await response.text() };
-  }
-  return { sent: true };
+  void args;
+  return { sent: false, reason: "EmailJS is sent from the browser after employee creation." };
 }
 
 async function loadCaller(accessToken: string) {
@@ -301,14 +228,13 @@ export const inviteEmployeeOnServer = createServerFn({ method: "POST" })
       throw new Error(employeeError?.message || "Failed to create employee.");
     }
 
-    const appUrl = (await import("@/lib/config.server")).getServerConfig().email.appUrl || "http://localhost:3000";
     const emailResult = await sendInviteEmail({
       to_email: email,
       employee_name: name,
       business_name: business?.name || "your organisation",
       employee_code: employeeCode || "",
       temp_password: tempPassword,
-      login_url: `${String(appUrl).replace(/\/$/, "")}/staff-login`,
+      login_url: "",
     });
 
     return {
@@ -321,6 +247,7 @@ export const inviteEmployeeOnServer = createServerFn({ method: "POST" })
         email,
         temp_password: tempPassword,
       },
+      business_name: business?.name || "your organisation",
     } satisfies InviteResult;
   });
 
@@ -379,14 +306,13 @@ export const resendEmployeeOnServer = createServerFn({ method: "POST" })
       .eq("id", callerProfile.business_id)
       .maybeSingle();
 
-    const appUrl = (await import("@/lib/config.server")).getServerConfig().email.appUrl || "http://localhost:3000";
     const emailResult = await sendInviteEmail({
       to_email: employee.email,
       employee_name: employee.name,
       business_name: business?.name || "your organisation",
       employee_code: employee.employee_code || "",
       temp_password: tempPassword,
-      login_url: `${String(appUrl).replace(/\/$/, "")}/staff-login`,
+      login_url: "",
     });
 
     return {
@@ -398,6 +324,7 @@ export const resendEmployeeOnServer = createServerFn({ method: "POST" })
         email: employee.email,
         temp_password: tempPassword,
       },
+      business_name: business?.name || "your organisation",
     } satisfies InviteResult;
   });
 
