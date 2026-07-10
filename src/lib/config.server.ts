@@ -35,22 +35,10 @@ export function getServerConfig() {
       razorpayBusinessMonthlyPlanId: process.env.RAZORPAY_BUSINESS_MONTHLY_PLAN_ID,
       razorpayBusinessAnnualPlanId: process.env.RAZORPAY_BUSINESS_ANNUAL_PLAN_ID,
     },
-    email: {
-      enabled: process.env.EMAIL_ENABLED === "true",
-      provider: process.env.EMAIL_PROVIDER || "resend",
-      from: process.env.EMAIL_FROM || "Rotaro <notifications@rotaro.app>",
-      replyTo: process.env.EMAIL_REPLY_TO,
-      contactTo: process.env.EMAIL_CONTACT_TO || process.env.EMAIL_REPLY_TO,
-      supportTo:
-        process.env.EMAIL_SUPPORT_TO || process.env.EMAIL_CONTACT_TO || process.env.EMAIL_REPLY_TO,
-      newsletterTo:
-        process.env.EMAIL_NEWSLETTER_TO ||
-        process.env.EMAIL_CONTACT_TO ||
-        process.env.EMAIL_REPLY_TO,
-      appUrl: process.env.EMAIL_APP_URL || process.env.APP_URL || process.env.VERCEL_URL,
-      resendApiKey: process.env.RESEND_API_KEY,
-      webhookUrl: process.env.EMAIL_WEBHOOK_URL,
-      webhookSecret: process.env.EMAIL_WEBHOOK_SECRET,
+    emailjs: {
+      serviceId: process.env.VITE_EMAILJS_SERVICE_ID,
+      publicKey: process.env.VITE_EMAILJS_PUBLIC_KEY,
+      appUrl: process.env.VITE_APP_URL || process.env.APP_URL || process.env.VERCEL_URL,
     },
   };
 }
