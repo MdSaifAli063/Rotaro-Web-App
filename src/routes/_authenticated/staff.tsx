@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { useBusinessPlan } from "@/lib/billing/plans";
 import { addEmployeeWithInvite, resendEmployeeInvite, type InviteResult } from "@/lib/api/staff";
+import { sendEmployeeWelcomeEmail } from "@/lib/emailjs";
 import { UserAvatar } from "@/components/UserAvatar";
 import {
   DropdownMenu,
@@ -284,8 +285,11 @@ function StaffPage() {
           start_date: editing.start_date || null,
           skills: editing.skills ?? [],
         });
-        setInviteResult(result);
-        toast.success("Employee added");
+        const invite = await sendInviteWithEmailJs(result, editing.name.trim());
+        setInviteResult(invite);
+        toast.success(
+          invite.email_sent ? "Employee added and invite sent" : "Employee added. Share credentials manually.",
+        );
         await load();
       }
     } catch (err: any) {
@@ -302,10 +306,11 @@ function StaffPage() {
     setResettingInviteFor(employee);
     try {
       const result = await resendEmployeeInvite(employee.id);
-      setInviteResult(result);
+      const invite = await sendInviteWithEmailJs(result, employee.name || "Employee");
+      setInviteResult(invite);
       setEditing(employee);
       setOpen(true);
-      toast.success(result.email_sent ? "Invite sent" : "Credentials generated");
+      toast.success(invite.email_sent ? "Invite sent" : "Credentials generated. Share manually.");
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Unable to generate invite");
@@ -653,7 +658,7 @@ function StaffPage() {
                   </div>
                   <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                     <div>Employee ID: EMP001, EMP002...</div>
-                    <div>Temporary password sent by email</div>
+                    <div>Temporary password generated after submit</div>
                   </div>
                 </div>
               )}
@@ -703,6 +708,26 @@ function StaffPage() {
       </AlertDialog>
     </div>
   );
+}
+
+async function sendInviteWithEmailJs(result: InviteResult, employeeName: string): Promise<InviteResult> {
+  try {
+    await sendEmployeeWelcomeEmail({
+      employee_name: employeeName,
+      employee_email: result.credentials.email,
+      employee_code: result.credentials.employee_code,
+      temp_password: result.credentials.temp_password,
+      business_name: result.business_name || "your organisation",
+    });
+    return { ...result, email_sent: true, email_reason: null };
+  } catch (error) {
+    console.error("Employee invite email failed:", error);
+    return {
+      ...result,
+      email_sent: false,
+      email_reason: "Email could not be sent. Share these login details manually.",
+    };
+  }
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -793,7 +818,7 @@ function InviteSuccess({
             <div className="font-semibold">Invite created for {name}</div>
             <div className="mt-1 text-sm text-emerald-800">
               {result.email_sent
-                ? "Temporary login details were emailed."
+                ? `Temporary login details were emailed to ${result.credentials.email}.`
                 : result.email_reason || "Email was not sent, but credentials were generated."}
             </div>
           </div>
