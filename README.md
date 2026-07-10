@@ -36,7 +36,7 @@ A modern workforce scheduling dashboard built with React, TanStack Start, Tailwi
 
 ## Environment Variables
 
-Create a `.env` file in the project root from `.env.example`, then fill in your Supabase, billing, and email provider values:
+Create a `.env` file in the project root from `.env.example`, then fill in your Supabase, billing, and EmailJS values:
 
 ```env
 SUPABASE_URL=https://<project-ref>.supabase.co
@@ -49,12 +49,16 @@ VITE_SUPABASE_PROJECT_ID=<project-id>
 VITE_SUPABASE_ANON_KEY=<anon-or-publishable-key>
 VITE_SUPABASE_PUBLISHABLE_KEY=<anon-or-publishable-key>
 
-EMAIL_ENABLED=false
-EMAIL_PROVIDER=resend
-EMAIL_FROM="Rotaro <notifications@yourdomain.com>"
-EMAIL_REPLY_TO=support@yourdomain.com
-EMAIL_APP_URL=https://your-vercel-domain.vercel.app
-RESEND_API_KEY=re_your_resend_api_key
+VITE_EMAILJS_SERVICE_ID=service_your_emailjs_service
+VITE_EMAILJS_PUBLIC_KEY=your_emailjs_public_key
+VITE_EMAILJS_WELCOME_TEMPLATE_ID=template_employee_welcome
+VITE_EMAILJS_LEAVE_TEMPLATE_ID=template_leave_status
+VITE_EMAILJS_ROSTER_TEMPLATE_ID=template_roster_published
+VITE_EMAILJS_PASSWORD_TEMPLATE_ID=template_password_changed
+VITE_EMAILJS_NOTIFICATION_TEMPLATE_ID=template_notification
+VITE_EMAILJS_PUBLIC_TEMPLATE_ID=template_public_forms
+VITE_EMAILJS_PUBLIC_TO_EMAIL=support@yourdomain.com
+VITE_APP_URL=https://your-vercel-domain.vercel.app
 ```
 
 > Note: Use the same public key for both `SUPABASE_ANON_KEY` and `SUPABASE_PUBLISHABLE_KEY` if your Supabase project exposes only one public key.
