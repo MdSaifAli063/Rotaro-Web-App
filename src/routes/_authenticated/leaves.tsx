@@ -250,7 +250,7 @@ function LeavesPage() {
           end_date: form.to_date,
           total_days: days,
           reason: form.reason.trim() || null,
-          status: "approved",
+          status: "pending",
         })
         .select("id")
         .single();
@@ -260,7 +260,14 @@ function LeavesPage() {
         return;
       }
 
-      await applyLeaveBalanceDelta(profile.business_id, target.id, form.leave_type, days);
+      const { error: approvalError } = await supabase.rpc("manage_leave_request", {
+        p_leave_id: leave.id,
+        p_action: "approved",
+      });
+      if (approvalError) {
+        toast.error("Leave was created, but could not be approved: " + approvalError.message);
+        return;
+      }
       toast.success(`Leave added for ${target.name ?? "employee"}`);
       setForm({
         employee_id: target.id,
@@ -320,26 +327,28 @@ function LeavesPage() {
     }
 
     if (delta > 0) {
-      const { error } = await supabase.from("leave_balances").insert({
-        business_id: businessId,
-        employee_id: employeeId,
-        leave_type: leaveType,
-        total_days: defaultLeaveTotal(leaveType),
-        used_days: delta,
-      });
+      const { error } = await supabase.from("leave_balances").upsert(
+        {
+          business_id: businessId,
+          employee_id: employeeId,
+          leave_type: leaveType,
+          total_days: defaultLeaveTotal(leaveType),
+          used_days: delta,
+        },
+        {
+          onConflict: "employee_id,leave_type",
+          ignoreDuplicates: false,
+        },
+      );
       if (error) throw error;
     }
   };
 
   const decide = async (row: LeaveRow, status: "approved" | "rejected") => {
-    try {
-      await adjustLeaveBalance(row, status);
-    } catch (error: any) {
-      toast.error("Failed to update leave balance: " + (error.message ?? "Unknown error"));
-      return;
-    }
-
-    const { error } = await supabase.from("leaves").update({ status }).eq("id", row.id);
+    const { error } = await supabase.rpc("manage_leave_request", {
+      p_leave_id: row.id,
+      p_action: status,
+    });
     if (error) {
       toast.error(error.message);
       return;
@@ -362,21 +371,10 @@ function LeavesPage() {
 
   const deleteLeave = async (row: LeaveRow) => {
     if (!window.confirm("Delete this leave request?")) return;
-    try {
-      if (lower(row.status) === "approved") {
-        await applyLeaveBalanceDelta(
-          row.business_id,
-          row.employee_id,
-          row.leave_type,
-          -leaveDays(row),
-        );
-      }
-    } catch (error: any) {
-      toast.error("Failed to update leave balance: " + (error.message ?? "Unknown error"));
-      return;
-    }
-
-    const { error } = await supabase.from("leaves").delete().eq("id", row.id);
+    const { error } = await supabase.rpc("manage_leave_request", {
+      p_leave_id: row.id,
+      p_action: "delete",
+    });
     if (error) {
       toast.error(error.message);
       return;

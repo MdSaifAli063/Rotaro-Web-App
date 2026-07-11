@@ -873,13 +873,19 @@ async function applyBalanceChange(
 
   if (totalDays <= 0) return;
 
-  const { error } = await supabase.from("leave_balances").insert({
-    business_id: businessId,
-    employee_id: employeeId,
-    leave_type: leaveType,
-    total_days: defaultLeaveTotal(leaveType),
-    used_days: totalDays,
-  });
+  const { error } = await supabase.from("leave_balances").upsert(
+    {
+      business_id: businessId,
+      employee_id: employeeId,
+      leave_type: leaveType,
+      total_days: defaultLeaveTotal(leaveType),
+      used_days: totalDays,
+    },
+    {
+      onConflict: "employee_id,leave_type",
+      ignoreDuplicates: false,
+    },
+  );
   if (error) toast.error("Leave saved, but balance could not be created: " + error.message);
 }
 
