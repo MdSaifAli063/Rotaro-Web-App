@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-key, x-supabase-auth-token",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-api-key, x-supabase-auth-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
   "Content-Type": "application/json",
@@ -14,7 +15,7 @@ function json(body: unknown, status = 200) {
 }
 
 function generateTempPassword() {
-  const digits = crypto.getRandomValues(new Uint32Array(1))[0] % 9000 + 1000;
+  const digits = (crypto.getRandomValues(new Uint32Array(1))[0] % 9000) + 1000;
   const letters = crypto.randomUUID().replace(/-/g, "").slice(0, 2).toUpperCase();
   return `Rotaro@${digits}${letters}`;
 }
@@ -57,7 +58,10 @@ serve(async (req) => {
       .eq("id", caller.id)
       .maybeSingle();
 
-    if (!callerProfile?.business_id || !["employer", "manager"].includes(String(callerProfile.role))) {
+    if (
+      !callerProfile?.business_id ||
+      !["employer", "manager"].includes(String(callerProfile.role))
+    ) {
       return json({ error: "Forbidden" }, 403);
     }
 
