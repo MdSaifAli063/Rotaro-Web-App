@@ -370,7 +370,6 @@ function LeavesPage() {
   };
 
   const deleteLeave = async (row: LeaveRow) => {
-    if (!window.confirm("Delete this leave request?")) return;
     const { error } = await supabase.rpc("manage_leave_request", {
       p_leave_id: row.id,
       p_action: "delete",
