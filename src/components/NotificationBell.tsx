@@ -150,7 +150,6 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   const clearAll = async () => {
     if (!items.length || saving) return;
-    if (!window.confirm("Clear all notifications from the bell?")) return;
     setSaving(true);
     const dismissedAt = new Date().toISOString();
     const { error } = await supabase

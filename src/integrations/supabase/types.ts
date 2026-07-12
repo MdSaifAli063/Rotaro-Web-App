@@ -149,11 +149,143 @@ export type Database = {
         };
         Relationships: [];
       };
+      billing_subscriptions: {
+        Row: {
+          amount_cents: number;
+          billing_interval: string;
+          business_id: string;
+          cancel_at_period_end: boolean;
+          created_at: string;
+          currency: string;
+          current_period_end: string | null;
+          id: string;
+          plan_key: string;
+          plan_name: string;
+          provider: string;
+          provider_checkout_url: string | null;
+          provider_customer_id: string | null;
+          provider_subscription_id: string | null;
+          status: string;
+          trial_ends_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          amount_cents?: number;
+          billing_interval?: string;
+          business_id: string;
+          cancel_at_period_end?: boolean;
+          created_at?: string;
+          currency?: string;
+          current_period_end?: string | null;
+          id?: string;
+          plan_key?: string;
+          plan_name?: string;
+          provider?: string;
+          provider_checkout_url?: string | null;
+          provider_customer_id?: string | null;
+          provider_subscription_id?: string | null;
+          status?: string;
+          trial_ends_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          amount_cents?: number;
+          billing_interval?: string;
+          business_id?: string;
+          cancel_at_period_end?: boolean;
+          created_at?: string;
+          currency?: string;
+          current_period_end?: string | null;
+          id?: string;
+          plan_key?: string;
+          plan_name?: string;
+          provider?: string;
+          provider_checkout_url?: string | null;
+          provider_customer_id?: string | null;
+          provider_subscription_id?: string | null;
+          status?: string;
+          trial_ends_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscriptions_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: true;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_invoices: {
+        Row: {
+          amount_cents: number;
+          business_id: string;
+          created_at: string;
+          currency: string;
+          due_at: string | null;
+          hosted_invoice_url: string | null;
+          id: string;
+          invoice_number: string | null;
+          issued_at: string;
+          pdf_url: string | null;
+          provider: string;
+          status: string;
+          subscription_id: string | null;
+        };
+        Insert: {
+          amount_cents?: number;
+          business_id: string;
+          created_at?: string;
+          currency?: string;
+          due_at?: string | null;
+          hosted_invoice_url?: string | null;
+          id?: string;
+          invoice_number?: string | null;
+          issued_at?: string;
+          pdf_url?: string | null;
+          provider?: string;
+          status?: string;
+          subscription_id?: string | null;
+        };
+        Update: {
+          amount_cents?: number;
+          business_id?: string;
+          created_at?: string;
+          currency?: string;
+          due_at?: string | null;
+          hosted_invoice_url?: string | null;
+          id?: string;
+          invoice_number?: string | null;
+          issued_at?: string;
+          pdf_url?: string | null;
+          provider?: string;
+          status?: string;
+          subscription_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "billing_invoices_subscription_id_fkey";
+            columns: ["subscription_id"];
+            isOneToOne: false;
+            referencedRelation: "billing_subscriptions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       employees: {
         Row: {
           age: number | null;
           business_id: string;
           created_at: string;
+          date_of_birth: string | null;
           department: string | null;
           email: string | null;
           employee_code: string | null;
@@ -161,6 +293,7 @@ export type Database = {
           id: string;
           leave_balance: number | null;
           name: string;
+          onboarded_at: string | null;
           pay_rate: number | null;
           phone: string | null;
           role: string | null;
@@ -174,6 +307,7 @@ export type Database = {
           age?: number | null;
           business_id: string;
           created_at?: string;
+          date_of_birth?: string | null;
           department?: string | null;
           email?: string | null;
           employee_code?: string | null;
@@ -181,6 +315,7 @@ export type Database = {
           id?: string;
           leave_balance?: number | null;
           name: string;
+          onboarded_at?: string | null;
           pay_rate?: number | null;
           phone?: string | null;
           role?: string | null;
@@ -194,6 +329,7 @@ export type Database = {
           age?: number | null;
           business_id?: string;
           created_at?: string;
+          date_of_birth?: string | null;
           department?: string | null;
           email?: string | null;
           employee_code?: string | null;
@@ -201,6 +337,7 @@ export type Database = {
           id?: string;
           leave_balance?: number | null;
           name?: string;
+          onboarded_at?: string | null;
           pay_rate?: number | null;
           phone?: string | null;
           role?: string | null;
@@ -493,9 +630,14 @@ export type Database = {
           email: string;
           gender: string | null;
           id: string;
+          first_login: boolean;
+          invited_at: string | null;
+          invited_by: string | null;
+          last_login_at: string | null;
           name: string;
           notification_preferences: Json;
           phone: string | null;
+          password_changed_at: string | null;
           role: Database["public"]["Enums"]["app_role"];
           updated_at: string;
         };
@@ -508,9 +650,14 @@ export type Database = {
           email: string;
           gender?: string | null;
           id: string;
+          first_login?: boolean;
+          invited_at?: string | null;
+          invited_by?: string | null;
+          last_login_at?: string | null;
           name?: string;
           notification_preferences?: Json;
           phone?: string | null;
+          password_changed_at?: string | null;
           role?: Database["public"]["Enums"]["app_role"];
           updated_at?: string;
         };
@@ -523,9 +670,14 @@ export type Database = {
           email?: string;
           gender?: string | null;
           id?: string;
+          first_login?: boolean;
+          invited_at?: string | null;
+          invited_by?: string | null;
+          last_login_at?: string | null;
           name?: string;
           notification_preferences?: Json;
           phone?: string | null;
+          password_changed_at?: string | null;
           role?: Database["public"]["Enums"]["app_role"];
           updated_at?: string;
         };
@@ -798,7 +950,14 @@ export type Database = {
         Args: never;
         Returns: Database["public"]["Enums"]["app_role"];
       };
+      delete_roster: { Args: { p_roster_id: string }; Returns: undefined };
+      delete_shift_template: { Args: { p_template_id: string }; Returns: undefined };
+      get_next_employee_code: { Args: { p_business_id: string }; Returns: string };
       is_manager_or_employer: { Args: never; Returns: boolean };
+      manage_leave_request: {
+        Args: { p_action: string; p_leave_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       app_role: "employer" | "manager" | "employee";
