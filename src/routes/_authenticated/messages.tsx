@@ -227,7 +227,7 @@ function MessagesPage() {
   const unreadCount = conversations.reduce((sum, conversation) => sum + conversation.unread, 0);
 
   useEffect(() => {
-    if (!profile || !selectedConversation) return;
+    if (!profile?.business_id || !selectedConversation) return;
     const unreadIds = selectedConversation.messages
       .filter(
         (message) =>
@@ -286,9 +286,6 @@ function MessagesPage() {
   };
 
   const deleteMessage = async (message: MessageRow) => {
-    const confirmed = window.confirm("Delete this message permanently?");
-    if (!confirmed) return;
-
     setSavingId(message.id);
     const { error } = await supabase
       .from("messages")
@@ -307,18 +304,14 @@ function MessagesPage() {
   };
 
   const deleteConversation = async () => {
-    if (!profile || !selectedConversation) return;
-    const confirmed = window.confirm(
-      `Delete the entire conversation with ${personLabel(selectedConversation.person)}? This cannot be undone.`,
-    );
-    if (!confirmed) return;
-
+    if (!profile?.business_id || !selectedConversation) return;
     setSavingId("conversation-delete");
+    const businessId = profile.business_id;
     const personId = selectedConversation.personId;
     const { error } = await supabase
       .from("messages")
       .delete()
-      .eq("business_id", profile.business_id)
+      .eq("business_id", businessId)
       .or(
         `and(sender_id.eq.${profile.id},recipient_id.eq.${personId}),and(sender_id.eq.${personId},recipient_id.eq.${profile.id})`,
       );
@@ -337,7 +330,9 @@ function MessagesPage() {
         return !sameThread;
       }),
     );
-    setSelectedPersonId(conversations.find((conversation) => conversation.personId !== personId)?.personId ?? null);
+    setSelectedPersonId(
+      conversations.find((conversation) => conversation.personId !== personId)?.personId ?? null,
+    );
     setRecipientId((current) => (current === personId ? "" : current));
     toast.success("Conversation deleted");
   };
