@@ -479,18 +479,10 @@ function ApplyLeavePage() {
 
   const deleteLeave = async (row: LeaveRow) => {
     if (!profile?.business_id) return;
-    if (!window.confirm("Delete this leave request?")) return;
-
-    if (row.status.toLowerCase() === "approved") {
-      await applyBalanceChange(
-        profile.business_id,
-        row.employee_id,
-        row.leave_type,
-        -row.total_days,
-      );
-    }
-
-    const { error } = await supabase.from("leaves").delete().eq("id", row.id);
+    const { error } = await supabase.rpc("manage_leave_request", {
+      p_leave_id: row.id,
+      p_action: "delete",
+    });
     if (error) {
       toast.error("Unable to delete leave: " + error.message);
       return;
