@@ -121,10 +121,13 @@ function ShiftsPage() {
   };
 
   const del = async (id: string) => {
-    if (!confirm("Delete this shift template?")) return;
-    const { error } = await supabase.from("shift_templates").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else load();
+    const { error } = await supabase.rpc("delete_shift_template", { p_template_id: id });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Shift template deleted");
+    load(profile?.business_id);
   };
 
   return (

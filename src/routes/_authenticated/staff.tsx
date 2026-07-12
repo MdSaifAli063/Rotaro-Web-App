@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,16 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   CheckCircle2,
   Clock3,
@@ -62,7 +52,10 @@ export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffPage,
 });
 
-async function sendInviteWithEmailJs(result: InviteResult, employeeName: string): Promise<InviteResult> {
+async function sendInviteWithEmailJs(
+  result: InviteResult,
+  employeeName: string,
+): Promise<InviteResult> {
   try {
     await sendEmployeeWelcomeEmail({
       employee_name: employeeName,
@@ -77,7 +70,10 @@ async function sendInviteWithEmailJs(result: InviteResult, employeeName: string)
     return {
       ...result,
       email_sent: false,
-      email_reason: error instanceof Error ? error.message : "Email could not be sent. Share these login details manually.",
+      email_reason:
+        error instanceof Error
+          ? error.message
+          : "Email could not be sent. Share these login details manually.",
     };
   }
 }
@@ -127,12 +123,42 @@ function StaffPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [editing, setEditing] = useState<Partial<Employee> | null>(null);
   const [skillInput, setSkillInput] = useState("");
-  const [toDelete, setToDelete] = useState<Employee | null>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [resettingInviteFor, setResettingInviteFor] = useState<Employee | null>(null);
+
+  const load = useCallback(
+    async (businessId = profile?.business_id) => {
+      let query = supabase.from("employees").select("*").order("name");
+      if (businessId) query = query.eq("business_id", businessId);
+      const { data } = await query;
+      const employees: Employee[] = ((data as Employee[]) ?? []).map((employee) => ({
+        ...employee,
+        profile_status: null,
+      }));
+      const userIds = employees.map((employee) => employee.user_id).filter(Boolean) as string[];
+      if (userIds.length) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, first_login, last_login_at, invited_at, avatar_url")
+          .in("id", userIds);
+        const profilesById = new Map(
+          ((profiles ?? []) as Array<Employee["profile_status"] & { id: string }>).map((item) => [
+            item.id,
+            item,
+          ]),
+        );
+        employees.forEach((employee) => {
+          if (employee.user_id)
+            employee.profile_status = profilesById.get(employee.user_id) ?? null;
+        });
+      }
+      setRows(employees);
+    },
+    [profile?.business_id],
+  );
 
   useEffect(() => {
     (async () => {
@@ -140,7 +166,7 @@ function StaffPage() {
       setProfile(p);
       await load(p?.business_id);
     })();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     if (!profile?.business_id) return;
@@ -163,37 +189,13 @@ function StaffPage() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [profile?.business_id]);
-
-  const load = async (businessId = profile?.business_id) => {
-    let query = supabase.from("employees").select("*").order("name");
-    if (businessId) query = query.eq("business_id", businessId);
-    const { data } = await query;
-    const employees = ((data as Employee[]) ?? []).map((employee) => ({
-      ...employee,
-      profile_status: null,
-    }));
-    const userIds = employees.map((employee) => employee.user_id).filter(Boolean) as string[];
-    if (userIds.length) {
-      const { data: profiles } = await supabase
-        .from("profiles" as any)
-        .select("id, first_login, last_login_at, invited_at, avatar_url")
-        .in("id", userIds);
-      const profilesById = new Map(
-        ((profiles ?? []) as Array<Employee["profile_status"] & { id: string }>).map((item) => [
-          item.id,
-          item,
-        ]),
-      );
-      employees.forEach((employee) => {
-        if (employee.user_id) employee.profile_status = profilesById.get(employee.user_id) ?? null;
-      });
-    }
-    setRows(employees);
-  };
+  }, [load, profile?.business_id]);
 
   const canManage = isManager(profile);
   const { access } = useBusinessPlan(profile?.business_id);
+  const activeEmployeeCount = rows.filter(
+    (row) => (row.status ?? "active").toLowerCase() !== "inactive",
+  ).length;
 
   const departments = useMemo(
     () => Array.from(new Set(rows.map((r) => r.department).filter(Boolean))) as string[],
@@ -216,7 +218,7 @@ function StaffPage() {
   });
 
   const openCreate = () => {
-    if (access.employeeLimit != null && rows.length >= access.employeeLimit) {
+    if (access.employeeLimit != null && activeEmployeeCount >= access.employeeLimit) {
       toast.error(
         `${access.name} allows up to ${access.employeeLimit} employees. Upgrade to add more staff.`,
       );
@@ -263,7 +265,11 @@ function StaffPage() {
       toast.error("Role is required");
       return;
     }
-    if (!editing.id && access.employeeLimit != null && rows.length >= access.employeeLimit) {
+    if (
+      !editing.id &&
+      access.employeeLimit != null &&
+      activeEmployeeCount >= access.employeeLimit
+    ) {
       toast.error(
         `${access.name} allows up to ${access.employeeLimit} employees. Upgrade to add more staff.`,
       );
@@ -286,7 +292,10 @@ function StaffPage() {
     };
     try {
       if (editing.id) {
-        const { error } = await supabase.from("employees").update(payload as any).eq("id", editing.id);
+        const { error } = await supabase
+          .from("employees")
+          .update(payload as any)
+          .eq("id", editing.id);
         if (error) throw error;
         toast.success("Employee updated");
         setOpen(false);
@@ -308,7 +317,9 @@ function StaffPage() {
         const invite = await sendInviteWithEmailJs(result, editing.name.trim());
         setInviteResult(invite);
         toast.success(
-          invite.email_sent ? "Employee added and invite sent" : "Employee added. Share credentials manually.",
+          invite.email_sent
+            ? "Employee added and invite sent"
+            : "Employee added. Share credentials manually.",
         );
         await load();
       }
@@ -351,13 +362,11 @@ function StaffPage() {
     }
   };
 
-  const doDelete = async () => {
-    if (!toDelete) return;
-    const { error } = await supabase.from("employees").delete().eq("id", toDelete.id);
+  const doDelete = async (employee: Employee) => {
+    const { error } = await supabase.from("employees").delete().eq("id", employee.id);
     if (error) toast.error(error.message);
     else {
       toast.success("Employee deleted");
-      setToDelete(null);
       load();
     }
   };
@@ -429,7 +438,10 @@ function StaffPage() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={canManage ? 7 : 6} className="px-4 py-12 text-center text-muted-foreground">
+                <td
+                  colSpan={canManage ? 7 : 6}
+                  className="px-4 py-12 text-center text-muted-foreground"
+                >
                   No employees yet.
                 </td>
               </tr>
@@ -496,7 +508,7 @@ function StaffPage() {
                           )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            onClick={() => setToDelete(e)}
+                            onClick={() => doDelete(e)}
                             className="text-destructive focus:text-destructive"
                           >
                             <Trash2 className="size-4" /> Delete
@@ -535,154 +547,156 @@ function StaffPage() {
                 setInviteResult(null);
               }}
             />
-          ) : editing && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-              <Field label="Name *">
-                <Input
-                  value={editing.name ?? ""}
-                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                  disabled={saving}
-                />
-              </Field>
-              <Field label="Employee ID">
-                <Input
-                  value={editing.employee_code ?? ""}
-                  placeholder="Auto-generated"
-                  disabled
-                />
-              </Field>
-              <Field label="Department">
-                <Input
-                  value={editing.department ?? ""}
-                  onChange={(e) => setEditing({ ...editing, department: e.target.value })}
-                  disabled={saving}
-                />
-              </Field>
-              <Field label="Role / Position">
-                <Input
-                  value={editing.role ?? ""}
-                  onChange={(e) => setEditing({ ...editing, role: e.target.value })}
-                  disabled={saving}
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={editing.email ?? ""}
-                  onChange={(e) => setEditing({ ...editing, email: e.target.value })}
-                  disabled={saving || !!editing.id}
-                />
-                {emailError && <p className="mt-1 text-xs text-destructive">{emailError}</p>}
-              </Field>
-              <Field label="Phone">
-                <Input
-                  value={editing.phone ?? ""}
-                  onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
-                  disabled={saving}
-                />
-              </Field>
-              <Field label="Pay rate">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editing.pay_rate ?? ""}
-                  onChange={(e) => setEditing({ ...editing, pay_rate: Number(e.target.value) })}
-                  disabled={saving}
-                />
-              </Field>
-              <Field label="Date of birth">
-                <Input
-                  type="date"
-                  value={editing.date_of_birth ?? ""}
-                  onChange={(e) => setEditing({ ...editing, date_of_birth: e.target.value })}
-                  disabled={saving}
-                />
-              </Field>
-              <Field label="Employment type">
-                <Select
-                  value={editing.employment_type ?? "Full-time"}
-                  onValueChange={(v) => setEditing({ ...editing, employment_type: v })}
-                  disabled={saving}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Full-time">Full-time</SelectItem>
-                    <SelectItem value="Part-time">Part-time</SelectItem>
-                    <SelectItem value="Casual">Casual</SelectItem>
-                    <SelectItem value="Contract">Contract</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Start date">
-                <Input
-                  type="date"
-                  value={editing.start_date ?? ""}
-                  onChange={(e) => setEditing({ ...editing, start_date: e.target.value })}
-                  disabled={saving}
-                />
-              </Field>
-              <Field label="Status">
-                <Select
-                  value={editing.status ?? "active"}
-                  onValueChange={(v) => setEditing({ ...editing, status: v })}
-                  disabled={saving}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <div className="col-span-2">
-                <Label className="text-sm">Skills</Label>
-                <div className="flex gap-2 mt-2">
+          ) : (
+            editing && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+                <Field label="Name *">
                   <Input
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    placeholder="Add a skill and press Enter"
+                    value={editing.name ?? ""}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                     disabled={saving}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addSkill();
-                      }
-                    }}
                   />
-                  <Button type="button" variant="outline" onClick={addSkill}>
-                    Add
-                  </Button>
+                </Field>
+                <Field label="Employee ID">
+                  <Input
+                    value={editing.employee_code ?? ""}
+                    placeholder="Auto-generated"
+                    disabled
+                  />
+                </Field>
+                <Field label="Department">
+                  <Input
+                    value={editing.department ?? ""}
+                    onChange={(e) => setEditing({ ...editing, department: e.target.value })}
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label="Role / Position">
+                  <Input
+                    value={editing.role ?? ""}
+                    onChange={(e) => setEditing({ ...editing, role: e.target.value })}
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label="Email">
+                  <Input
+                    type="email"
+                    value={editing.email ?? ""}
+                    onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                    disabled={saving || !!editing.id}
+                  />
+                  {emailError && <p className="mt-1 text-xs text-destructive">{emailError}</p>}
+                </Field>
+                <Field label="Phone">
+                  <Input
+                    value={editing.phone ?? ""}
+                    onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label="Pay rate">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editing.pay_rate ?? ""}
+                    onChange={(e) => setEditing({ ...editing, pay_rate: Number(e.target.value) })}
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label="Date of birth">
+                  <Input
+                    type="date"
+                    value={editing.date_of_birth ?? ""}
+                    onChange={(e) => setEditing({ ...editing, date_of_birth: e.target.value })}
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label="Employment type">
+                  <Select
+                    value={editing.employment_type ?? "Full-time"}
+                    onValueChange={(v) => setEditing({ ...editing, employment_type: v })}
+                    disabled={saving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Full-time">Full-time</SelectItem>
+                      <SelectItem value="Part-time">Part-time</SelectItem>
+                      <SelectItem value="Casual">Casual</SelectItem>
+                      <SelectItem value="Contract">Contract</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Start date">
+                  <Input
+                    type="date"
+                    value={editing.start_date ?? ""}
+                    onChange={(e) => setEditing({ ...editing, start_date: e.target.value })}
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label="Status">
+                  <Select
+                    value={editing.status ?? "active"}
+                    onValueChange={(v) => setEditing({ ...editing, status: v })}
+                    disabled={saving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <div className="col-span-2">
+                  <Label className="text-sm">Skills</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      placeholder="Add a skill and press Enter"
+                      disabled={saving}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addSkill();
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" onClick={addSkill}>
+                      Add
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(editing.skills ?? []).map((s) => (
+                      <span
+                        key={s}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary text-xs"
+                      >
+                        {s}
+                        <button onClick={() => removeSkill(s)}>
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {(editing.skills ?? []).map((s) => (
-                    <span
-                      key={s}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary text-xs"
-                    >
-                      {s}
-                      <button onClick={() => removeSkill(s)}>
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                {!editing.id && (
+                  <div className="col-span-1 rounded-xl border bg-secondary/50 p-4 sm:col-span-2">
+                    <div className="text-sm font-semibold text-[var(--navy)]">
+                      Auto-generated after submit
+                    </div>
+                    <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                      <div>Employee ID: EMP001, EMP002...</div>
+                      <div>Temporary password generated after submit</div>
+                    </div>
+                  </div>
+                )}
               </div>
-              {!editing.id && (
-                <div className="col-span-1 rounded-xl border bg-secondary/50 p-4 sm:col-span-2">
-                  <div className="text-sm font-semibold text-[var(--navy)]">
-                    Auto-generated after submit
-                  </div>
-                  <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                    <div>Employee ID: EMP001, EMP002...</div>
-                    <div>Temporary password generated after submit</div>
-                  </div>
-                </div>
-              )}
-            </div>
+            )
           )}
           {!inviteResult && (
             <DialogFooter>
@@ -706,26 +720,6 @@ function StaffPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={!!toDelete} onOpenChange={(v) => !v && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete employee?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove {toDelete?.name}. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={doDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -837,7 +831,9 @@ function InviteSuccess({
         <div className="sm:col-span-2">
           <div className="text-muted-foreground">Temporary password</div>
           <div className="flex flex-wrap items-center gap-2 font-medium text-[var(--navy)]">
-            <span className="rounded-md bg-background px-2 py-1">{result.credentials.temp_password}</span>
+            <span className="rounded-md bg-background px-2 py-1">
+              {result.credentials.temp_password}
+            </span>
             <Button type="button" variant="outline" size="sm" onClick={copyCredentials}>
               <Copy className="mr-2 size-4" />
               {copied ? "Copied" : "Copy details"}
@@ -851,7 +847,11 @@ function InviteSuccess({
           <Plus className="mr-2 size-4" />
           Add another
         </Button>
-        <Button type="button" className="bg-[var(--navy)] hover:bg-[var(--navy-light)]" onClick={onDone}>
+        <Button
+          type="button"
+          className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+          onClick={onDone}
+        >
           Done
         </Button>
       </div>
