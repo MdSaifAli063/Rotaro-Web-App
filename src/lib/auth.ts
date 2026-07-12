@@ -43,7 +43,7 @@ export async function fetchProfile(): Promise<Profile | null> {
   if (!data.user) return null;
 
   const { data: profile } = await supabase
-    .from("profiles" as any)
+    .from("profiles")
     .select(
       "id, name, email, role, business_id, department, first_login, password_changed_at, last_login_at",
     )
@@ -53,7 +53,7 @@ export async function fetchProfile(): Promise<Profile | null> {
   if (profile) {
     const typed = profile as Profile;
     void supabase
-      .from("profiles" as any)
+      .from("profiles")
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", data.user.id);
     return typed;
@@ -109,7 +109,7 @@ export async function changeFirstLoginPassword(newPassword: string, confirmPassw
   const { data } = await supabase.auth.getUser();
   if (data.user) {
     await supabase
-      .from("profiles" as any)
+      .from("profiles")
       .update({
         first_login: false,
         password_changed_at: new Date().toISOString(),
