@@ -86,7 +86,7 @@ const plans = [
     interval: "per month",
     description: "For growing teams that need the full workforce toolkit.",
     features: [
-      "Up to 25 employees",
+      "Up to 1,000 employees",
       "3 locations",
       "Full roster (create, publish, send, download)",
       "All reports (hours, wages, comparison)",
@@ -103,7 +103,7 @@ const plans = [
     interval: "per month",
     description: "For larger teams that need finance, custom setup, and priority support.",
     features: [
-      "Unlimited employees & locations",
+      "Up to 1,000 employees & unlimited locations",
       "Everything in Professional",
       "Finance organiser",
       "Email-to-extract",
@@ -184,7 +184,7 @@ function BillingPage() {
 
       const [subscriptionResult, invoicesResult] = await Promise.all([
         supabase
-          .from("billing_subscriptions" as any)
+          .from("billing_subscriptions")
           .select("*")
           .eq("business_id", nextProfile.business_id)
           .maybeSingle(),
@@ -245,7 +245,9 @@ function BillingPage() {
   }
 
   const demoFullAccess = isDemoFullAccessEmail(profile.email);
-  const currentPlan = demoFullAccess ? "Business (Demo)" : (subscription?.plan_name ?? "Starter");
+  const currentPlan = demoFullAccess
+    ? "Professional (Demo)"
+    : (subscription?.plan_name ?? "Starter");
   const currentStatus = demoFullAccess ? "active" : (subscription?.status ?? "active");
   const currentProvider = demoFullAccess ? "manual" : (subscription?.provider ?? "manual");
   const amount = demoFullAccess ? 0 : (subscription?.amount_cents ?? 0) / 100;
@@ -495,7 +497,7 @@ function BillingPage() {
 
 async function seedDefaultSubscription(businessId: string) {
   const { data, error } = await supabase
-    .from("billing_subscriptions" as any)
+    .from("billing_subscriptions")
     .upsert(
       {
         business_id: businessId,
