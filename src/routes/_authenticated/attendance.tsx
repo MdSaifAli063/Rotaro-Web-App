@@ -409,7 +409,6 @@ function AttendancePage() {
   };
 
   const deleteAttendance = async (row: AttendanceRow) => {
-    if (!window.confirm("Delete this attendance record?")) return;
     const { error } = await supabase.from("attendance_records").delete().eq("id", row.id);
     if (error) {
       toast.error("Unable to delete attendance: " + error.message);
