@@ -25,7 +25,7 @@ export type PlanAccess = {
   features: Record<PlanFeature, boolean>;
 };
 
-export const DEMO_FULL_ACCESS_EMAILS = new Set(["employer@rotaro.com", "emily@rotaro.com"]);
+export const DEMO_FULL_ACCESS_EMAILS = new Set(["employer@rotaro.com"]);
 
 export const PLAN_ACCESS: Record<AppPlanKey, PlanAccess> = {
   starter: {
@@ -52,7 +52,7 @@ export const PLAN_ACCESS: Record<AppPlanKey, PlanAccess> = {
   professional: {
     key: "professional",
     name: "Professional",
-    employeeLimit: 25,
+    employeeLimit: 1000,
     locationLimit: 3,
     features: {
       basicRoster: true,
@@ -73,7 +73,7 @@ export const PLAN_ACCESS: Record<AppPlanKey, PlanAccess> = {
   business: {
     key: "business",
     name: "Business",
-    employeeLimit: null,
+    employeeLimit: 1000,
     locationLimit: null,
     features: {
       basicRoster: true,
@@ -118,18 +118,21 @@ export function isDemoFullAccessEmail(email?: string | null) {
 
 export function useBusinessPlan(businessId?: string | null) {
   const [planKey, setPlanKey] = useState<AppPlanKey>("starter");
+  const [demoEmployer, setDemoEmployer] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
+    setDemoEmployer(false);
 
     (async () => {
       const { data: authData } = await supabase.auth.getUser();
       if (!mounted) return;
 
       if (isDemoFullAccessEmail(authData.user?.email)) {
-        setPlanKey("business");
+        setDemoEmployer(true);
+        setPlanKey("professional");
         setLoading(false);
         return;
       }
@@ -141,7 +144,7 @@ export function useBusinessPlan(businessId?: string | null) {
       }
 
       const { data } = await supabase
-        .from("billing_subscriptions" as any)
+        .from("billing_subscriptions")
         .select("plan_key,status")
         .eq("business_id", businessId)
         .maybeSingle();
@@ -158,7 +161,13 @@ export function useBusinessPlan(businessId?: string | null) {
     };
   }, [businessId]);
 
-  const access = useMemo(() => getPlanAccess(planKey), [planKey]);
+  const access = useMemo(
+    () =>
+      demoEmployer
+        ? { ...getPlanAccess("professional"), employeeLimit: 100 }
+        : getPlanAccess(planKey),
+    [demoEmployer, planKey],
+  );
 
   return { planKey, access, loading };
 }
