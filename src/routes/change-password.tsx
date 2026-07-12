@@ -71,7 +71,10 @@ function ChangePasswordPage() {
       await changeFirstLoginPassword(password, confirm);
       toast.success("Password set. Welcome to Rotaro.");
       setTimeout(() => {
-        navigate({ to: profile && isManager(profile) ? "/dashboard" : "/my-roster", replace: true });
+        navigate({
+          to: profile && isManager(profile) ? "/dashboard" : "/my-roster",
+          replace: true,
+        });
       }, 800);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to set password");
