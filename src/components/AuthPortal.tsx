@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RotaroMark } from "@/components/RotaroMark";
 import { fetchProfile, isManager } from "@/lib/auth";
-import { seedDemoData } from "@/lib/seed.functions";
 
 export type AuthMode = "signin" | "signup";
 export type AuthPlan = "starter" | "professional" | "business";
@@ -24,15 +23,11 @@ const portalCopy = {
   client: {
     title: "Client login",
     subtitle: "Sign in to manage your workforce, rosters, billing, and company settings.",
-    demoLabel: "Employer demo",
-    demoEmail: "employer@rotaro.com",
     expected: "client",
   },
   staff: {
     title: "Staff login",
     subtitle: "Sign in to view your roster, attendance, leave, swaps, and messages.",
-    demoLabel: "Employee demo",
-    demoEmail: "emily@rotaro.com",
     expected: "staff",
   },
 } as const;
@@ -46,14 +41,6 @@ export function AuthPortal({ portal, mode = "signin", plan, next }: AuthPortalPr
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const afterLogin = next || (isSignup || plan ? "/onboarding" : "/dashboard");
-
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      seedDemoData().catch((err: any) => {
-        console.error("Failed to seed demo data:", err.message);
-      });
-    }
-  }, []);
 
   useEffect(() => {
     if (isSignup && portal !== "client") {
@@ -76,24 +63,6 @@ export function AuthPortal({ portal, mode = "signin", plan, next }: AuthPortalPr
       return;
     }
     navigate({ to: afterLogin });
-  };
-
-  const quickLogin = async () => {
-    setEmail(copy.demoEmail);
-    setPassword("Demo1234!");
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: copy.demoEmail,
-        password: "Demo1234!",
-      });
-      if (error) throw error;
-      await completeLogin();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Demo login failed");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -172,29 +141,21 @@ export function AuthPortal({ portal, mode = "signin", plan, next }: AuthPortalPr
                 minLength={6}
               />
             </div>
+            {!isSignup && (
+              <div className="flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  search={{ portal }}
+                  className="text-sm font-medium text-[var(--navy)] hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
             <Button type="submit" className="h-11 w-full" disabled={loading}>
               {loading ? "Please wait..." : isSignup ? "Create account" : "Login"}
             </Button>
           </form>
-
-          {!isSignup && (
-            <div className="mt-6 border-t pt-6">
-              <div className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
-                Try the demo
-              </div>
-              <button
-                type="button"
-                onClick={quickLogin}
-                disabled={loading}
-                className="h-10 w-full rounded-md border text-sm font-medium hover:bg-secondary disabled:opacity-50"
-              >
-                {copy.demoLabel}
-              </button>
-              <div className="mt-2 text-center text-[11px] text-muted-foreground">
-                Password: <code className="font-mono">Demo1234!</code>
-              </div>
-            </div>
-          )}
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             {isSignup ? (

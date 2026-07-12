@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as StaffLoginRouteImport } from './routes/staff-login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ClientLoginRouteImport } from './routes/client-login'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -55,9 +57,19 @@ const StaffLoginRoute = StaffLoginRouteImport.update({
   path: '/staff-login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientLoginRoute = ClientLoginRouteImport.update({
@@ -232,7 +244,9 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/change-password': typeof ChangePasswordRoute
   '/client-login': typeof ClientLoginRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
@@ -268,7 +282,9 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/change-password': typeof ChangePasswordRoute
   '/client-login': typeof ClientLoginRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
@@ -306,7 +322,9 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/change-password': typeof ChangePasswordRoute
   '/client-login': typeof ClientLoginRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/_authenticated/apply-leave': typeof AuthenticatedApplyLeaveRoute
@@ -344,7 +362,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/client-login'
+    | '/forgot-password'
     | '/pricing'
+    | '/reset-password'
     | '/staff-login'
     | '/support'
     | '/apply-leave'
@@ -380,7 +400,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/client-login'
+    | '/forgot-password'
     | '/pricing'
+    | '/reset-password'
     | '/staff-login'
     | '/support'
     | '/apply-leave'
@@ -417,7 +439,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/client-login'
+    | '/forgot-password'
     | '/pricing'
+    | '/reset-password'
     | '/staff-login'
     | '/support'
     | '/_authenticated/apply-leave'
@@ -455,7 +479,9 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
   ClientLoginRoute: typeof ClientLoginRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   PricingRoute: typeof PricingRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   StaffLoginRoute: typeof StaffLoginRoute
   SupportRoute: typeof SupportRoute
 }
@@ -476,11 +502,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/client-login': {
@@ -800,7 +840,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ChangePasswordRoute: ChangePasswordRoute,
   ClientLoginRoute: ClientLoginRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   PricingRoute: PricingRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   StaffLoginRoute: StaffLoginRoute,
   SupportRoute: SupportRoute,
 }
