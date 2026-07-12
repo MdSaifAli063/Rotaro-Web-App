@@ -100,7 +100,6 @@ function HolidaysPage() {
   const [importingCsv, setImportingCsv] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [country, setCountry] = useState("AU");
   const [markPaid, setMarkPaid] = useState(true);
@@ -423,7 +422,6 @@ function HolidaysPage() {
       .eq("id", holiday.id)
       .eq("business_id", profile.business_id ?? "");
     setDeletingId(null);
-    setConfirmDeleteId(null);
     if (error) toast.error("Failed to delete holiday: " + error.message);
     else {
       toast.success("Holiday deleted");
@@ -704,36 +702,15 @@ function HolidaysPage() {
                         </button>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {confirmDeleteId === holiday.id ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Delete?</span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-600 text-red-600"
-                              disabled={deletingId === holiday.id}
-                              onClick={() => deleteHoliday(holiday)}
-                            >
-                              Delete
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setConfirmDeleteId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </span>
-                        ) : (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => setConfirmDeleteId(holiday.id)}
-                            aria-label={`Delete ${holiday.holiday_name}`}
-                          >
-                            <Trash2 className="size-4 text-red-600" />
-                          </Button>
-                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={deletingId === holiday.id}
+                          onClick={() => deleteHoliday(holiday)}
+                          aria-label={`Delete ${holiday.holiday_name}`}
+                        >
+                          <Trash2 className="size-4 text-red-600" />
+                        </Button>
                       </td>
                     </tr>
                   ))
