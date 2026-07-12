@@ -428,8 +428,8 @@ function MyRosterPage() {
               <h2 className="text-xl font-semibold">My schedule</h2>
               <p className="mt-2 text-sm text-white/75">
                 Viewing shifts for <strong className="text-white">{emp?.name || "you"}</strong>.
-                Approved leave shows as <span className="font-semibold text-violet-200">Leave</span>
-                ; holidays as <span className="font-semibold text-red-200">PH</span>.
+                Approved leave shows as <span className="font-semibold text-red-200">Leave</span>;
+                holidays as <span className="font-semibold text-red-200">PH</span>.
               </p>
             </div>
             {days.length >= maxVisibleDays && (
@@ -527,10 +527,7 @@ function MyRosterPage() {
           <Legend label="Working" className="border-emerald-200 bg-emerald-50 text-emerald-700" />
           <Legend label="Weekly off" className="border-amber-200 bg-amber-50 text-amber-700" />
           <Legend label="Public holiday" className="border-red-200 bg-red-50 text-red-700" />
-          <Legend
-            label="Approved leave"
-            className="border-violet-200 bg-violet-50 text-violet-700"
-          />
+          <Legend label="Approved leave" className="border-red-200 bg-red-50 text-red-700" />
           <span className="inline-flex items-center gap-1 rounded-md border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
             <Clock3 className="size-3.5" />
             Time | break | hours
@@ -757,9 +754,9 @@ function RosterCell({ date, state }: { date: Date; state: CellState }) {
   }
   if (state.kind === "leave") {
     return (
-      <div className="flex min-h-[78px] items-center justify-center border-r bg-violet-50 px-2 py-3">
-        <span className="rounded-md border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
-          Leave
+      <div className="flex min-h-[78px] items-center justify-center border-r bg-red-50 px-2 py-3">
+        <span className="rounded-md border border-red-300 bg-red-600 px-3 py-1 text-xs font-semibold text-white">
+          Leave - {state.leave.leave_type}
         </span>
       </div>
     );
@@ -801,10 +798,10 @@ function getCellState(
   leaveByDay: Map<string, LeaveRow>,
   holidayByDay: Map<string, HolidayRow>,
 ): CellState {
-  const shift = shiftsByDay.get(key)?.[0];
-  if (shift) return { kind: "shift", shift };
   const leave = leaveByDay.get(key);
   if (leave) return { kind: "leave", leave };
+  const shift = shiftsByDay.get(key)?.[0];
+  if (shift) return { kind: "shift", shift };
   const holiday = holidayByDay.get(key);
   if (holiday) return { kind: "holiday", holiday };
   return { kind: "off" };

@@ -88,7 +88,7 @@ function OnboardingPage() {
         .insert({ business_id: biz.id });
       if (settingsError) throw settingsError;
 
-      const { error: billingError } = await supabase.from("billing_subscriptions" as any).upsert(
+      const { error: billingError } = await supabase.from("billing_subscriptions").upsert(
         {
           business_id: biz.id,
           provider: "manual",
