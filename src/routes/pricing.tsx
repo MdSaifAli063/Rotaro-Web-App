@@ -283,7 +283,7 @@ function PricingCards({
         price: billingCycle === "monthly" ? "$29/mo" : "$290/yr",
         priceNote: billingCycle === "monthly" ? "per month" : "per year",
         features: [
-          "Up to 25 employees",
+          "Up to 1,000 employees",
           "3 locations",
           "Full roster (create, publish, send, download)",
           "All reports (hours, wages, comparison)",
@@ -301,7 +301,7 @@ function PricingCards({
         price: billingCycle === "monthly" ? "$79/mo" : "$790/yr",
         priceNote: billingCycle === "monthly" ? "per month" : "per year",
         features: [
-          "Unlimited employees & locations",
+          "Up to 1,000 employees & unlimited locations",
           "Everything in Professional",
           "Finance organiser",
           "Email-to-extract",
