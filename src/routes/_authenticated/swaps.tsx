@@ -506,7 +506,6 @@ function SwapsPage() {
   };
 
   const deleteSwap = async (row: SwapRow) => {
-    if (!window.confirm("Delete this shift swap request?")) return;
     setActioningId(row.id);
     const { error } = await supabase.from("shift_swaps").delete().eq("id", row.id);
     setActioningId(null);
