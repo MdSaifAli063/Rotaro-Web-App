@@ -177,7 +177,7 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
       if (!session.url) throw new Error("Stripe checkout did not return a session URL.");
 
       if (planMeta) {
-        const { error } = await supabaseAdmin.from("billing_subscriptions" as any).upsert(
+        const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
           {
             business_id: data.businessId,
             provider: "stripe",
@@ -242,7 +242,7 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
     if (!url) throw new Error("Razorpay subscription did not return a checkout URL.");
 
     if (planMeta) {
-      const { error } = await supabaseAdmin.from("billing_subscriptions" as any).upsert(
+      const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
         {
           business_id: data.businessId,
           provider: "razorpay",
@@ -267,7 +267,7 @@ export const activateStarterPlan = createServerFn({ method: "POST" })
   .validator(starterInputSchema)
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("billing_subscriptions" as any).upsert(
+    const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
       {
         business_id: data.businessId,
         provider: "manual",
@@ -334,7 +334,7 @@ export const finalizeStripeBillingCheckout = createServerFn({ method: "POST" })
     const planKey = session.metadata?.plan_key === "business" ? "business" : "professional";
     const planMeta = PLAN_META[planKey][billingCycle];
 
-    const { error } = await supabaseAdmin.from("billing_subscriptions" as any).upsert(
+    const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
       {
         business_id: data.businessId,
         provider: "stripe",
@@ -372,7 +372,7 @@ export const finalizeRazorpayBillingCheckout = createServerFn({ method: "POST" }
     }
 
     const { data: existing, error: existingError } = await supabaseAdmin
-      .from("billing_subscriptions" as any)
+      .from("billing_subscriptions")
       .select("provider_subscription_id,plan_key,billing_interval")
       .eq("business_id", data.businessId)
       .eq("provider", "razorpay")
@@ -421,7 +421,7 @@ export const finalizeRazorpayBillingCheckout = createServerFn({ method: "POST" }
     const billingCycle = existingRow?.billing_interval === "year" ? "annual" : "monthly";
     const planMeta = PLAN_META[planKey][billingCycle];
 
-    const { error } = await supabaseAdmin.from("billing_subscriptions" as any).upsert(
+    const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
       {
         business_id: data.businessId,
         provider: "razorpay",
