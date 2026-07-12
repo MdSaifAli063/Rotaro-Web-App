@@ -803,8 +803,7 @@ function SettingsPage() {
             <div className="rounded-xl border bg-[#F8FAFD] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  In-app: saved. Email: set VITE_EMAILJS_* values in Vercel for email
-                  alerts.
+                  In-app: saved. Email: set VITE_EMAILJS_* values in Vercel for email alerts.
                 </p>
                 <Button
                   type="button"

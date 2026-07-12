@@ -161,6 +161,21 @@ type ShiftTemplate = {
   min_staff_required: number | null;
 };
 
+type ApprovedLeave = {
+  id: string;
+  employee_id: string;
+  leave_type: string;
+  from_date: string;
+  to_date: string;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+const leaveStart = (leave: ApprovedLeave) => leave.start_date || leave.from_date;
+const leaveEnd = (leave: ApprovedLeave) => leave.end_date || leave.to_date;
+const leaveCoversDate = (leave: ApprovedLeave, day: string) =>
+  leaveStart(leave) <= day && leaveEnd(leave) >= day;
+
 // ===================================================================
 // Top-level route
 // ===================================================================
@@ -385,7 +400,7 @@ function CreateRosterDialog({
                 (new Date(start).getTime() - new Date(srcRoster.week_start).getTime()) / 86400000,
               )
             : 0;
-          const copies = source.map((s) => ({
+          const proposedCopies = source.map((s) => ({
             roster_id: r.id,
             employee_id: s.employee_id,
             day: fmtDate(addDays(new Date(s.day), offsetDays)),
@@ -394,7 +409,32 @@ function CreateRosterDialog({
             break_minutes: s.break_minutes,
             total_hours: s.total_hours,
           }));
-          await supabase.from("roster_shifts").insert(copies);
+          const { data: leaveRows, error: leaveError } = await supabase
+            .from("leaves")
+            .select("id, employee_id, leave_type, from_date, to_date, start_date, end_date")
+            .eq("business_id", businessId)
+            .ilike("status", "approved")
+            .lte("from_date", end)
+            .gte("to_date", start);
+          if (leaveError) throw leaveError;
+          const approvedLeaves = (leaveRows ?? []) as ApprovedLeave[];
+          const copies = proposedCopies.filter(
+            (copy) =>
+              !approvedLeaves.some(
+                (leave) =>
+                  leave.employee_id === copy.employee_id && leaveCoversDate(leave, copy.day),
+              ),
+          );
+          if (copies.length) {
+            const { error: copyError } = await supabase.from("roster_shifts").insert(copies);
+            if (copyError) throw copyError;
+          }
+          const skipped = proposedCopies.length - copies.length;
+          if (skipped) {
+            toast.info(
+              `${skipped} shift${skipped === 1 ? " was" : "s were"} skipped due to approved leave.`,
+            );
+          }
         }
       }
 
@@ -516,6 +556,7 @@ export function RosterEditor({
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
+  const [approvedLeaves, setApprovedLeaves] = useState<ApprovedLeave[]>([]);
   const [activeDay, setActiveDay] = useState(0);
   const [editing, setEditing] = useState<Partial<Shift> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -531,42 +572,61 @@ export function RosterEditor({
   const [showCost, setShowCost] = useState(true);
   const [notesDraft, setNotesDraft] = useState("");
   const [copyFromOpen, setCopyFromOpen] = useState(false);
+  const [deletingRoster, setDeletingRoster] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: r }, { data: emps }, { data: sh }, { data: biz }, { data: rs }, { data: tpl }] =
-      await Promise.all([
-        supabase
-          .from("rosters")
-          .select("id, week_start, week_end, status")
-          .eq("id", rosterId)
-          .single(),
-        supabase
-          .from("employees")
-          .select("id, name, role, department, pay_rate, user_id, status")
-          .eq("business_id", businessId)
-          .order("name"),
-        supabase
-          .from("roster_shifts")
-          .select(
-            "id, roster_id, employee_id, day, start_time, end_time, break_minutes, total_hours",
-          )
-          .eq("roster_id", rosterId),
-        supabase.from("businesses").select("name").eq("id", businessId).single(),
-        supabase
-          .from("rosters")
-          .select("id, week_start, week_end, status")
-          .eq("business_id", businessId)
-          .order("week_start", { ascending: false }),
-        supabase
-          .from("shift_templates")
-          .select(
-            "id, name, start_time, end_time, break_minutes, department, color, min_staff_required",
-          )
-          .eq("business_id", businessId)
-          .order("start_time"),
-      ]);
-    setRoster(r as Roster | null);
+    const { data: rosterRow, error: rosterError } = await supabase
+      .from("rosters")
+      .select("id, week_start, week_end, status")
+      .eq("id", rosterId)
+      .single();
+    if (rosterError || !rosterRow) {
+      setLoading(false);
+      toast.error(rosterError?.message ?? "Roster not found");
+      return;
+    }
+    const currentRoster = rosterRow as Roster;
+    const [
+      { data: emps },
+      { data: sh },
+      { data: biz },
+      { data: rs },
+      { data: tpl },
+      { data: leaveRows, error: leaveError },
+    ] = await Promise.all([
+      supabase
+        .from("employees")
+        .select("id, name, role, department, pay_rate, user_id, status")
+        .eq("business_id", businessId)
+        .order("name"),
+      supabase
+        .from("roster_shifts")
+        .select("id, roster_id, employee_id, day, start_time, end_time, break_minutes, total_hours")
+        .eq("roster_id", rosterId),
+      supabase.from("businesses").select("name").eq("id", businessId).single(),
+      supabase
+        .from("rosters")
+        .select("id, week_start, week_end, status")
+        .eq("business_id", businessId)
+        .order("week_start", { ascending: false }),
+      supabase
+        .from("shift_templates")
+        .select(
+          "id, name, start_time, end_time, break_minutes, department, color, min_staff_required",
+        )
+        .eq("business_id", businessId)
+        .order("start_time"),
+      supabase
+        .from("leaves")
+        .select("id, employee_id, leave_type, from_date, to_date, start_date, end_date")
+        .eq("business_id", businessId)
+        .ilike("status", "approved")
+        .lte("from_date", currentRoster.week_end)
+        .gte("to_date", currentRoster.week_start),
+    ]);
+    if (leaveError) toast.error(`Failed to load approved leave: ${leaveError.message}`);
+    setRoster(currentRoster);
     setEmployees(
       ((emps ?? []) as Employee[]).filter(
         (emp) => (emp.status ?? "active").toLowerCase() === "active",
@@ -574,15 +634,40 @@ export function RosterEditor({
     );
     setShifts((sh ?? []) as Shift[]);
     setTemplates((tpl ?? []) as ShiftTemplate[]);
+    setApprovedLeaves((leaveRows ?? []) as ApprovedLeave[]);
     setBusinessName((biz as { name?: string } | null)?.name ?? "");
     setAllRosters((rs ?? []) as Roster[]);
     setLoading(false);
-  };
+  }, [businessId, rosterId]);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rosterId]);
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`roster-availability-${rosterId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leaves", filter: `business_id=eq.${businessId}` },
+        () => void load(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "roster_shifts",
+          filter: `roster_id=eq.${rosterId}`,
+        },
+        () => void load(),
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [businessId, load, rosterId]);
 
   const weekDates = useMemo(() => {
     if (!roster) return [] as Date[];
@@ -602,8 +687,29 @@ export function RosterEditor({
     return list;
   }, [employees, deptFilter]);
 
+  const leaveByEmployeeDay = useMemo(() => {
+    const map = new Map<string, ApprovedLeave>();
+    for (const leave of approvedLeaves) {
+      for (const date of weekDates) {
+        const day = fmtDate(date);
+        if (leaveCoversDate(leave, day)) map.set(`${leave.employee_id}:${day}`, leave);
+      }
+    }
+    return map;
+  }, [approvedLeaves, weekDates]);
+
+  const getApprovedLeave = (employeeId: string, day: string) =>
+    leaveByEmployeeDay.get(`${employeeId}:${day}`);
+
   const dayKey = weekDates[activeDay] ? fmtDate(weekDates[activeDay]) : "";
-  const dayShifts = useMemo(() => shifts.filter((s) => s.day === dayKey), [shifts, dayKey]);
+  const dayShifts = useMemo(
+    () =>
+      shifts.filter(
+        (shift) =>
+          shift.day === dayKey && !leaveByEmployeeDay.has(`${shift.employee_id}:${shift.day}`),
+      ),
+    [shifts, dayKey, leaveByEmployeeDay],
+  );
 
   // Per-employee day metrics (used for sorting & right column totals)
   const empDayMetrics = useMemo(() => {
@@ -656,6 +762,13 @@ export function RosterEditor({
   };
 
   const openNew = (employeeId?: string, startTime = "09:00") => {
+    if (employeeId) {
+      const leave = getApprovedLeave(employeeId, dayKey);
+      if (leave) {
+        toast.error(`This employee is on approved ${leave.leave_type} leave on ${dayKey}.`);
+        return;
+      }
+    }
     const start = normalizeTime(startTime);
     setEditing({
       employee_id: employeeId,
@@ -710,6 +823,13 @@ export function RosterEditor({
       toast.error("End time must be after start time");
       return;
     }
+    const approvedLeave = getApprovedLeave(editing.employee_id, editing.day);
+    if (approvedLeave) {
+      toast.error(
+        `This employee is on approved ${approvedLeave.leave_type} leave on ${editing.day} and cannot be rostered.`,
+      );
+      return;
+    }
     const payload = {
       roster_id: rosterId,
       employee_id: editing.employee_id,
@@ -741,10 +861,11 @@ export function RosterEditor({
   };
 
   const clearDay = async () => {
-    if (!confirm(`Clear all shifts for ${weekDates[activeDay]?.toDateString()}?`)) return;
     const ids = dayShifts.map((s) => s.id);
     if (!ids.length) return;
-    await supabase.from("roster_shifts").delete().in("id", ids);
+    const { error } = await supabase.from("roster_shifts").delete().in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success("Day cleared");
     load();
   };
 
@@ -787,8 +908,10 @@ export function RosterEditor({
   };
 
   const deleteRoster = async () => {
-    if (!confirm("Delete this entire roster? This cannot be undone.")) return;
-    const { error } = await supabase.from("rosters").delete().eq("id", rosterId);
+    if (deletingRoster) return;
+    setDeletingRoster(true);
+    const { error } = await supabase.rpc("delete_roster", { p_roster_id: rosterId });
+    setDeletingRoster(false);
     if (error) return toast.error(error.message);
     toast.success("Roster deleted");
     onBack();
@@ -800,27 +923,37 @@ export function RosterEditor({
       toast.error("No shifts to copy from that day");
       return;
     }
+    const copies = src
+      .filter((shift) => !getApprovedLeave(shift.employee_id, dayKey))
+      .map((s) => ({
+        roster_id: rosterId,
+        employee_id: s.employee_id,
+        day: dayKey,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        break_minutes: s.break_minutes,
+        total_hours: s.total_hours,
+      }));
+    const skipped = src.length - copies.length;
     if (dayShifts.length) {
-      if (!confirm("Replace existing shifts for this day?")) return;
-      await supabase
+      const { error } = await supabase
         .from("roster_shifts")
         .delete()
         .in(
           "id",
           dayShifts.map((s) => s.id),
         );
+      if (error) return toast.error(error.message);
     }
-    const copies = src.map((s) => ({
-      roster_id: rosterId,
-      employee_id: s.employee_id,
-      day: dayKey,
-      start_time: s.start_time,
-      end_time: s.end_time,
-      break_minutes: s.break_minutes,
-      total_hours: s.total_hours,
-    }));
-    await supabase.from("roster_shifts").insert(copies);
-    toast.success("Day copied");
+    if (copies.length) {
+      const { error } = await supabase.from("roster_shifts").insert(copies);
+      if (error) return toast.error(error.message);
+    }
+    toast.success(
+      skipped
+        ? `Day copied. ${skipped} shift${skipped === 1 ? " was" : "s were"} skipped due to approved leave.`
+        : "Day copied",
+    );
     setCopyFromOpen(false);
     load();
   };
@@ -905,9 +1038,10 @@ export function RosterEditor({
               variant="outline"
               size="sm"
               onClick={deleteRoster}
+              disabled={deletingRoster}
               className="bg-transparent text-white border-white/30 hover:bg-white/10 hover:text-white gap-1"
             >
-              <Trash2 className="size-4" /> Delete Roster
+              <Trash2 className="size-4" /> {deletingRoster ? "Deleting..." : "Delete Roster"}
             </Button>
             <Button
               variant="outline"
@@ -1120,6 +1254,7 @@ export function RosterEditor({
               ) : (
                 sortedEmployees.map((emp) => {
                   const empShifts = dayShifts.filter((s) => s.employee_id === emp.id);
+                  const approvedLeave = getApprovedLeave(emp.id, dayKey);
                   const metrics = empDayMetrics.get(emp.id) ?? {
                     hours: 0,
                     cost: 0,
@@ -1147,7 +1282,11 @@ export function RosterEditor({
                         </div>
                       </div>
                       <div
-                        className="relative cursor-pointer hover:bg-secondary/30"
+                        className={`relative ${
+                          approvedLeave
+                            ? "cursor-not-allowed bg-red-50"
+                            : "cursor-pointer hover:bg-secondary/30"
+                        }`}
                         style={{
                           backgroundImage:
                             "repeating-linear-gradient(to right, transparent 0, transparent calc((100%/" +
@@ -1160,6 +1299,12 @@ export function RosterEditor({
                         }}
                         onClick={(e) => {
                           if (readOnly) return;
+                          if (approvedLeave) {
+                            toast.error(
+                              `${emp.name} is on approved ${approvedLeave.leave_type} leave on ${dayKey}.`,
+                            );
+                            return;
+                          }
                           if ((e.target as HTMLElement).closest("[data-shift]")) return;
                           const rect = e.currentTarget.getBoundingClientRect();
                           const position = Math.max(
@@ -1172,50 +1317,58 @@ export function RosterEditor({
                           openNew(emp.id, timeFromMinutes(clickedMinutes));
                         }}
                       >
-                        {empShifts.map((s) => {
-                          if (!s.start_time || !s.end_time) return null;
-                          const startH = parseHM(s.start_time);
-                          const endH = parseHM(s.end_time);
-                          const first = GRID_START_HOUR;
-                          const total = GRID_END_HOUR - GRID_START_HOUR;
-                          const leftPct = Math.max(0, ((startH - first) / total) * 100);
-                          const widthPct = Math.max(2, ((endH - startH) / total) * 100);
-                          const matchedTemplate = templateForShift(s, emp);
-                          const bg = matchedTemplate?.color || deptColor(emp.department, allDepts);
-                          return (
-                            <button
-                              key={s.id}
-                              data-shift
-                              disabled={readOnly}
-                              onClick={(ev) => {
-                                ev.stopPropagation();
-                                if (readOnly) return;
-                                setEditing(s);
-                              }}
-                              className="absolute top-1 bottom-1 text-white text-[11px] px-2 rounded-md flex flex-col items-start justify-center overflow-hidden hover:opacity-90"
-                              style={{
-                                left: `${leftPct}%`,
-                                width: `${widthPct}%`,
-                                backgroundColor: bg,
-                              }}
-                            >
-                              <span className="truncate font-medium">
-                                {fmt12(s.start_time.slice(0, 5))} - {fmt12(s.end_time.slice(0, 5))}
-                                {matchedTemplate
-                                  ? ` (${matchedTemplate.name})`
-                                  : emp.department
-                                    ? ` (${emp.department})`
-                                    : ""}
-                              </span>
-                              {showCost && (
-                                <span className="truncate opacity-80">
-                                  {Number(s.total_hours ?? 0).toFixed(2)}h -{" "}
-                                  {fmtAUD(Number(s.total_hours ?? 0) * Number(emp.pay_rate ?? 0))}
+                        {approvedLeave ? (
+                          <div className="absolute inset-1 flex items-center justify-center rounded-md bg-red-600 px-3 text-center text-xs font-semibold text-white shadow-sm">
+                            Leave - {approvedLeave.leave_type}
+                          </div>
+                        ) : (
+                          empShifts.map((s) => {
+                            if (!s.start_time || !s.end_time) return null;
+                            const startH = parseHM(s.start_time);
+                            const endH = parseHM(s.end_time);
+                            const first = GRID_START_HOUR;
+                            const total = GRID_END_HOUR - GRID_START_HOUR;
+                            const leftPct = Math.max(0, ((startH - first) / total) * 100);
+                            const widthPct = Math.max(2, ((endH - startH) / total) * 100);
+                            const matchedTemplate = templateForShift(s, emp);
+                            const bg =
+                              matchedTemplate?.color || deptColor(emp.department, allDepts);
+                            return (
+                              <button
+                                key={s.id}
+                                data-shift
+                                disabled={readOnly}
+                                onClick={(ev) => {
+                                  ev.stopPropagation();
+                                  if (readOnly) return;
+                                  setEditing(s);
+                                }}
+                                className="absolute top-1 bottom-1 text-white text-[11px] px-2 rounded-md flex flex-col items-start justify-center overflow-hidden hover:opacity-90"
+                                style={{
+                                  left: `${leftPct}%`,
+                                  width: `${widthPct}%`,
+                                  backgroundColor: bg,
+                                }}
+                              >
+                                <span className="truncate font-medium">
+                                  {fmt12(s.start_time.slice(0, 5))} -{" "}
+                                  {fmt12(s.end_time.slice(0, 5))}
+                                  {matchedTemplate
+                                    ? ` (${matchedTemplate.name})`
+                                    : emp.department
+                                      ? ` (${emp.department})`
+                                      : ""}
                                 </span>
-                              )}
-                            </button>
-                          );
-                        })}
+                                {showCost && (
+                                  <span className="truncate opacity-80">
+                                    {Number(s.total_hours ?? 0).toFixed(2)}h -{" "}
+                                    {fmtAUD(Number(s.total_hours ?? 0) * Number(emp.pay_rate ?? 0))}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
                       <div className="border-l px-2 py-2 text-right text-xs text-[var(--navy)] flex flex-col justify-center">
                         <div className="font-semibold">{metrics.hours.toFixed(2)}</div>
@@ -1243,41 +1396,67 @@ export function RosterEditor({
                 <div>Cost</div>
                 <div />
               </div>
-              {dayShifts.length === 0 ? (
+              {dayShifts.length === 0 &&
+              !sortedEmployees.some((employee) => getApprovedLeave(employee.id, dayKey)) ? (
                 <div className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No shifts on this day yet.
                 </div>
               ) : (
-                dayShifts.map((s) => {
-                  const emp = employees.find((e) => e.id === s.employee_id);
-                  const hrs = Number(s.total_hours ?? 0);
-                  const cost = hrs * Number(emp?.pay_rate ?? 0);
-                  return (
-                    <div
-                      key={s.id}
-                      className="grid grid-cols-[1fr_120px_120px_120px_120px_60px] items-center border-b px-4 py-2 text-sm last:border-b-0"
-                    >
-                      <div className="truncate font-medium text-[var(--navy)]">
-                        {emp?.name ?? "—"}
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {emp?.department}
-                        </span>
-                      </div>
-                      <div>{s.start_time ? fmt12(s.start_time.slice(0, 5)) : "—"}</div>
-                      <div>{s.end_time ? fmt12(s.end_time.slice(0, 5)) : "—"}</div>
-                      <div>{hrs.toFixed(2)}</div>
-                      <div>{fmtAUD(cost)}</div>
-                      <div className="text-right">
-                        <button
-                          className="text-xs text-[var(--navy)] hover:underline"
-                          onClick={() => setEditing(s)}
+                <>
+                  {sortedEmployees
+                    .filter((employee) => getApprovedLeave(employee.id, dayKey))
+                    .map((employee) => {
+                      const leave = getApprovedLeave(employee.id, dayKey)!;
+                      return (
+                        <div
+                          key={`leave-${leave.id}-${employee.id}`}
+                          className="grid grid-cols-[1fr_120px_120px_120px_120px_60px] items-center border-b bg-red-50 px-4 py-2 text-sm"
                         >
-                          Edit
-                        </button>
+                          <div className="truncate font-medium text-[var(--navy)]">
+                            {employee.name}
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {employee.department}
+                            </span>
+                          </div>
+                          <div className="font-semibold text-red-700">Leave</div>
+                          <div className="text-red-700">{leave.leave_type}</div>
+                          <div>-</div>
+                          <div>-</div>
+                          <div />
+                        </div>
+                      );
+                    })}
+                  {dayShifts.map((s) => {
+                    const emp = employees.find((e) => e.id === s.employee_id);
+                    const hrs = Number(s.total_hours ?? 0);
+                    const cost = hrs * Number(emp?.pay_rate ?? 0);
+                    return (
+                      <div
+                        key={s.id}
+                        className="grid grid-cols-[1fr_120px_120px_120px_120px_60px] items-center border-b px-4 py-2 text-sm last:border-b-0"
+                      >
+                        <div className="truncate font-medium text-[var(--navy)]">
+                          {emp?.name ?? "—"}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {emp?.department}
+                          </span>
+                        </div>
+                        <div>{s.start_time ? fmt12(s.start_time.slice(0, 5)) : "—"}</div>
+                        <div>{s.end_time ? fmt12(s.end_time.slice(0, 5)) : "—"}</div>
+                        <div>{hrs.toFixed(2)}</div>
+                        <div>{fmtAUD(cost)}</div>
+                        <div className="text-right">
+                          <button
+                            className="text-xs text-[var(--navy)] hover:underline"
+                            onClick={() => setEditing(s)}
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </>
               )}
             </div>
           </div>
@@ -1355,11 +1534,15 @@ export function RosterEditor({
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.name} {e.department ? `- ${e.department}` : ""}
-                      </SelectItem>
-                    ))}
+                    {employees.map((e) => {
+                      const leave = getApprovedLeave(e.id, editing.day || dayKey);
+                      return (
+                        <SelectItem key={e.id} value={e.id} disabled={!!leave}>
+                          {e.name} {e.department ? `- ${e.department}` : ""}
+                          {leave ? ` (On ${leave.leave_type} leave)` : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
