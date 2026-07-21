@@ -31,7 +31,7 @@ export const PLAN_ACCESS: Record<AppPlanKey, PlanAccess> = {
   starter: {
     key: "starter",
     name: "Starter",
-    employeeLimit: 5,
+    employeeLimit: 0,
     locationLimit: 1,
     features: {
       basicRoster: true,
@@ -53,7 +53,7 @@ export const PLAN_ACCESS: Record<AppPlanKey, PlanAccess> = {
     key: "professional",
     name: "Professional",
     employeeLimit: 1000,
-    locationLimit: 3,
+    locationLimit: 5,
     features: {
       basicRoster: true,
       publishRoster: true,
@@ -63,17 +63,17 @@ export const PLAN_ACCESS: Record<AppPlanKey, PlanAccess> = {
       holidayImport: true,
       leaveManagement: true,
       pdfExtractor: true,
-      finance: false,
-      emailToExtract: false,
-      customHolidaySetup: false,
+      finance: true,
+      emailToExtract: true,
+      customHolidaySetup: true,
       prioritySupport: true,
-      phoneSupport: false,
+      phoneSupport: true,
     },
   },
   business: {
     key: "business",
     name: "Business",
-    employeeLimit: 1000,
+    employeeLimit: null,
     locationLimit: null,
     features: {
       basicRoster: true,
@@ -91,6 +91,14 @@ export const PLAN_ACCESS: Record<AppPlanKey, PlanAccess> = {
       phoneSupport: true,
     },
   },
+};
+
+export const FREE_TRIAL_ACCESS: PlanAccess = {
+  ...PLAN_ACCESS.business,
+  key: "starter",
+  name: "60-day free trial",
+  employeeLimit: 10,
+  locationLimit: null,
 };
 
 export const PLAN_ORDER: AppPlanKey[] = ["starter", "professional", "business"];
@@ -118,20 +126,19 @@ export function isDemoFullAccessEmail(email?: string | null) {
 
 export function useBusinessPlan(businessId?: string | null) {
   const [planKey, setPlanKey] = useState<AppPlanKey>("starter");
-  const [demoEmployer, setDemoEmployer] = useState(false);
+  const [trialActive, setTrialActive] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    setDemoEmployer(false);
+    setTrialActive(false);
 
     (async () => {
       const { data: authData } = await supabase.auth.getUser();
       if (!mounted) return;
 
       if (isDemoFullAccessEmail(authData.user?.email)) {
-        setDemoEmployer(true);
         setPlanKey("professional");
         setLoading(false);
         return;
@@ -145,14 +152,30 @@ export function useBusinessPlan(businessId?: string | null) {
 
       const { data } = await supabase
         .from("billing_subscriptions")
-        .select("plan_key,status")
+        .select("plan_key,status,trial_ends_at,current_period_end")
         .eq("business_id", businessId)
         .maybeSingle();
 
       if (!mounted) return;
-      const row = data as { plan_key?: string | null; status?: string | null } | null;
-      const activeStatus = !row?.status || ["active", "trialing", "manual"].includes(row.status);
-      setPlanKey(activeStatus ? normalizePlanKey(row?.plan_key) : "starter");
+      const row = data as {
+        plan_key?: string | null;
+        status?: string | null;
+        trial_ends_at?: string | null;
+        current_period_end?: string | null;
+      } | null;
+      const validTrial =
+        row?.plan_key === "starter" &&
+        row.status === "trialing" &&
+        !!row.trial_ends_at &&
+        new Date(row.trial_ends_at).getTime() > Date.now();
+      const paidActive =
+        row?.plan_key !== "starter" &&
+        ["active", "authenticated", "manual"].includes(row?.status ?? "") &&
+        (!row?.current_period_end || new Date(row.current_period_end).getTime() > Date.now());
+      setTrialActive(validTrial);
+      setPlanKey(
+        validTrial ? "business" : paidActive ? normalizePlanKey(row?.plan_key) : "starter",
+      );
       setLoading(false);
     })();
 
@@ -162,12 +185,9 @@ export function useBusinessPlan(businessId?: string | null) {
   }, [businessId]);
 
   const access = useMemo(
-    () =>
-      demoEmployer
-        ? { ...getPlanAccess("professional"), employeeLimit: 100 }
-        : getPlanAccess(planKey),
-    [demoEmployer, planKey],
+    () => (trialActive ? FREE_TRIAL_ACCESS : getPlanAccess(planKey)),
+    [planKey, trialActive],
   );
 
-  return { planKey, access, loading };
+  return { planKey, access, trialActive, loading };
 }
