@@ -59,9 +59,33 @@ VITE_EMAILJS_NOTIFICATION_TEMPLATE_ID=template_notification
 VITE_EMAILJS_PUBLIC_TEMPLATE_ID=template_public_forms
 VITE_EMAILJS_PUBLIC_TO_EMAIL=support@yourdomain.com
 VITE_APP_URL=https://your-vercel-domain.vercel.app
+
+RAZORPAY_KEY_ID=rzp_live_your_key_id
+RAZORPAY_KEY_SECRET=your_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
+RAZORPAY_PRO_MONTHLY_PLAN_ID=plan_professional_monthly
+RAZORPAY_PRO_ANNUAL_PLAN_ID=plan_professional_annual
+RAZORPAY_BUSINESS_MONTHLY_PLAN_ID=plan_business_monthly
+RAZORPAY_BUSINESS_ANNUAL_PLAN_ID=plan_business_annual
 ```
 
 > Note: Use the same public key for both `SUPABASE_ANON_KEY` and `SUPABASE_PUBLISHABLE_KEY` if your Supabase project exposes only one public key.
+
+## Plans And Razorpay
+
+- Free trial: 60 days, all product features, up to 10 employees.
+- Professional: USD 20/month or USD 200/year, all features, up to 1,000 employees and 5 locations.
+- Business: USD 79/month or USD 790/year, all features, unlimited employees and locations.
+
+Create four Razorpay subscription plans with those exact prices and billing periods, then set their plan IDs and the Razorpay credentials in every Vercel environment that serves the app. Configure the Razorpay webhook URL as:
+
+```text
+https://your-production-domain/api/razorpay-webhook
+```
+
+Subscribe it to `subscription.authenticated`, `subscription.activated`, `subscription.charged`, `subscription.pending`, `subscription.halted`, `subscription.cancelled`, `subscription.completed`, `subscription.paused`, and `subscription.resumed`. The webhook secret must exactly match `RAZORPAY_WEBHOOK_SECRET`.
+
+Apply all Supabase migrations before testing checkout. Billing tables are server-owned: the browser can read subscription state but cannot grant or modify paid access.
 
 ## Development
 
