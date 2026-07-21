@@ -10,8 +10,8 @@ import {
   createBillingCheckout,
   type BillingCycle,
   type BillingPlanKey,
-  type BillingProvider,
 } from "@/lib/api/billing.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -32,23 +32,18 @@ export const Route = createFileRoute("/pricing")({
 
 function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
-  const [provider, setProvider] = useState<BillingProvider>("stripe");
   const [pendingPlan, setPendingPlan] = useState<BillingPlanKey | null>(null);
   const { user } = useSession();
   const navigate = useNavigate();
 
   const startCheckout = useCallback(
-    async (
-      planKey: BillingPlanKey,
-      overrides?: { provider?: BillingProvider; billingCycle?: BillingCycle },
-    ) => {
-      const checkoutProvider = overrides?.provider ?? provider;
+    async (planKey: BillingPlanKey, overrides?: { billingCycle?: BillingCycle }) => {
       const checkoutCycle = overrides?.billingCycle ?? billingCycle;
 
       if (!user) {
         window.localStorage.setItem(
           "rotaro.pendingCheckout",
-          JSON.stringify({ planKey, provider: checkoutProvider, billingCycle: checkoutCycle }),
+          JSON.stringify({ planKey, billingCycle: checkoutCycle }),
         );
         navigate({
           to: "/client-login",
@@ -63,19 +58,21 @@ function PricingPage() {
         if (!profile?.business_id) {
           window.localStorage.setItem(
             "rotaro.pendingCheckout",
-            JSON.stringify({ planKey, provider: checkoutProvider, billingCycle: checkoutCycle }),
+            JSON.stringify({ planKey, billingCycle: checkoutCycle }),
           );
           navigate({ to: "/onboarding" });
           return;
         }
 
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error("Your session has expired. Please sign in again.");
+        if (planKey === "starter") return;
         const result = await createBillingCheckout({
           data: {
-            provider: checkoutProvider,
             planKey,
             billingCycle: checkoutCycle,
-            origin: window.location.origin,
-            businessId: profile.business_id,
+            accessToken,
             customerEmail: user.email ?? undefined,
             customerName: user.user_metadata?.name ?? undefined,
           },
@@ -88,7 +85,7 @@ function PricingPage() {
         setPendingPlan(null);
       }
     },
-    [billingCycle, navigate, provider, user],
+    [billingCycle, navigate, user],
   );
 
   const openStarter = () => {
@@ -107,8 +104,15 @@ function PricingPage() {
           navigate({ to: "/onboarding" });
           return;
         }
-        await activateStarterPlan({ data: { businessId: profile.business_id } });
-        toast.success("Starter plan activated");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error("Your session has expired. Please sign in again.");
+        const result = await activateStarterPlan({ data: { accessToken } });
+        toast.success(
+          result.existing
+            ? "Your workspace plan is already active."
+            : "60-day free trial activated.",
+        );
         navigate({ to: "/dashboard" });
       } catch (error: any) {
         toast.error(error?.message ?? "Unable to activate Starter plan.");
@@ -124,20 +128,16 @@ function PricingPage() {
     try {
       const pending = JSON.parse(raw) as {
         planKey?: BillingPlanKey;
-        provider?: BillingProvider;
         billingCycle?: BillingCycle;
       };
       if (
         pending.planKey &&
         pending.planKey !== "starter" &&
-        (pending.provider === "stripe" || pending.provider === "razorpay") &&
         (pending.billingCycle === "monthly" || pending.billingCycle === "annual")
       ) {
         window.localStorage.removeItem("rotaro.pendingCheckout");
-        setProvider(pending.provider);
         setBillingCycle(pending.billingCycle);
         startCheckout(pending.planKey, {
-          provider: pending.provider,
           billingCycle: pending.billingCycle,
         });
       }
@@ -151,12 +151,7 @@ function PricingPage() {
       <SiteHeader />
       <main>
         <Hero />
-        <PricingControls
-          billingCycle={billingCycle}
-          setBillingCycle={setBillingCycle}
-          provider={provider}
-          setProvider={setProvider}
-        />
+        <PricingControls billingCycle={billingCycle} setBillingCycle={setBillingCycle} />
         <PricingCards
           billingCycle={billingCycle}
           pendingPlan={pendingPlan}
@@ -179,7 +174,7 @@ function Hero() {
             Simple, transparent pricing
           </h1>
           <p className="max-w-2xl text-base md:text-lg text-[var(--navy)]/75">
-            Start free. Upgrade when you need publish, reports, PDF extract, and finance tools.
+            Try every Rotaro feature free for 60 days, then choose the plan that fits your team.
           </p>
         </div>
         <div className="hidden md:flex justify-end">
@@ -195,13 +190,9 @@ function Hero() {
 function PricingControls({
   billingCycle,
   setBillingCycle,
-  provider,
-  setProvider,
 }: {
   billingCycle: BillingCycle;
   setBillingCycle: (value: BillingCycle) => void;
-  provider: BillingProvider;
-  setProvider: (value: BillingProvider) => void;
 }) {
   return (
     <section className="bg-background">
@@ -228,22 +219,8 @@ function PricingControls({
           ))}
         </div>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-[var(--navy)]/80">
-          <span className="font-medium">Pay with:</span>
-          {(["stripe", "razorpay"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setProvider(item)}
-              className={`rounded-lg border px-5 py-2 font-medium transition ${
-                provider === item
-                  ? "border-[var(--navy)] bg-white text-[var(--navy)] shadow-sm"
-                  : "border-border bg-background text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              {item === "stripe" ? "Stripe" : "Razorpay"}
-            </button>
-          ))}
+        <div className="mt-6 text-sm font-medium text-[var(--navy)]/75">
+          Secure subscription payments powered by Razorpay
         </div>
       </div>
     </section>
@@ -265,14 +242,14 @@ function PricingCards({
     () => [
       {
         key: "starter" as const,
-        name: "Starter",
-        price: "Free",
-        priceNote: "Up to 5 employees",
+        name: "Free trial",
+        price: "$0",
+        priceNote: "60 days, no payment required",
         features: [
-          "Up to 5 employees",
-          "1 location",
-          "Basic roster (create + view)",
-          "Email support",
+          "Every Rotaro feature unlocked",
+          "Up to 10 employees",
+          "All roster, attendance, leave and report tools",
+          "60 days of full access",
         ],
         cta: "Get started",
         featured: false,
@@ -280,11 +257,11 @@ function PricingCards({
       {
         key: "professional" as const,
         name: "Professional",
-        price: billingCycle === "monthly" ? "$29/mo" : "$290/yr",
+        price: billingCycle === "monthly" ? "$20/mo" : "$200/yr",
         priceNote: billingCycle === "monthly" ? "per month" : "per year",
         features: [
           "Up to 1,000 employees",
-          "3 locations",
+          "5 locations",
           "Full roster (create, publish, send, download)",
           "All reports (hours, wages, comparison)",
           "Holiday import",
@@ -301,7 +278,7 @@ function PricingCards({
         price: billingCycle === "monthly" ? "$79/mo" : "$790/yr",
         priceNote: billingCycle === "monthly" ? "per month" : "per year",
         features: [
-          "Up to 1,000 employees & unlimited locations",
+          "Unlimited employees and locations",
           "Everything in Professional",
           "Finance organiser",
           "Email-to-extract",
@@ -402,9 +379,8 @@ function PricingCards({
           <div className="flex items-start gap-3">
             <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--navy)]" />
             <p>
-              Your subscription opens in the selected provider's hosted checkout, then Rotaro
-              updates Billing after payment. Stripe returns straight back to Rotaro; Razorpay opens
-              its hosted subscription flow.
+              Paid subscriptions open in Razorpay's secure hosted checkout. Rotaro verifies the
+              subscription before activating Professional or Business access.
             </p>
           </div>
         </div>
