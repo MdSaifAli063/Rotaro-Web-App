@@ -238,7 +238,7 @@ function WorkspacePage() {
             {
               to: "/billing",
               title: "Billing",
-              desc: "Manage plan, invoices, Stripe, and Razorpay.",
+              desc: "Manage plans, Razorpay subscriptions, and invoices.",
               icon: CreditCard,
               badge: "Finance",
             },
