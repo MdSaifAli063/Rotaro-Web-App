@@ -217,6 +217,53 @@ export type Database = {
           },
         ];
       };
+      billing_checkout_sessions: {
+        Row: {
+          billing_cycle: string;
+          business_id: string;
+          checkout_url: string | null;
+          created_at: string;
+          id: string;
+          plan_key: string;
+          provider: string;
+          provider_subscription_id: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          billing_cycle: string;
+          business_id: string;
+          checkout_url?: string | null;
+          created_at?: string;
+          id?: string;
+          plan_key: string;
+          provider?: string;
+          provider_subscription_id: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          billing_cycle?: string;
+          business_id?: string;
+          checkout_url?: string | null;
+          created_at?: string;
+          id?: string;
+          plan_key?: string;
+          provider?: string;
+          provider_subscription_id?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_checkout_sessions_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       billing_invoices: {
         Row: {
           amount_cents: number;

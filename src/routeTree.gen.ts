@@ -19,6 +19,7 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiRazorpayWebhookRouteImport } from './routes/api/razorpay-webhook'
 import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
 import { Route as AuthenticatedSwapsRouteImport } from './routes/_authenticated/swaps'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
@@ -94,6 +95,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRazorpayWebhookRoute = ApiRazorpayWebhookRouteImport.update({
+  id: '/api/razorpay-webhook',
+  path: '/api/razorpay-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedWorkspaceRoute = AuthenticatedWorkspaceRouteImport.update({
@@ -271,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/api/razorpay-webhook': typeof ApiRazorpayWebhookRoute
   '/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
   '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/api/razorpay-webhook': typeof ApiRazorpayWebhookRoute
   '/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
   '/roster/templates': typeof AuthenticatedRosterTemplatesRoute
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/swaps': typeof AuthenticatedSwapsRoute
   '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
+  '/api/razorpay-webhook': typeof ApiRazorpayWebhookRoute
   '/_authenticated/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/_authenticated/roster/create': typeof AuthenticatedRosterCreateRoute
   '/_authenticated/roster/templates': typeof AuthenticatedRosterTemplatesRoute
@@ -389,6 +398,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/swaps'
     | '/workspace'
+    | '/api/razorpay-webhook'
     | '/notifications/$id'
     | '/roster/create'
     | '/roster/templates'
@@ -427,6 +437,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/swaps'
     | '/workspace'
+    | '/api/razorpay-webhook'
     | '/notifications/$id'
     | '/roster/create'
     | '/roster/templates'
@@ -466,6 +477,7 @@ export interface FileRouteTypes {
     | '/_authenticated/staff'
     | '/_authenticated/swaps'
     | '/_authenticated/workspace'
+    | '/api/razorpay-webhook'
     | '/_authenticated/notifications/$id'
     | '/_authenticated/roster/create'
     | '/_authenticated/roster/templates'
@@ -484,6 +496,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   StaffLoginRoute: typeof StaffLoginRoute
   SupportRoute: typeof SupportRoute
+  ApiRazorpayWebhookRoute: typeof ApiRazorpayWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -556,6 +569,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/razorpay-webhook': {
+      id: '/api/razorpay-webhook'
+      path: '/api/razorpay-webhook'
+      fullPath: '/api/razorpay-webhook'
+      preLoaderRoute: typeof ApiRazorpayWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/workspace': {
@@ -845,6 +865,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   StaffLoginRoute: StaffLoginRoute,
   SupportRoute: SupportRoute,
+  ApiRazorpayWebhookRoute: ApiRazorpayWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
