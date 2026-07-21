@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { activateStarterPlan } from "@/lib/api/billing.functions";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   component: OnboardingPage,
@@ -88,20 +89,10 @@ function OnboardingPage() {
         .insert({ business_id: biz.id });
       if (settingsError) throw settingsError;
 
-      const { error: billingError } = await supabase.from("billing_subscriptions").upsert(
-        {
-          business_id: biz.id,
-          provider: "manual",
-          plan_key: "starter",
-          plan_name: "Starter",
-          status: "active",
-          billing_interval: "monthly",
-          currency: "AUD",
-          amount_cents: 0,
-        },
-        { onConflict: "business_id" },
-      );
-      if (billingError) throw billingError;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Your session has expired. Please sign in again.");
+      await activateStarterPlan({ data: { accessToken } });
       toast.success("Business set up!");
       const pendingCheckout = window.localStorage.getItem("rotaro.pendingCheckout");
       navigate({ to: pendingCheckout ? "/pricing" : "/dashboard" });

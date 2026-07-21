@@ -8,7 +8,6 @@ import {
   Globe,
   Languages,
   Loader2,
-  Plug,
   Shield,
   WandSparkles,
 } from "lucide-react";
@@ -61,8 +60,6 @@ type SettingsBlob = {
     strong_password_required: boolean;
   };
   integrations: {
-    stripe_billing_url: string;
-    razorpay_billing_url: string;
     smtp_enabled: boolean;
     smtp_host: string;
     smtp_port: number;
@@ -122,8 +119,6 @@ const defaultSettings = (): SettingsBlob => ({
     strong_password_required: true,
   },
   integrations: {
-    stripe_billing_url: "",
-    razorpay_billing_url: "",
     smtp_enabled: false,
     smtp_host: "",
     smtp_port: 587,
@@ -346,10 +341,6 @@ function SettingsPage() {
     await savePrefs({ security: prefs.security }, "Security settings saved");
   };
 
-  const saveIntegrations = async () => {
-    await savePrefs({ integrations: prefs.integrations }, "Integration settings saved");
-  };
-
   const saveLanguage = async () => {
     await savePrefs({ language: prefs.language }, "Language saved", { language: prefs.language });
     document.documentElement.lang = prefs.language;
@@ -435,19 +426,6 @@ function SettingsPage() {
     }));
   };
 
-  const updateIntegration = (
-    key: keyof SettingsBlob["integrations"],
-    value: string | boolean | number,
-  ) => {
-    setPrefs((prev) => ({
-      ...prev,
-      integrations: {
-        ...prev.integrations,
-        [key]: value,
-      },
-    }));
-  };
-
   const autoApproveOptions = leaveTypeLabels.map((type) => ({
     key: type.toLowerCase(),
     label: type,
@@ -471,7 +449,6 @@ function SettingsPage() {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {canManageWorkspace && <TabsTrigger value="billing">Billing</TabsTrigger>}
           <TabsTrigger value="security">Security</TabsTrigger>
-          {canManageWorkspace && <TabsTrigger value="integrations">Integrations</TabsTrigger>}
           <TabsTrigger value="language">Language</TabsTrigger>
         </TabsList>
 
@@ -837,7 +814,7 @@ function SettingsPage() {
               <div className="rounded-xl border bg-[#F8FAFD] p-4">
                 <div className="text-sm font-semibold text-[var(--navy)]">Plan control</div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Rotaro will hand off to your Stripe or Razorpay billing link after sign-in.
+                  Rotaro opens secure Razorpay hosted checkout after sign-in.
                 </p>
                 <div className="mt-4">
                   <Link
@@ -853,12 +830,8 @@ function SettingsPage() {
                 <div className="text-sm font-semibold text-[var(--navy)]">Provider status</div>
                 <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                   <div>
-                    Stripe checkout URL:{" "}
-                    {prefs.integrations.stripe_billing_url ? "Configured" : "Not set"}
-                  </div>
-                  <div>
-                    Razorpay checkout URL:{" "}
-                    {prefs.integrations.razorpay_billing_url ? "Configured" : "Not set"}
+                    Razorpay is configured securely from server environment variables. Clients do
+                    not need to enter billing URLs.
                   </div>
                 </div>
                 <div className="mt-4">
@@ -961,52 +934,6 @@ function SettingsPage() {
                   <ArrowUpRight className="size-4" />
                 </Link>
               </div>
-            </div>
-          </SettingsCard>
-        </TabsContent>
-
-        <TabsContent value="integrations" className="space-y-4">
-          <SettingsCard
-            title="Integrations"
-            description="Connect billing, email, and sign-in services."
-            icon={Plug}
-            action={
-              <Button
-                onClick={saveIntegrations}
-                disabled={saving === "prefs"}
-                className="bg-[var(--navy)] text-white hover:bg-[var(--navy-light)]"
-              >
-                {saving === "prefs" && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Save
-              </Button>
-            }
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <ReadOnlyField
-                label="Email delivery"
-                value="Configure VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_PUBLIC_KEY, template IDs, and VITE_APP_URL in Vercel"
-              />
-              <ReadOnlyField
-                label="Google Sign-In"
-                value="Configure GOOGLE_CLIENT_ID on the server for login"
-              />
-              <ReadOnlyField label="Provider" value="EmailJS via Vite environment variables" />
-              <ReadOnlyField
-                label="Email scope"
-                value="Notifications, leave, swaps, messages, attendance, and roster publishes"
-              />
-              <SettingField label="Google client ID">
-                <Input
-                  value={prefs.integrations.google_client_id}
-                  onChange={(e) => updateIntegration("google_client_id", e.target.value)}
-                />
-              </SettingField>
-              <SettingField label="Webhook URL" className="md:col-span-2">
-                <Input
-                  value={prefs.integrations.webhook_url}
-                  onChange={(e) => updateIntegration("webhook_url", e.target.value)}
-                />
-              </SettingField>
             </div>
           </SettingsCard>
         </TabsContent>
