@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { useBusinessPlan } from "@/lib/billing/plans";
 import { notify } from "@/lib/notify";
+import { syncShiftTemplatesFromRosters } from "@/lib/api/shift-templates.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -438,6 +439,12 @@ function CreateRosterDialog({
         }
       }
 
+      try {
+        await syncShiftTemplatesFromRosters();
+      } catch (templateError) {
+        console.error("Unable to sync shift templates after roster creation", templateError);
+      }
+
       toast.success("Roster created");
       onCreated(r.id);
     } catch (e: unknown) {
@@ -845,6 +852,12 @@ export function RosterEditor({
     } else {
       const { error } = await supabase.from("roster_shifts").insert(payload);
       if (error) return toast.error(error.message);
+    }
+    try {
+      const syncedTemplates = await syncShiftTemplatesFromRosters();
+      setTemplates(syncedTemplates as ShiftTemplate[]);
+    } catch (templateError) {
+      console.error("Unable to sync shift template after saving a roster shift", templateError);
     }
     toast.success("Shift saved");
     setEditing(null);

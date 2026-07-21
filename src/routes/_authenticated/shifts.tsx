@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,29 +11,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { PlanGate } from "@/components/PlanGate";
+import {
+  createStarterShiftTemplates,
+  deleteShiftTemplate,
+  saveShiftTemplate,
+  type ShiftTemplate,
+} from "@/lib/api/shift-templates.functions";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
   component: ShiftsPage,
 });
 
-type Template = {
-  id: string;
-  business_id: string;
-  name: string;
-  start_time: string;
-  end_time: string;
-  break_minutes: number;
-  department: string | null;
-  color: string | null;
-  min_staff_required: number | null;
-};
+type Template = ShiftTemplate;
 
 const COLORS = ["#1E2A45", "#2563EB", "#16A34A", "#DC2626", "#7C3AED", "#0891B2", "#EA580C"];
 const normalizeTime = (value?: string | null) => (value ? value.slice(0, 5) : "");
+const sortTemplates = (templates: Template[]) =>
+  [...templates].sort(
+    (left, right) =>
+      normalizeTime(left.start_time).localeCompare(normalizeTime(right.start_time)) ||
+      left.name.localeCompare(right.name),
+  );
 
 const empty: Partial<Template> = {
   name: "",
@@ -51,9 +53,17 @@ function ShiftsPage() {
   const [editing, setEditing] = useState<Partial<Template> | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [provisioningDefaults, setProvisioningDefaults] = useState(false);
+  const templateSyncAttempted = useRef(false);
 
   const load = useCallback(async (businessId?: string | null) => {
-    if (!businessId) return;
+    if (!businessId) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase
       .from("shift_templates")
@@ -66,7 +76,7 @@ function ShiftsPage() {
       setLoading(false);
       return;
     }
-    setRows((data as Template[]) ?? []);
+    setRows(sortTemplates((data as Template[]) ?? []));
     setLoading(false);
   }, []);
 
@@ -82,11 +92,54 @@ function ShiftsPage() {
     })();
   }, [load]);
 
+  useEffect(() => {
+    if (!profile?.business_id) return;
+
+    const businessId = profile.business_id;
+    const channel = supabase
+      .channel(`shift-templates-${businessId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "shift_templates",
+          filter: `business_id=eq.${businessId}`,
+        },
+        () => void load(businessId),
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [load, profile?.business_id]);
+
   const canManage = isManager(profile);
 
+  const provisionStarterTemplates = useCallback(async () => {
+    if (provisioningDefaults) return;
+    setProvisioningDefaults(true);
+    try {
+      const templates = await createStarterShiftTemplates();
+      setRows(sortTemplates(templates as Template[]));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create starter templates");
+    } finally {
+      setProvisioningDefaults(false);
+    }
+  }, [provisioningDefaults]);
+
+  useEffect(() => {
+    if (loading || !canManage || templateSyncAttempted.current) return;
+    templateSyncAttempted.current = true;
+    void provisionStarterTemplates();
+  }, [canManage, loading, provisionStarterTemplates, rows.length]);
+
   const save = async () => {
-    if (!editing || !profile?.business_id) return;
-    if (!editing.name) {
+    if (!editing || !profile?.business_id || saving) return;
+    const name = editing.name?.trim() ?? "";
+    if (!name) {
       toast.error("Name is required");
       return;
     }
@@ -98,36 +151,57 @@ function ShiftsPage() {
       toast.error("End time must be after start time");
       return;
     }
-    const payload: any = {
-      business_id: profile.business_id,
-      name: editing.name.trim(),
+    const breakMinutes = Number(editing.break_minutes ?? 0);
+    const minimumStaff = Number(editing.min_staff_required ?? 1);
+    if (!Number.isFinite(breakMinutes) || breakMinutes < 0 || breakMinutes > 720) {
+      toast.error("Break must be between 0 and 720 minutes");
+      return;
+    }
+    if (!Number.isInteger(minimumStaff) || minimumStaff < 1 || minimumStaff > 1000) {
+      toast.error("Minimum staff must be a whole number between 1 and 1,000");
+      return;
+    }
+
+    const payload = {
+      id: editing.id,
+      name,
       start_time: normalizeTime(editing.start_time),
       end_time: normalizeTime(editing.end_time),
-      break_minutes: Number(editing.break_minutes ?? 0),
-      department: editing.department || null,
+      break_minutes: breakMinutes,
+      department: editing.department?.trim() || null,
       color: editing.color || "#1E2A45",
-      min_staff_required: Math.max(1, Number(editing.min_staff_required ?? 1)),
+      min_staff_required: minimumStaff,
     };
-    const res = editing.id
-      ? await supabase.from("shift_templates").update(payload).eq("id", editing.id)
-      : await supabase.from("shift_templates").insert(payload);
-    if (res.error) toast.error(res.error.message);
-    else {
-      toast.success("Saved");
+
+    setSaving(true);
+    try {
+      const saved = (await saveShiftTemplate(payload)) as Template;
+      setRows((current) =>
+        sortTemplates([...current.filter((template) => template.id !== saved.id), saved]),
+      );
+      toast.success(editing.id ? "Shift template updated" : "Shift template created");
       setOpen(false);
       setEditing(null);
-      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save shift template");
+    } finally {
+      setSaving(false);
     }
   };
 
   const del = async (id: string) => {
-    const { error } = await supabase.rpc("delete_shift_template", { p_template_id: id });
-    if (error) {
-      toast.error(error.message);
-      return;
+    if (!profile?.business_id || deletingId) return;
+    setDeletingId(id);
+
+    try {
+      await deleteShiftTemplate(id);
+      setRows((current) => current.filter((template) => template.id !== id));
+      toast.success("Shift template deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete shift template");
+    } finally {
+      setDeletingId(null);
     }
-    toast.success("Shift template deleted");
-    load(profile?.business_id);
   };
 
   return (
@@ -162,8 +236,23 @@ function ShiftsPage() {
               Loading shift templates...
             </div>
           ) : rows.length === 0 ? (
-            <div className="col-span-full bg-card border rounded-xl p-12 text-center text-sm text-muted-foreground">
-              No shift templates yet.
+            <div className="col-span-full flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border bg-card p-8 text-center">
+              <div>
+                <p className="font-medium text-foreground">
+                  {provisioningDefaults
+                    ? "Setting up starter templates..."
+                    : "No shift templates yet"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Reuse common working hours when building a roster.
+                </p>
+              </div>
+              {canManage && !provisioningDefaults && (
+                <Button variant="outline" onClick={() => void provisionStarterTemplates()}>
+                  <Plus className="mr-2 size-4" /> Sync templates from roster
+                </Button>
+              )}
+              {provisioningDefaults && <Loader2 className="size-5 animate-spin" />}
             </div>
           ) : null}
           {rows.map((t) => (
@@ -191,6 +280,9 @@ function ShiftsPage() {
                 {canManage && (
                   <div className="flex gap-1">
                     <button
+                      type="button"
+                      aria-label={`Edit ${t.name}`}
+                      title={`Edit ${t.name}`}
                       className="p-1.5 hover:bg-secondary rounded"
                       onClick={() => {
                         setEditing(t);
@@ -199,8 +291,19 @@ function ShiftsPage() {
                     >
                       <Pencil className="size-4" />
                     </button>
-                    <button className="p-1.5 hover:bg-secondary rounded" onClick={() => del(t.id)}>
-                      <Trash2 className="size-4 text-destructive" />
+                    <button
+                      type="button"
+                      aria-label={`Delete ${t.name}`}
+                      title={`Delete ${t.name}`}
+                      disabled={deletingId === t.id}
+                      className="p-1.5 hover:bg-secondary rounded disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => void del(t.id)}
+                    >
+                      {deletingId === t.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-4 text-destructive" />
+                      )}
                     </button>
                   </div>
                 )}
@@ -209,7 +312,14 @@ function ShiftsPage() {
           ))}
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(nextOpen) => {
+            if (saving) return;
+            setOpen(nextOpen);
+            if (!nextOpen) setEditing(null);
+          }}
+        >
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing?.id ? "Edit template" : "New shift template"}</DialogTitle>
@@ -294,11 +404,16 @@ function ShiftsPage() {
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
                 Cancel
               </Button>
-              <Button onClick={save} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
-                Save
+              <Button
+                onClick={() => void save()}
+                disabled={saving}
+                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+              >
+                {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {saving ? "Saving..." : "Save"}
               </Button>
             </DialogFooter>
           </DialogContent>
