@@ -20,13 +20,6 @@ export function getServerConfig() {
   return {
     nodeEnv: process.env.NODE_ENV,
     billing: {
-      stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-      stripeProMonthlyPriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID,
-      stripeProAnnualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
-      stripeBusinessMonthlyPriceId: process.env.STRIPE_BUSINESS_MONTHLY_PRICE_ID,
-      stripeBusinessAnnualPriceId: process.env.STRIPE_BUSINESS_ANNUAL_PRICE_ID,
       razorpayKeyId: process.env.RAZORPAY_KEY_ID,
       razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
       razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,

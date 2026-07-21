@@ -5,18 +5,8 @@ import { getServerConfig } from "../config.server";
 
 export type BillingPlanKey = "starter" | "professional" | "business";
 export type BillingCycle = "monthly" | "annual";
-export type BillingProvider = "stripe" | "razorpay";
 
 export type BillingProviderStatus = {
-  stripe: {
-    secretKeyConfigured: boolean;
-    publishableKeyConfigured: boolean;
-    webhookSecretConfigured: boolean;
-    proMonthlyPriceConfigured: boolean;
-    proAnnualPriceConfigured: boolean;
-    businessMonthlyPriceConfigured: boolean;
-    businessAnnualPriceConfigured: boolean;
-  };
   razorpay: {
     keyIdConfigured: boolean;
     keySecretConfigured: boolean;
@@ -28,64 +18,51 @@ export type BillingProviderStatus = {
   };
 };
 
-const checkoutInputSchema = z.object({
-  provider: z.enum(["stripe", "razorpay"]),
-  planKey: z.enum(["starter", "professional", "business"]),
+const authenticatedInput = z.object({ accessToken: z.string().min(1) });
+const checkoutInputSchema = authenticatedInput.extend({
+  planKey: z.enum(["professional", "business"]),
   billingCycle: z.enum(["monthly", "annual"]),
-  origin: z.string().url(),
-  businessId: z.string().min(1),
   customerEmail: z.string().email().optional(),
   customerName: z.string().optional(),
 });
 
-const stripeFinalizeInputSchema = z.object({
-  businessId: z.string().min(1),
-  sessionId: z.string().min(1),
-});
-
-const razorpayFinalizeInputSchema = z.object({
-  businessId: z.string().min(1),
-});
-
-const starterInputSchema = z.object({
-  businessId: z.string().min(1),
-});
-
-const PLAN_META: Record<
-  Exclude<BillingPlanKey, "starter">,
-  Record<
-    BillingCycle,
-    {
-      planName: string;
-      amountCents: number;
-      currency: string;
-      interval: string;
-    }
-  >
-> = {
+const PLAN_META = {
   professional: {
-    monthly: { planName: "Professional", amountCents: 2900, currency: "AUD", interval: "month" },
-    annual: { planName: "Professional", amountCents: 29000, currency: "AUD", interval: "year" },
+    monthly: { planName: "Professional", amountCents: 2000, currency: "USD", interval: "month" },
+    annual: { planName: "Professional", amountCents: 20000, currency: "USD", interval: "year" },
   },
   business: {
-    monthly: { planName: "Business", amountCents: 7900, currency: "AUD", interval: "month" },
-    annual: { planName: "Business", amountCents: 79000, currency: "AUD", interval: "year" },
+    monthly: { planName: "Business", amountCents: 7900, currency: "USD", interval: "month" },
+    annual: { planName: "Business", amountCents: 79000, currency: "USD", interval: "year" },
   },
-};
+} as const;
+
+async function requireBillingManager(accessToken: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: auth, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
+  if (authError || !auth.user) throw new Error("Your session has expired. Please sign in again.");
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("business_id,role")
+    .eq("id", auth.user.id)
+    .maybeSingle();
+  if (profileError || !profile?.business_id) throw new Error("Your workspace could not be found.");
+  if (!["employer", "manager"].includes(String(profile.role))) {
+    throw new Error("Only an employer or manager can manage billing.");
+  }
+
+  return { supabaseAdmin, businessId: profile.business_id, user: auth.user };
+}
+
+function razorpayAuthorization(keyId: string, keySecret: string) {
+  return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
+}
 
 export const getBillingProviderStatus = createServerFn({ method: "GET" }).handler(
   async (): Promise<BillingProviderStatus> => {
     const config = getServerConfig();
     return {
-      stripe: {
-        secretKeyConfigured: !!config.billing.stripeSecretKey,
-        publishableKeyConfigured: !!config.billing.stripePublishableKey,
-        webhookSecretConfigured: !!config.billing.stripeWebhookSecret,
-        proMonthlyPriceConfigured: !!config.billing.stripeProMonthlyPriceId,
-        proAnnualPriceConfigured: !!config.billing.stripeProAnnualPriceId,
-        businessMonthlyPriceConfigured: !!config.billing.stripeBusinessMonthlyPriceId,
-        businessAnnualPriceConfigured: !!config.billing.stripeBusinessAnnualPriceId,
-      },
       razorpay: {
         keyIdConfigured: !!config.billing.razorpayKeyId,
         keySecretConfigured: !!config.billing.razorpayKeySecret,
@@ -103,20 +80,12 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
   .validator(checkoutInputSchema)
   .handler(async ({ data }) => {
     const config = getServerConfig();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const stripePriceMap: Record<BillingPlanKey, Record<BillingCycle, string | undefined>> = {
-      starter: { monthly: undefined, annual: undefined },
-      professional: {
-        monthly: config.billing.stripeProMonthlyPriceId,
-        annual: config.billing.stripeProAnnualPriceId,
-      },
-      business: {
-        monthly: config.billing.stripeBusinessMonthlyPriceId,
-        annual: config.billing.stripeBusinessAnnualPriceId,
-      },
-    };
-    const razorpayPlanMap: Record<BillingPlanKey, Record<BillingCycle, string | undefined>> = {
-      starter: { monthly: undefined, annual: undefined },
+    const { supabaseAdmin, businessId, user } = await requireBillingManager(data.accessToken);
+    if (!config.billing.razorpayKeyId || !config.billing.razorpayKeySecret) {
+      throw new Error("Razorpay is not configured yet. Contact support.");
+    }
+
+    const planIds = {
       professional: {
         monthly: config.billing.razorpayProMonthlyPlanId,
         annual: config.billing.razorpayProAnnualPlanId,
@@ -125,322 +94,181 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
         monthly: config.billing.razorpayBusinessMonthlyPlanId,
         annual: config.billing.razorpayBusinessAnnualPlanId,
       },
-    };
-    const planMeta = data.planKey === "starter" ? null : PLAN_META[data.planKey][data.billingCycle];
-    const successUrl =
-      data.provider === "stripe"
-        ? `${data.origin}/billing?success=1&provider=${data.provider}&plan=${data.planKey}&cycle=${data.billingCycle}&session_id={CHECKOUT_SESSION_ID}`
-        : `${data.origin}/billing?success=1&provider=${data.provider}&plan=${data.planKey}&cycle=${data.billingCycle}`;
-    const cancelUrl = `${data.origin}/pricing?cancelled=1`;
-
-    if (data.provider === "stripe") {
-      const priceId = stripePriceMap[data.planKey][data.billingCycle];
-      if (!priceId) {
-        throw new Error(
-          `Stripe ${data.planKey} ${data.billingCycle} price ID is missing in STRIPE_*_PRICE_ID env vars.`,
-        );
-      }
-      if (!config.billing.stripeSecretKey) {
-        throw new Error("Stripe secret key is missing.");
-      }
-
-      const body = new URLSearchParams();
-      body.set("mode", "subscription");
-      body.set("success_url", successUrl);
-      body.set("cancel_url", cancelUrl);
-      body.set("line_items[0][price]", priceId);
-      body.set("line_items[0][quantity]", "1");
-      body.set("client_reference_id", data.businessId);
-      body.set("metadata[business_id]", data.businessId);
-      body.set("metadata[plan_key]", data.planKey);
-      body.set("metadata[billing_cycle]", data.billingCycle);
-      if (data.customerEmail) body.set("customer_email", data.customerEmail);
-      if (data.customerName) body.set("customer_creation", "always");
-      const bodyString = body
-        .toString()
-        .replace(/%7BCHECKOUT_SESSION_ID%7D/g, "{CHECKOUT_SESSION_ID}");
-
-      const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${config.billing.stripeSecretKey}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: bodyString,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Stripe checkout failed (${response.status})`);
-      }
-
-      const session = (await response.json()) as { url?: string };
-      if (!session.url) throw new Error("Stripe checkout did not return a session URL.");
-
-      if (planMeta) {
-        const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
-          {
-            business_id: data.businessId,
-            provider: "stripe",
-            plan_key: data.planKey,
-            plan_name: planMeta.planName,
-            status: "pending",
-            billing_interval: planMeta.interval,
-            currency: planMeta.currency,
-            amount_cents: planMeta.amountCents,
-            provider_checkout_url: session.url,
-          },
-          { onConflict: "business_id" },
-        );
-        if (error) throw new Error(error.message);
-      }
-
-      return { provider: "stripe" as const, url: session.url };
-    }
-
-    const planId = razorpayPlanMap[data.planKey][data.billingCycle];
+    } as const;
+    const planId = planIds[data.planKey][data.billingCycle];
     if (!planId) {
-      throw new Error(
-        `Razorpay ${data.planKey} ${data.billingCycle} plan ID is missing in RAZORPAY_*_PLAN_ID env vars.`,
-      );
-    }
-    if (!config.billing.razorpayKeyId || !config.billing.razorpayKeySecret) {
-      throw new Error("Razorpay key ID or secret is missing.");
+      throw new Error(`The Razorpay ${data.planKey} ${data.billingCycle} plan is not configured.`);
     }
 
-    const totalCount = data.billingCycle === "annual" ? 12 : 120;
     const response = await fetch("https://api.razorpay.com/v1/subscriptions", {
       method: "POST",
       headers: {
-        Authorization:
-          "Basic " +
-          Buffer.from(
-            `${config.billing.razorpayKeyId}:${config.billing.razorpayKeySecret}`,
-          ).toString("base64"),
+        Authorization: razorpayAuthorization(
+          config.billing.razorpayKeyId,
+          config.billing.razorpayKeySecret,
+        ),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         plan_id: planId,
-        total_count: totalCount,
+        total_count: data.billingCycle === "annual" ? 10 : 120,
         quantity: 1,
         customer_notify: true,
         notes: {
-          business_id: data.businessId,
+          business_id: businessId,
           plan_key: data.planKey,
           billing_cycle: data.billingCycle,
+          customer_email: data.customerEmail ?? user.email ?? "",
+          customer_name: data.customerName ?? "",
           source: "rotaro",
         },
       }),
     });
 
+    const result = (await response.json().catch(() => null)) as {
+      id?: string;
+      short_url?: string;
+      error?: { description?: string };
+    } | null;
     if (!response.ok) {
-      throw new Error(`Razorpay subscription creation failed (${response.status})`);
-    }
-
-    const subscription = (await response.json()) as { short_url?: string; id?: string };
-    const url =
-      subscription.short_url || (subscription.id ? `https://rzp.io/l/${subscription.id}` : "");
-    if (!url) throw new Error("Razorpay subscription did not return a checkout URL.");
-
-    if (planMeta) {
-      const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
-        {
-          business_id: data.businessId,
-          provider: "razorpay",
-          plan_key: data.planKey,
-          plan_name: planMeta.planName,
-          status: "pending",
-          billing_interval: planMeta.interval,
-          currency: planMeta.currency,
-          amount_cents: planMeta.amountCents,
-          provider_subscription_id: subscription.id ?? null,
-          provider_checkout_url: url,
-        },
-        { onConflict: "business_id" },
+      throw new Error(
+        result?.error?.description || `Razorpay checkout failed (${response.status}).`,
       );
-      if (error) throw new Error(error.message);
+    }
+    if (!result?.id || !result.short_url) {
+      throw new Error("Razorpay did not return a valid subscription checkout link.");
     }
 
-    return { provider: "razorpay" as const, url };
+    const { error } = await supabaseAdmin.from("billing_checkout_sessions").upsert(
+      {
+        business_id: businessId,
+        provider: "razorpay",
+        provider_subscription_id: result.id,
+        plan_key: data.planKey,
+        billing_cycle: data.billingCycle,
+        status: "pending",
+        checkout_url: result.short_url,
+      },
+      { onConflict: "provider_subscription_id" },
+    );
+    if (error) throw new Error(error.message);
+
+    return { provider: "razorpay" as const, url: result.short_url };
   });
 
 export const activateStarterPlan = createServerFn({ method: "POST" })
-  .validator(starterInputSchema)
+  .validator(authenticatedInput)
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
-      {
-        business_id: data.businessId,
-        provider: "manual",
-        plan_key: "starter",
-        plan_name: "Starter",
-        status: "active",
-        billing_interval: "monthly",
-        currency: "AUD",
-        amount_cents: 0,
-        provider_customer_id: null,
-        provider_subscription_id: null,
-        provider_checkout_url: null,
-        current_period_end: null,
-        trial_ends_at: null,
-        cancel_at_period_end: false,
-      },
-      { onConflict: "business_id" },
-    );
+    const { supabaseAdmin, businessId } = await requireBillingManager(data.accessToken);
+    const { data: existing, error: loadError } = await supabaseAdmin
+      .from("billing_subscriptions")
+      .select("id,plan_key,status,trial_ends_at")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (loadError) throw new Error(loadError.message);
 
+    if (existing) {
+      return {
+        ok: true as const,
+        existing: true,
+        trialEndsAt: existing.trial_ends_at,
+        status: existing.status,
+      };
+    }
+
+    const trialEndsAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabaseAdmin.from("billing_subscriptions").insert({
+      business_id: businessId,
+      provider: "manual",
+      plan_key: "starter",
+      plan_name: "60-day free trial",
+      status: "trialing",
+      billing_interval: "trial",
+      currency: "USD",
+      amount_cents: 0,
+      current_period_end: trialEndsAt,
+      trial_ends_at: trialEndsAt,
+      cancel_at_period_end: true,
+    });
     if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
-
-export const finalizeStripeBillingCheckout = createServerFn({ method: "POST" })
-  .validator(stripeFinalizeInputSchema)
-  .handler(async ({ data }) => {
-    const config = getServerConfig();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    if (!config.billing.stripeSecretKey) {
-      throw new Error("Stripe secret key is missing.");
-    }
-
-    const sessionResponse = await fetch(
-      `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(data.sessionId)}?expand[]=subscription&expand[]=customer`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.billing.stripeSecretKey}`,
-        },
-      },
-    );
-
-    if (!sessionResponse.ok) {
-      throw new Error(`Stripe session lookup failed (${sessionResponse.status}).`);
-    }
-
-    const session = (await sessionResponse.json()) as {
-      id: string;
-      customer: string | null;
-      subscription: {
-        id: string;
-        status?: string;
-        current_period_end?: number;
-        items?: { data?: Array<{ price?: { recurring?: { interval?: string } } }> };
-      } | null;
-      metadata?: { plan_key?: string; billing_cycle?: string };
-    };
-
-    if (!session.subscription?.id) {
-      throw new Error("Stripe checkout session has no subscription attached.");
-    }
-
-    const billingCycle = session.metadata?.billing_cycle === "annual" ? "annual" : "monthly";
-    const planKey = session.metadata?.plan_key === "business" ? "business" : "professional";
-    const planMeta = PLAN_META[planKey][billingCycle];
-
-    const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
-      {
-        business_id: data.businessId,
-        provider: "stripe",
-        plan_key: planKey,
-        plan_name: planMeta.planName,
-        status: session.subscription.status ?? "active",
-        billing_interval: planMeta.interval,
-        currency: planMeta.currency,
-        amount_cents: planMeta.amountCents,
-        provider_customer_id: typeof session.customer === "string" ? session.customer : null,
-        provider_subscription_id: session.subscription.id,
-        provider_checkout_url: null,
-        current_period_end: session.subscription.current_period_end
-          ? new Date(session.subscription.current_period_end * 1000).toISOString()
-          : null,
-      },
-      { onConflict: "business_id" },
-    );
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return { ok: true as const };
+    return { ok: true as const, existing: false, trialEndsAt, status: "trialing" };
   });
 
 export const finalizeRazorpayBillingCheckout = createServerFn({ method: "POST" })
-  .validator(razorpayFinalizeInputSchema)
+  .validator(authenticatedInput)
   .handler(async ({ data }) => {
     const config = getServerConfig();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
+    const { supabaseAdmin, businessId } = await requireBillingManager(data.accessToken);
     if (!config.billing.razorpayKeyId || !config.billing.razorpayKeySecret) {
-      throw new Error("Razorpay key ID or secret is missing.");
+      throw new Error("Razorpay is not configured yet.");
     }
 
     const { data: existing, error: existingError } = await supabaseAdmin
-      .from("billing_subscriptions")
-      .select("provider_subscription_id,plan_key,billing_interval")
-      .eq("business_id", data.businessId)
+      .from("billing_checkout_sessions")
+      .select("id,provider_subscription_id,plan_key,billing_cycle")
+      .eq("business_id", businessId)
       .eq("provider", "razorpay")
+      .in("status", ["pending", "authenticated", "active"])
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
-
     if (existingError) throw new Error(existingError.message);
-
-    const subscriptionId = (existing as { provider_subscription_id?: string | null } | null)
-      ?.provider_subscription_id;
-    if (!subscriptionId) {
-      throw new Error("No pending Razorpay subscription was found for this business.");
+    if (!existing?.provider_subscription_id) {
+      throw new Error("No pending Razorpay subscription was found for this workspace.");
     }
 
     const response = await fetch(
-      `https://api.razorpay.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      `https://api.razorpay.com/v1/subscriptions/${encodeURIComponent(existing.provider_subscription_id)}`,
       {
         headers: {
-          Authorization:
-            "Basic " +
-            Buffer.from(
-              `${config.billing.razorpayKeyId}:${config.billing.razorpayKeySecret}`,
-            ).toString("base64"),
+          Authorization: razorpayAuthorization(
+            config.billing.razorpayKeyId,
+            config.billing.razorpayKeySecret,
+          ),
         },
       },
     );
-
-    if (!response.ok) {
-      throw new Error(`Razorpay subscription lookup failed (${response.status}).`);
-    }
-
-    const subscription = (await response.json()) as {
-      id: string;
+    const subscription = (await response.json().catch(() => null)) as {
+      id?: string;
       status?: string;
       current_end?: number;
-    };
-    const providerStatus = subscription.status ?? "pending";
-    if (!["active", "authenticated"].includes(providerStatus)) {
-      throw new Error(`Razorpay subscription is not active yet (${providerStatus}).`);
+      error?: { description?: string };
+    } | null;
+    if (!response.ok) {
+      throw new Error(
+        subscription?.error?.description || `Razorpay verification failed (${response.status}).`,
+      );
+    }
+    if (!subscription?.id || !["active", "authenticated"].includes(subscription.status ?? "")) {
+      throw new Error(`Payment is not active yet (${subscription?.status ?? "pending"}).`);
     }
 
-    const existingRow = existing as {
-      plan_key?: string | null;
-      billing_interval?: string | null;
-    } | null;
-    const planKey = existingRow?.plan_key === "business" ? "business" : "professional";
-    const billingCycle = existingRow?.billing_interval === "year" ? "annual" : "monthly";
-    const planMeta = PLAN_META[planKey][billingCycle];
-
+    const planKey = existing.plan_key === "business" ? "business" : "professional";
+    const cycle = existing.billing_cycle === "annual" ? "annual" : "monthly";
+    const meta = PLAN_META[planKey][cycle];
     const { error } = await supabaseAdmin.from("billing_subscriptions").upsert(
       {
-        business_id: data.businessId,
+        business_id: businessId,
         provider: "razorpay",
         plan_key: planKey,
-        plan_name: planMeta.planName,
         status: "active",
-        billing_interval: planMeta.interval,
-        currency: planMeta.currency,
-        amount_cents: planMeta.amountCents,
+        plan_name: meta.planName,
+        billing_interval: meta.interval,
+        currency: meta.currency,
+        amount_cents: meta.amountCents,
         provider_subscription_id: subscription.id,
         provider_checkout_url: null,
         current_period_end: subscription.current_end
           ? new Date(subscription.current_end * 1000).toISOString()
           : null,
+        trial_ends_at: null,
       },
       { onConflict: "business_id" },
     );
-
     if (error) throw new Error(error.message);
-
+    await supabaseAdmin
+      .from("billing_checkout_sessions")
+      .update({ status: "completed", updated_at: new Date().toISOString() })
+      .eq("id", existing.id);
     return { ok: true as const };
   });
