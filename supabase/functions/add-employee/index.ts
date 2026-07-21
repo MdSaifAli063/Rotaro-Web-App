@@ -102,18 +102,32 @@ serve(async (req) => {
 
     const { data: subscription } = await admin
       .from("billing_subscriptions")
-      .select("plan_key,status")
+      .select("plan_key,status,trial_ends_at,current_period_end")
       .eq("business_id", businessId)
       .maybeSingle();
 
-    const planKey = ["active", "trialing", "manual"].includes(
-      String(subscription?.status ?? "manual"),
-    )
-      ? String(subscription?.plan_key ?? "starter")
-      : "starter";
-    const demoEmployer = caller.email?.trim().toLowerCase() === "employer@rotaro.com";
-    const limits: Record<string, number> = { starter: 5, professional: 1000, business: 1000 };
-    const maxEmployees = demoEmployer ? 100 : (limits[planKey] ?? 5);
+    const validTrial =
+      subscription?.plan_key === "starter" &&
+      subscription.status === "trialing" &&
+      !!subscription.trial_ends_at &&
+      new Date(subscription.trial_ends_at).getTime() > Date.now();
+    const paidActive =
+      subscription?.plan_key !== "starter" &&
+      ["active", "authenticated", "manual"].includes(String(subscription?.status ?? "")) &&
+      (!subscription?.current_period_end ||
+        new Date(subscription.current_period_end).getTime() > Date.now());
+    const planKey = validTrial
+      ? "starter"
+      : paidActive
+        ? String(subscription?.plan_key)
+        : "expired";
+    const limits: Record<string, number | null> = {
+      starter: 10,
+      professional: 1000,
+      business: null,
+      expired: 0,
+    };
+    const maxEmployees = limits[planKey] ?? 0;
     if (maxEmployees !== null) {
       const { count } = await admin
         .from("employees")
@@ -123,7 +137,10 @@ serve(async (req) => {
       if ((count ?? 0) >= maxEmployees) {
         return json(
           {
-            error: `Your ${planKey} plan allows up to ${maxEmployees} employees. Please upgrade to add more staff.`,
+            error:
+              planKey === "expired"
+                ? "Your free trial has expired. Choose a paid plan to add staff."
+                : `Your ${planKey} plan allows up to ${maxEmployees} employees. Please upgrade to add more staff.`,
             upgrade_required: true,
             current_plan: planKey,
             current_count: count ?? 0,
