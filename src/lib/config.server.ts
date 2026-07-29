@@ -31,6 +31,7 @@ export function getServerConfig() {
     emailjs: {
       serviceId: process.env.VITE_EMAILJS_SERVICE_ID,
       publicKey: process.env.VITE_EMAILJS_PUBLIC_KEY,
+      privateKey: process.env.EMAILJS_PRIVATE_KEY,
       appUrl: process.env.VITE_APP_URL || process.env.APP_URL || process.env.VERCEL_URL,
     },
   };

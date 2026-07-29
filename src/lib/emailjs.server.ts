@@ -12,6 +12,7 @@ function getEmailJsConfig() {
   return {
     serviceId: config.serviceId || process.env.EMAILJS_SERVICE_ID,
     publicKey: config.publicKey || process.env.EMAILJS_PUBLIC_KEY,
+    privateKey: config.privateKey || process.env.EMAILJS_PRIVATE_KEY,
   };
 }
 
@@ -19,7 +20,7 @@ export async function sendEmailJsTemplate(
   templateId: string | undefined,
   templateParams: Record<string, unknown>,
 ): Promise<EmailJsSendResult> {
-  const { serviceId, publicKey } = getEmailJsConfig();
+  const { serviceId, publicKey, privateKey } = getEmailJsConfig();
 
   if (!serviceId || !publicKey || !templateId) {
     return {
@@ -37,8 +38,10 @@ export async function sendEmailJsTemplate(
       service_id: serviceId,
       template_id: templateId,
       user_id: publicKey,
+      ...(privateKey ? { accessToken: privateKey } : {}),
       template_params: templateParams,
     }),
+    signal: AbortSignal.timeout(10_000),
   });
 
   const text = await response.text();
