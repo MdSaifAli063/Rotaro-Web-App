@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AuthPortal, type AuthMode, type AuthPlan } from "@/components/AuthPortal";
+import { NO_INDEX_META } from "@/lib/seo";
 
 type ClientLoginSearch = {
   next?: string;
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/client-login")({
     meta: [
       { title: "Client login - Rotaro" },
       { name: "description", content: "Sign in or create a Rotaro client workspace." },
+      ...NO_INDEX_META,
     ],
   }),
   component: ClientLoginPage,

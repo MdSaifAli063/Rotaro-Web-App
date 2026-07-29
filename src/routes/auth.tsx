@@ -1,5 +1,7 @@
 ﻿import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { NO_INDEX_META } from "@/lib/seo";
+
 type AuthSearch = {
   next?: string;
   mode?: "signin" | "signup";
@@ -7,6 +9,7 @@ type AuthSearch = {
 };
 
 export const Route = createFileRoute("/auth")({
+  head: () => ({ meta: NO_INDEX_META }),
   validateSearch: (search: Record<string, unknown>): AuthSearch => {
     const result: AuthSearch = {};
     if (typeof search.next === "string" && search.next.startsWith("/")) result.next = search.next;

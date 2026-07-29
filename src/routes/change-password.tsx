@@ -8,9 +8,13 @@ import { Label } from "@/components/ui/label";
 import { RotaroMark } from "@/components/RotaroMark";
 import { changeFirstLoginPassword, fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { NO_INDEX_META } from "@/lib/seo";
 
 export const Route = createFileRoute("/change-password")({
   ssr: false,
+  head: () => ({
+    meta: [{ title: "Change password - Rotaro" }, ...NO_INDEX_META],
+  }),
   component: ChangePasswordPage,
 });
 
