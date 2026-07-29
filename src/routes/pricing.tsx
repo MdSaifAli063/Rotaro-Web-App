@@ -12,20 +12,17 @@ import {
   type BillingPlanKey,
 } from "@/lib/api/billing.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { canonicalLink, publicPageMeta } from "@/lib/seo";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
-    meta: [
-      { title: "Pricing - Rotaro" },
-      {
-        name: "description",
-        content:
-          "Simple, transparent pricing for Rotaro workforce scheduling. Start free and scale as your team grows.",
-      },
-      { property: "og:title", content: "Pricing - Rotaro" },
-      { property: "og:url", content: "/pricing" },
-    ],
-    links: [{ rel: "canonical", href: "/pricing" }],
+    meta: publicPageMeta({
+      title: "Pricing | Rotaro Workforce Scheduling",
+      description:
+        "Compare Rotaro plans for growing teams, with a 60-day trial, workforce scheduling, attendance, leave, reports, and Razorpay billing.",
+      path: "/pricing",
+    }),
+    links: [canonicalLink("/pricing")],
   }),
   component: PricingPage,
 });

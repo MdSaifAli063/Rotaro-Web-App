@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RotaroMark } from "@/components/RotaroMark";
 import { supabase } from "@/integrations/supabase/client";
+import { NO_INDEX_META } from "@/lib/seo";
 
 type ResetPasswordSearch = {
   portal?: "client" | "staff";
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/reset-password")({
     portal: search.portal === "staff" ? "staff" : "client",
   }),
   head: () => ({
-    meta: [{ title: "Choose a new password - Rotaro" }],
+    meta: [{ title: "Choose a new password - Rotaro" }, ...NO_INDEX_META],
   }),
   component: ResetPasswordPage,
 });

@@ -31,24 +31,17 @@ import {
 import { RotaroMark } from "@/components/RotaroMark";
 import { useSession } from "@/lib/auth";
 import { sendPublicInquiryEmail } from "@/lib/emailjs";
+import { canonicalLink, publicPageMeta } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [
-      { title: "Rotaro — Workforce scheduling made simple" },
-      {
-        name: "description",
-        content:
-          "Rotaro helps Australian businesses build rosters, manage leave and run wage reports — all in one calm, simple workspace.",
-      },
-      { property: "og:title", content: "Rotaro — Workforce scheduling made simple" },
-      {
-        property: "og:description",
-        content: "Build rosters, manage leave and run reports in one place.",
-      },
-      { property: "og:url", content: "/" },
-    ],
-    links: [{ rel: "canonical", href: "/" }],
+    meta: publicPageMeta({
+      title: "Rotaro | Workforce Scheduling Made Simple",
+      description:
+        "Build employee rosters, manage leave, track attendance, and run workforce reports in one secure workspace.",
+      path: "/",
+    }),
+    links: [canonicalLink("/")],
   }),
   component: Landing,
 });
