@@ -37,6 +37,8 @@ const PLAN_META = {
   },
 } as const;
 
+const PROVIDER_TIMEOUT_MS = 10_000;
+
 async function requireBillingManager(accessToken: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: auth, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
@@ -123,6 +125,7 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
           source: "rotaro",
         },
       }),
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
 
     const result = (await response.json().catch(() => null)) as {
@@ -226,6 +229,7 @@ export const finalizeRazorpayBillingCheckout = createServerFn({ method: "POST" }
             config.billing.razorpayKeySecret,
           ),
         },
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       },
     );
     const subscription = (await response.json().catch(() => null)) as {

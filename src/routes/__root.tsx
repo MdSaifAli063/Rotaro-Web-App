@@ -11,6 +11,13 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  absoluteUrl,
+  DEFAULT_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+  SOCIAL_IMAGE_PATH,
+} from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -74,13 +81,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Rotaro | Workforce Scheduling, Rosters, Leave & Attendance" },
+      { title: "Rotaro | Workforce Scheduling, Rosters, Leave and Attendance" },
       {
         name: "description",
-        content:
-          "Rotaro helps businesses manage rosters, employee leave, attendance, holidays, reports, and team communication in one workspace.",
+        content: DEFAULT_DESCRIPTION,
       },
-      { name: "robots", content: "index, follow" },
+      { name: "application-name", content: SITE_NAME },
+      { name: "author", content: SITE_NAME },
+      { name: "theme-color", content: "#17233b" },
+      { name: "color-scheme", content: "light" },
       { property: "og:title", content: "Rotaro | Workforce Scheduling Software" },
       {
         property: "og:description",
@@ -88,6 +97,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Plan rosters, track attendance, approve leave, manage holidays, and connect teams in real time.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "og:locale", content: "en_US" },
+      { property: "og:url", content: absoluteUrl("/") },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Rotaro | Workforce Scheduling Software" },
       {
@@ -95,12 +107,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Plan rosters, track attendance, approve leave, manage holidays, and connect teams in real time.",
       },
-      { property: "og:image", content: "/favicon.svg" },
-      { name: "twitter:image", content: "/favicon.svg" },
+      { property: "og:image", content: absoluteUrl(SOCIAL_IMAGE_PATH) },
+      { name: "twitter:image", content: absoluteUrl(SOCIAL_IMAGE_PATH) },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
       { rel: "apple-touch-icon", href: "/favicon.svg" },
+      { rel: "manifest", href: "/site.webmanifest" },
       {
         rel: "preconnect",
         href: "https://fonts.googleapis.com",
@@ -139,6 +153,41 @@ function RootShell({ children }: { children: ReactNode }) {
     (!isServer ? (window as any).__SUPABASE__?.SUPABASE_ANON_KEY : null);
 
   const env = { SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: supabaseKey };
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        logo: absoluteUrl(SOCIAL_IMAGE_PATH),
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        description: DEFAULT_DESCRIPTION,
+        inLanguage: "en",
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: SITE_NAME,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: SITE_URL,
+        description: DEFAULT_DESCRIPTION,
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+          description: "60-day trial",
+        },
+      },
+    ],
+  };
 
   // Debug helper for Google Cloud logs
   if (typeof window === "undefined") {
@@ -164,6 +213,10 @@ function RootShell({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{
             __html: `window.__SUPABASE__ = ${serializeForScript(env)};`,
           }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeForScript(structuredData) }}
         />
       </head>
       <body>
