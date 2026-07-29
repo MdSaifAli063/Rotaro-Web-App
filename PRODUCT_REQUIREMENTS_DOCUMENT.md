@@ -646,4 +646,3 @@ Possible future upgrades:
 - Advanced export builder.
 - Calendar sync with Google Calendar and Outlook.
 - Payroll provider integrations.
-

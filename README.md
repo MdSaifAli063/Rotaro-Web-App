@@ -58,7 +58,7 @@ VITE_EMAILJS_PASSWORD_TEMPLATE_ID=template_password_changed
 VITE_EMAILJS_NOTIFICATION_TEMPLATE_ID=template_notification
 VITE_EMAILJS_PUBLIC_TEMPLATE_ID=template_public_forms
 VITE_EMAILJS_PUBLIC_TO_EMAIL=support@yourdomain.com
-VITE_APP_URL=https://your-vercel-domain.vercel.app
+VITE_APP_URL=https://your-production-domain.com
 
 RAZORPAY_KEY_ID=rzp_live_your_key_id
 RAZORPAY_KEY_SECRET=your_key_secret
@@ -96,7 +96,7 @@ npm install
 npm run dev
 ```
 
-Open the app at `http://localhost:5173`.
+Open the app at `http://localhost:3000`.
 
 ## Build
 
@@ -111,6 +111,19 @@ Preview the production build locally:
 ```bash
 npm run preview
 ```
+
+## Production SEO Launch
+
+1. Set `VITE_APP_URL` in Vercel to the exact public origin, without a trailing slash (for example, `https://rotaro.com`).
+2. Deploy the production build, then confirm these URLs return HTTP 200:
+   - `https://your-production-domain.com/robots.txt`
+   - `https://your-production-domain.com/sitemap.xml`
+3. Add and verify the production domain in Google Search Console.
+4. Submit `https://your-production-domain.com/sitemap.xml` in Search Console.
+5. Request indexing for `/`, `/pricing`, and `/support`.
+6. Keep the public domain stable and publish useful product/support content as the site grows.
+
+The application generates canonical URLs, social metadata, structured data, robots directives, and the XML sitemap from `VITE_APP_URL`. Authenticated workspace and account routes are marked `noindex`.
 
 ## Scripts
 
