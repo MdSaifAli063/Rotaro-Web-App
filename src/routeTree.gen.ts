@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as StaffLoginRouteImport } from './routes/staff-login'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -20,6 +22,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiRazorpayWebhookRouteImport } from './routes/api/razorpay-webhook'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
 import { Route as AuthenticatedSwapsRouteImport } from './routes/_authenticated/swaps'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
@@ -56,6 +59,16 @@ const SupportRoute = SupportRouteImport.update({
 const StaffLoginRoute = StaffLoginRouteImport.update({
   id: '/staff-login',
   path: '/staff-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -100,6 +113,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiRazorpayWebhookRoute = ApiRazorpayWebhookRouteImport.update({
   id: '/api/razorpay-webhook',
   path: '/api/razorpay-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedWorkspaceRoute = AuthenticatedWorkspaceRouteImport.update({
@@ -253,6 +271,8 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
@@ -277,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/razorpay-webhook': typeof ApiRazorpayWebhookRoute
   '/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
@@ -292,6 +313,8 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/apply-leave': typeof AuthenticatedApplyLeaveRoute
@@ -316,6 +339,7 @@ export interface FileRoutesByTo {
   '/staff': typeof AuthenticatedStaffRoute
   '/swaps': typeof AuthenticatedSwapsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/razorpay-webhook': typeof ApiRazorpayWebhookRoute
   '/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/roster/create': typeof AuthenticatedRosterCreateRoute
@@ -333,6 +357,8 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff-login': typeof StaffLoginRoute
   '/support': typeof SupportRoute
   '/_authenticated/apply-leave': typeof AuthenticatedApplyLeaveRoute
@@ -357,6 +383,7 @@ export interface FileRoutesById {
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/swaps': typeof AuthenticatedSwapsRoute
   '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/razorpay-webhook': typeof ApiRazorpayWebhookRoute
   '/_authenticated/notifications/$id': typeof AuthenticatedNotificationsIdRoute
   '/_authenticated/roster/create': typeof AuthenticatedRosterCreateRoute
@@ -374,6 +401,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/pricing'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/staff-login'
     | '/support'
     | '/apply-leave'
@@ -398,6 +427,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/swaps'
     | '/workspace'
+    | '/api/health'
     | '/api/razorpay-webhook'
     | '/notifications/$id'
     | '/roster/create'
@@ -413,6 +443,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/pricing'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/staff-login'
     | '/support'
     | '/apply-leave'
@@ -437,6 +469,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/swaps'
     | '/workspace'
+    | '/api/health'
     | '/api/razorpay-webhook'
     | '/notifications/$id'
     | '/roster/create'
@@ -453,6 +486,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/pricing'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/staff-login'
     | '/support'
     | '/_authenticated/apply-leave'
@@ -477,6 +512,7 @@ export interface FileRouteTypes {
     | '/_authenticated/staff'
     | '/_authenticated/swaps'
     | '/_authenticated/workspace'
+    | '/api/health'
     | '/api/razorpay-webhook'
     | '/_authenticated/notifications/$id'
     | '/_authenticated/roster/create'
@@ -494,8 +530,11 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   PricingRoute: typeof PricingRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StaffLoginRoute: typeof StaffLoginRoute
   SupportRoute: typeof SupportRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiRazorpayWebhookRoute: typeof ApiRazorpayWebhookRoute
 }
 
@@ -513,6 +552,20 @@ declare module '@tanstack/react-router' {
       path: '/staff-login'
       fullPath: '/staff-login'
       preLoaderRoute: typeof StaffLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -576,6 +629,13 @@ declare module '@tanstack/react-router' {
       path: '/api/razorpay-webhook'
       fullPath: '/api/razorpay-webhook'
       preLoaderRoute: typeof ApiRazorpayWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/workspace': {
@@ -863,8 +923,11 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   PricingRoute: PricingRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   StaffLoginRoute: StaffLoginRoute,
   SupportRoute: SupportRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiRazorpayWebhookRoute: ApiRazorpayWebhookRoute,
 }
 export const routeTree = rootRouteImport

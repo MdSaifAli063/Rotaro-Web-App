@@ -1,0 +1,22 @@
+{
+  "name": "Rotaro Workforce Scheduling",
+  "short_name": "Rotaro",
+  "description": "Workforce scheduling, leave, attendance, and reporting in one workspace.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#17233b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
