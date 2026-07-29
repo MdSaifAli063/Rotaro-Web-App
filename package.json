@@ -1,21 +1,26 @@
 {
   "name": "tanstack_start_ts",
+  "version": "1.0.0",
   "private": true,
   "sideEffects": false,
   "type": "module",
   "engines": {
-    "node": "22.x"
+    "node": "22.x",
+    "npm": ">=10"
   },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "vercel-build": "vite build",
+    "vercel-build": "npm run check && vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit --pretty false",
     "security:audit": "npm audit --omit=dev",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run lint && npm run format:check",
+    "check:v1": "npm run check && npm run security:audit && npm run build"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
@@ -60,6 +65,7 @@
     "exceljs": "^3.4.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
+    "razorpay": "^2.9.8",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
