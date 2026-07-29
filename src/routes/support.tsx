@@ -15,24 +15,17 @@ import { toast } from "sonner";
 import { BookOpen, MessageSquare, HelpCircle, Headphones, LayoutDashboard } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/routes/index";
 import { sendPublicInquiryEmail } from "@/lib/emailjs";
+import { canonicalLink, publicPageMeta } from "@/lib/seo";
 
 export const Route = createFileRoute("/support")({
   head: () => ({
-    meta: [
-      { title: "Support — Rotaro" },
-      {
-        name: "description",
-        content:
-          "Get real help with Rotaro — from setup to day-to-day questions about rosters, leave, attendance and reports.",
-      },
-      { property: "og:title", content: "Support — Rotaro" },
-      {
-        property: "og:description",
-        content:
-          "Browse the help centre, contact our team, or check the FAQs for quick answers about Rotaro.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "/support" }],
+    meta: publicPageMeta({
+      title: "Support | Rotaro",
+      description:
+        "Get help with Rotaro setup, employee rosters, leave, attendance, billing, reports, and workforce management.",
+      path: "/support",
+    }),
+    links: [canonicalLink("/support")],
   }),
   component: SupportPage,
 });
