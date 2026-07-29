@@ -90,7 +90,11 @@ function LeavesPage() {
   });
 
   const load = useCallback(async (nextProfile: Profile | null) => {
-    let query = supabase.from("leaves").select("*").order("created_at", { ascending: false });
+    let query = supabase
+      .from("leaves")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
 
     if (nextProfile?.business_id) {
       query = query.eq("business_id", nextProfile.business_id);
@@ -125,6 +129,7 @@ function LeavesPage() {
             .select("id, name, department, employee_code, user_id")
             .eq("business_id", nextProfile.business_id)
             .order("name", { ascending: true })
+            .limit(1000)
         : employeeIds.length
           ? supabase
               .from("employees")

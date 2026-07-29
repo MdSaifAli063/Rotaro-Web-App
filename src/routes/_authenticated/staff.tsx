@@ -131,7 +131,7 @@ function StaffPage() {
 
   const load = useCallback(
     async (businessId = profile?.business_id) => {
-      let query = supabase.from("employees").select("*").order("name");
+      let query = supabase.from("employees").select("*").order("name").limit(1000);
       if (businessId) query = query.eq("business_id", businessId);
       const { data } = await query;
       const employees: Employee[] = ((data as Employee[]) ?? []).map((employee) => ({

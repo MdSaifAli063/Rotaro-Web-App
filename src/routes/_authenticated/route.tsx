@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, type Profile } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
+import { NO_INDEX_META } from "@/lib/seo";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
+  head: () => ({ meta: NO_INDEX_META }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/client-login", search: { next: undefined } });
