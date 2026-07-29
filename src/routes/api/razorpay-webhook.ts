@@ -27,6 +27,20 @@ type RazorpayWebhookPayload = {
   };
 };
 
+const MAX_WEBHOOK_BYTES = 256 * 1024;
+
+function webhookResponse(body: Record<string, unknown>, status = 200) {
+  return Response.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+function databaseFailure(context: string, error: unknown) {
+  console.error(`[Razorpay webhook] ${context}`, error);
+  return webhookResponse({ error: "Webhook processing failed" }, 500);
+}
+
 function signaturesMatch(body: string, received: string, secret: string) {
   const expected = createHmac("sha256", secret).update(body).digest("hex");
   const expectedBytes = Buffer.from(expected);
@@ -55,23 +69,31 @@ export const Route = createFileRoute("/api/razorpay-webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const contentLength = Number(request.headers.get("content-length") ?? 0);
+        if (contentLength > MAX_WEBHOOK_BYTES) {
+          return webhookResponse({ error: "Payload too large" }, 413);
+        }
+
         const body = await request.text();
+        if (Buffer.byteLength(body, "utf8") > MAX_WEBHOOK_BYTES) {
+          return webhookResponse({ error: "Payload too large" }, 413);
+        }
         const signature = request.headers.get("x-razorpay-signature") ?? "";
         const secret = getServerConfig().billing.razorpayWebhookSecret;
         if (!secret || !signature || !signaturesMatch(body, signature, secret)) {
-          return Response.json({ error: "Invalid webhook signature" }, { status: 401 });
+          return webhookResponse({ error: "Invalid webhook signature" }, 401);
         }
 
         let webhook: RazorpayWebhookPayload;
         try {
           webhook = JSON.parse(body) as RazorpayWebhookPayload;
         } catch {
-          return Response.json({ error: "Invalid JSON" }, { status: 400 });
+          return webhookResponse({ error: "Invalid JSON" }, 400);
         }
 
         const event = webhook.event ?? "";
         const subscription = webhook.payload?.subscription?.entity;
-        if (!subscription?.id) return Response.json({ received: true });
+        if (!subscription?.id) return webhookResponse({ received: true });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: existing, error: loadError } = await supabaseAdmin
@@ -80,7 +102,7 @@ export const Route = createFileRoute("/api/razorpay-webhook")({
           .eq("provider", "razorpay")
           .eq("provider_subscription_id", subscription.id)
           .maybeSingle();
-        if (loadError) return Response.json({ error: loadError.message }, { status: 500 });
+        if (loadError) return databaseFailure("Unable to load subscription", loadError);
         const status = normalizeStatus(event, subscription.status);
         let subscriptionRow = existing;
 
@@ -96,23 +118,23 @@ export const Route = createFileRoute("/api/razorpay-webhook")({
               trial_ends_at: null,
             })
             .eq("id", existing.id);
-          if (updateError) return Response.json({ error: updateError.message }, { status: 500 });
+          if (updateError) return databaseFailure("Unable to update subscription", updateError);
         } else {
           const { data: checkout, error: checkoutError } = await supabaseAdmin
             .from("billing_checkout_sessions")
             .select("id,business_id,plan_key,billing_cycle")
             .eq("provider_subscription_id", subscription.id)
             .maybeSingle();
-          if (checkoutError)
-            return Response.json({ error: checkoutError.message }, { status: 500 });
-          if (!checkout) return Response.json({ received: true, ignored: "unknown subscription" });
+          if (checkoutError) return databaseFailure("Unable to load checkout", checkoutError);
+          if (!checkout)
+            return webhookResponse({ received: true, ignored: "unknown subscription" });
 
           if (!["active", "authenticated"].includes(status)) {
             await supabaseAdmin
               .from("billing_checkout_sessions")
               .update({ status, updated_at: new Date().toISOString() })
               .eq("id", checkout.id);
-            return Response.json({ received: true });
+            return webhookResponse({ received: true });
           }
 
           const planKey = checkout.plan_key === "business" ? "business" : "professional";
@@ -144,7 +166,7 @@ export const Route = createFileRoute("/api/razorpay-webhook")({
             .select("id,business_id")
             .single();
           if (activateError)
-            return Response.json({ error: activateError.message }, { status: 500 });
+            return databaseFailure("Unable to activate subscription", activateError);
           subscriptionRow = activated;
           await supabaseAdmin
             .from("billing_checkout_sessions")
@@ -169,10 +191,10 @@ export const Route = createFileRoute("/api/razorpay-webhook")({
             },
             { onConflict: "provider,invoice_number" },
           );
-          if (invoiceError) return Response.json({ error: invoiceError.message }, { status: 500 });
+          if (invoiceError) return databaseFailure("Unable to save invoice", invoiceError);
         }
 
-        return Response.json({ received: true });
+        return webhookResponse({ received: true });
       },
     },
   },
