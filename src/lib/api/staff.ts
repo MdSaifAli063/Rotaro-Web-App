@@ -103,7 +103,7 @@ export const inviteEmployeeOnServer = createServerFn({ method: "POST" })
 
     const { data: subscription } = await supabaseAdmin
       .from("billing_subscriptions")
-      .select("plan_key,status,trial_ends_at,current_period_end")
+      .select("plan_key,status,provider,trial_ends_at,current_period_end")
       .eq("business_id", businessId)
       .maybeSingle();
 
@@ -114,7 +114,8 @@ export const inviteEmployeeOnServer = createServerFn({ method: "POST" })
       new Date(subscription.trial_ends_at).getTime() > Date.now();
     const paidActive =
       subscription?.plan_key !== "starter" &&
-      ["active", "authenticated", "manual"].includes(String(subscription?.status ?? "")) &&
+      (subscription?.status === "active" ||
+        (subscription?.status === "manual" && subscription?.provider === "manual")) &&
       (!subscription?.current_period_end ||
         new Date(subscription.current_period_end).getTime() > Date.now());
     const planKey = validTrial
