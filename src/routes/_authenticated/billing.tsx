@@ -1,12 +1,29 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { BadgeCheck, Banknote, CreditCard, Loader2, ReceiptText } from "lucide-react";
+import { BadgeCheck, Banknote, CalendarX2, CreditCard, Loader2, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
-import { activateStarterPlan, finalizeRazorpayBillingCheckout } from "@/lib/api/billing.functions";
+import { z } from "zod";
+import {
+  activateStarterPlan,
+  cancelRazorpaySubscription,
+  finalizeRazorpayBillingCheckout,
+} from "@/lib/api/billing.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { isDemoFullAccessEmail } from "@/lib/billing/plans";
 import {
   Table,
@@ -18,6 +35,9 @@ import {
 } from "@/components/ui/table";
 
 export const Route = createFileRoute("/_authenticated/billing")({
+  validateSearch: z.object({
+    checkout: z.string().uuid().optional(),
+  }),
   component: BillingPage,
 });
 
@@ -61,6 +81,8 @@ function BillingPage() {
   const [subscription, setSubscription] = useState<BillingSubscriptionRow | null>(null);
   const [invoices, setInvoices] = useState<BillingInvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(false);
+  const { checkout: checkoutSessionId } = Route.useSearch();
 
   useEffect(() => {
     let active = true;
@@ -74,22 +96,20 @@ function BillingPage() {
         return;
       }
 
-      const searchParams = new URLSearchParams(window.location.search);
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-      if (searchParams.get("success") === "1" && searchParams.get("provider") === "razorpay") {
+      if (checkoutSessionId) {
         try {
           if (!accessToken) throw new Error("Your session has expired. Please sign in again.");
-          await finalizeRazorpayBillingCheckout({
-            data: { accessToken },
+          const result = await finalizeRazorpayBillingCheckout({
+            data: { accessToken, checkoutSessionId },
           });
-          toast.success("Razorpay subscription synced to Billing.");
-          searchParams.delete("success");
-          searchParams.delete("provider");
-          searchParams.delete("plan");
-          searchParams.delete("cycle");
-          const nextUrl = `${window.location.pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
-          window.history.replaceState({}, "", nextUrl);
+          if (result.active) {
+            toast.success("Razorpay subscription verified.");
+          } else {
+            toast.info("Razorpay is still activating this subscription.");
+          }
+          window.history.replaceState({}, "", window.location.pathname);
         } catch (error: any) {
           toast.error(error?.message ?? "Could not sync your Razorpay subscription yet.");
         }
@@ -132,7 +152,29 @@ function BillingPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [checkoutSessionId]);
+
+  const cancelSubscription = async () => {
+    try {
+      setCancelling(true);
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error("Your session has expired. Please sign in again.");
+      const result = await cancelRazorpaySubscription({ data: { accessToken } });
+      setSubscription((current) =>
+        current ? { ...current, cancel_at_period_end: true } : current,
+      );
+      toast.success(
+        result.alreadyScheduled
+          ? "Cancellation is already scheduled."
+          : "Subscription will end after the current billing period.",
+      );
+    } catch (error: any) {
+      toast.error(error?.message ?? "Unable to schedule cancellation.");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const nextBillingDate = useMemo(() => {
     if (subscription?.current_period_end)
@@ -193,6 +235,11 @@ function BillingPage() {
       : currentStatus === "trialing"
         ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
         : "bg-slate-100 text-slate-700 hover:bg-slate-100";
+  const canCancel =
+    !demoFullAccess &&
+    subscription?.provider === "razorpay" &&
+    currentStatus === "active" &&
+    !subscription.cancel_at_period_end;
 
   return (
     <div className="space-y-6">
@@ -224,12 +271,43 @@ function BillingPage() {
                   : "No charge"}
             </div>
           </div>
-          <Link
-            to="/pricing"
-            className="inline-flex min-h-10 items-center justify-center rounded-md bg-[var(--navy)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--navy-light)]"
-          >
-            {isTrial ? "Choose a plan" : "Change plan"}
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/pricing"
+              className="inline-flex min-h-10 items-center justify-center rounded-md bg-[var(--navy)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--navy-light)]"
+            >
+              {isTrial ? "Choose a plan" : "Change plan"}
+            </Link>
+            {canCancel && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="outline">
+                    <CalendarX2 className="mr-2 size-4" />
+                    Cancel renewal
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel subscription renewal?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Your paid access will remain active until {nextBillingDate}. Future Razorpay
+                      charges will stop after the current cycle.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep subscription</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => void cancelSubscription()}
+                      disabled={cancelling}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {cancelling ? "Scheduling..." : "Cancel renewal"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">

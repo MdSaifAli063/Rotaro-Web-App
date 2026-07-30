@@ -8,11 +8,61 @@ import { fetchProfile, useSession } from "@/lib/auth";
 import {
   activateStarterPlan,
   createBillingCheckout,
+  finalizeRazorpayBillingCheckout,
   type BillingCycle,
   type BillingPlanKey,
 } from "@/lib/api/billing.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { canonicalLink, publicPageMeta } from "@/lib/seo";
+
+type RazorpayCheckoutResponse = {
+  razorpay_payment_id: string;
+  razorpay_subscription_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayCheckout = {
+  open: () => void;
+  on: (
+    event: "payment.failed",
+    handler: (response: { error?: { description?: string } }) => void,
+  ) => void;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: {
+      key: string;
+      subscription_id: string;
+      name: string;
+      description: string;
+      prefill: { name: string; email: string };
+      theme: { color: string };
+      handler: (response: RazorpayCheckoutResponse) => void;
+      modal: { ondismiss: () => void };
+    }) => RazorpayCheckout;
+  }
+}
+
+let razorpayScriptPromise: Promise<void> | null = null;
+
+function loadRazorpayCheckout() {
+  if (window.Razorpay) return Promise.resolve();
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+
+  razorpayScriptPromise = new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      razorpayScriptPromise = null;
+      reject(new Error("Secure checkout could not be loaded. Please check your connection."));
+    };
+    document.head.appendChild(script);
+  });
+  return razorpayScriptPromise;
+}
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -65,20 +115,69 @@ function PricingPage() {
         const accessToken = sessionData.session?.access_token;
         if (!accessToken) throw new Error("Your session has expired. Please sign in again.");
         if (planKey === "starter") return;
-        const result = await createBillingCheckout({
+        const checkout = await createBillingCheckout({
           data: {
             planKey,
             billingCycle: checkoutCycle,
             accessToken,
-            customerEmail: user.email ?? undefined,
-            customerName: user.user_metadata?.name ?? undefined,
           },
         });
 
-        window.location.assign(result.url);
+        await loadRazorpayCheckout();
+        if (!window.Razorpay) throw new Error("Secure checkout is unavailable.");
+
+        const razorpay = new window.Razorpay({
+          key: checkout.keyId,
+          subscription_id: checkout.subscriptionId,
+          name: "Rotaro",
+          description: `${checkout.planName} subscription`,
+          prefill: {
+            name: checkout.customerName,
+            email: checkout.customerEmail,
+          },
+          theme: { color: "#17233B" },
+          handler: (response) => {
+            void (async () => {
+              try {
+                const result = await finalizeRazorpayBillingCheckout({
+                  data: {
+                    accessToken,
+                    checkoutSessionId: checkout.checkoutSessionId,
+                    paymentId: response.razorpay_payment_id,
+                    subscriptionId: response.razorpay_subscription_id,
+                    signature: response.razorpay_signature,
+                  },
+                });
+                window.localStorage.removeItem("rotaro.pendingCheckout");
+                if (result.active) {
+                  toast.success(`${checkout.planName} is active.`);
+                } else {
+                  toast.info(
+                    "Payment was confirmed. Razorpay is still activating the subscription.",
+                  );
+                }
+                navigate({
+                  to: "/billing",
+                  search: { checkout: checkout.checkoutSessionId },
+                });
+              } catch (error: any) {
+                toast.error(error?.message ?? "Payment verification failed.");
+              } finally {
+                setPendingPlan(null);
+              }
+            })();
+          },
+          modal: {
+            ondismiss: () => setPendingPlan(null),
+          },
+        });
+        razorpay.on("payment.failed", (response) => {
+          setPendingPlan(null);
+          toast.error(response.error?.description ?? "Payment failed. No plan was activated.");
+        });
+        razorpay.open();
       } catch (error: any) {
         toast.error(error?.message ?? "Unable to start checkout.");
-      } finally {
         setPendingPlan(null);
       }
     },
@@ -132,16 +231,13 @@ function PricingPage() {
         pending.planKey !== "starter" &&
         (pending.billingCycle === "monthly" || pending.billingCycle === "annual")
       ) {
-        window.localStorage.removeItem("rotaro.pendingCheckout");
         setBillingCycle(pending.billingCycle);
-        startCheckout(pending.planKey, {
-          billingCycle: pending.billingCycle,
-        });
+        toast.info(`Continue with the ${pending.planKey} plan when you are ready.`);
       }
     } catch {
       window.localStorage.removeItem("rotaro.pendingCheckout");
     }
-  }, [startCheckout, user]);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">
