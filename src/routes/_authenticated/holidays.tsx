@@ -929,6 +929,7 @@ async function fetchNagerHolidays(year: number, country: string): Promise<NagerH
       error?.name === "AbortError"
         ? "Connection timed out while fetching public holidays."
         : "Could not reach the holidays API. Please check your connection and try again.",
+      { cause: error },
     );
   } finally {
     window.clearTimeout(timer);
