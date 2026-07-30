@@ -85,7 +85,11 @@ https://your-production-domain/api/razorpay-webhook
 
 Subscribe it to `subscription.authenticated`, `subscription.activated`, `subscription.charged`, `subscription.pending`, `subscription.halted`, `subscription.cancelled`, `subscription.completed`, `subscription.paused`, and `subscription.resumed`. The webhook secret must exactly match `RAZORPAY_WEBHOOK_SECRET`.
 
-Apply all Supabase migrations before testing checkout. Billing tables are server-owned: the browser can read subscription state but cannot grant or modify paid access.
+Use one mode consistently: live keys with live plan IDs in production, and test keys with test plan IDs in preview/development. Keep all Razorpay values server-only and create a dedicated webhook secret rather than reusing the API secret. The application verifies each provider plan's active state, amount, currency, period, quantity, checkout signature, and workspace ownership before granting access.
+
+Apply all Supabase migrations before testing checkout. Billing tables and the webhook idempotency ledger are server-owned: the browser can read subscription state but cannot grant or modify paid access. Paid access begins only after Razorpay reports an `active` subscription with at least one captured charge.
+
+Before launch, complete one test-mode checkout, verify an invoice appears once, replay the same webhook to confirm it is ignored, schedule cancellation, and confirm access remains available until the paid period ends. Repeat the checkout and cancellation smoke test with a low-value live plan before opening production sales.
 
 ## Development
 
