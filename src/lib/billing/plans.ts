@@ -152,7 +152,7 @@ export function useBusinessPlan(businessId?: string | null) {
 
       const { data } = await supabase
         .from("billing_subscriptions")
-        .select("plan_key,status,trial_ends_at,current_period_end")
+        .select("plan_key,status,provider,trial_ends_at,current_period_end")
         .eq("business_id", businessId)
         .maybeSingle();
 
@@ -160,6 +160,7 @@ export function useBusinessPlan(businessId?: string | null) {
       const row = data as {
         plan_key?: string | null;
         status?: string | null;
+        provider?: string | null;
         trial_ends_at?: string | null;
         current_period_end?: string | null;
       } | null;
@@ -170,7 +171,7 @@ export function useBusinessPlan(businessId?: string | null) {
         new Date(row.trial_ends_at).getTime() > Date.now();
       const paidActive =
         row?.plan_key !== "starter" &&
-        ["active", "authenticated", "manual"].includes(row?.status ?? "") &&
+        (row?.status === "active" || (row?.status === "manual" && row?.provider === "manual")) &&
         (!row?.current_period_end || new Date(row.current_period_end).getTime() > Date.now());
       setTrialActive(validTrial);
       setPlanKey(
