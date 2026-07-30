@@ -223,9 +223,11 @@ export type Database = {
           business_id: string;
           checkout_url: string | null;
           created_at: string;
+          expected_plan_id: string | null;
           id: string;
           plan_key: string;
           provider: string;
+          provider_payment_id: string | null;
           provider_subscription_id: string;
           status: string;
           updated_at: string;
@@ -235,9 +237,11 @@ export type Database = {
           business_id: string;
           checkout_url?: string | null;
           created_at?: string;
+          expected_plan_id?: string | null;
           id?: string;
           plan_key: string;
           provider?: string;
+          provider_payment_id?: string | null;
           provider_subscription_id: string;
           status?: string;
           updated_at?: string;
@@ -247,9 +251,11 @@ export type Database = {
           business_id?: string;
           checkout_url?: string | null;
           created_at?: string;
+          expected_plan_id?: string | null;
           id?: string;
           plan_key?: string;
           provider?: string;
+          provider_payment_id?: string | null;
           provider_subscription_id?: string;
           status?: string;
           updated_at?: string;
@@ -263,6 +269,45 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      billing_webhook_events: {
+        Row: {
+          created_at: string;
+          event_id: string;
+          event_type: string;
+          last_error: string | null;
+          processed_at: string | null;
+          processing_started_at: string;
+          provider: string;
+          provider_subscription_id: string | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          event_id: string;
+          event_type: string;
+          last_error?: string | null;
+          processed_at?: string | null;
+          processing_started_at?: string;
+          provider?: string;
+          provider_subscription_id?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          event_id?: string;
+          event_type?: string;
+          last_error?: string | null;
+          processed_at?: string | null;
+          processing_started_at?: string;
+          provider?: string;
+          provider_subscription_id?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       billing_invoices: {
         Row: {
