@@ -28,7 +28,7 @@ import {
   ArrowRight,
   CheckCircle2,
 } from "lucide-react";
-import { RotaroMark } from "@/components/RotaroMark";
+import { RotaroBrand } from "@/components/RotaroMark";
 import { useSession } from "@/lib/auth";
 import { sendPublicInquiryEmail } from "@/lib/emailjs";
 import { canonicalLink, publicPageMeta } from "@/lib/seo";
@@ -75,9 +75,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-        <Link to="/" className="flex items-center gap-2 min-w-0">
-          <RotaroMark className="size-8 shrink-0" />
-          <span className="text-lg font-bold text-[var(--navy)] truncate">Rotaro</span>
+        <Link to="/" className="flex min-w-0 items-center">
+          <RotaroBrand />
         </Link>
         <nav className="hidden md:flex items-center gap-5 lg:gap-7">
           {NAV.map((n) =>
@@ -591,9 +590,8 @@ export function SiteFooter() {
     <footer className="bg-[var(--navy)] text-white">
       <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-8">
-          <div className="sm:col-span-3 flex items-center gap-2 mb-2">
-            <RotaroMark className="size-8" bg="#FFFFFF" fg="#1E2A45" />
-            <span className="text-xl font-bold">Rotaro</span>
+          <div className="sm:col-span-3 mb-2">
+            <RotaroBrand variant="inverse" textClassName="text-xl" />
           </div>
           <FooterCol
             title="Product"
