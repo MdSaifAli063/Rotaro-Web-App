@@ -16,7 +16,8 @@ function normalizeSiteUrl(value: string | undefined) {
 }
 
 export const SITE_URL = normalizeSiteUrl(import.meta.env.VITE_APP_URL as string | undefined);
-export const SOCIAL_IMAGE_PATH = "/favicon.svg";
+export const LOGO_IMAGE_PATH = "/icon-512.png";
+export const SOCIAL_IMAGE_PATH = "/og-image.png";
 
 export function absoluteUrl(path = "/") {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -47,10 +48,14 @@ export function publicPageMeta({
     { property: "og:locale", content: "en_US" },
     { property: "og:url", content: url },
     { property: "og:image", content: image },
-    { name: "twitter:card", content: "summary" },
+    { property: "og:image:width", content: "1200" },
+    { property: "og:image:height", content: "630" },
+    { property: "og:image:alt", content: "Rotaro workforce scheduling" },
+    { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
     { name: "twitter:image", content: image },
+    { name: "twitter:image:alt", content: "Rotaro workforce scheduling" },
   ];
 }
 

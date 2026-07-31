@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 import {
   absoluteUrl,
   DEFAULT_DESCRIPTION,
+  LOGO_IMAGE_PATH,
   SITE_NAME,
   SITE_URL,
   SOCIAL_IMAGE_PATH,
@@ -88,7 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "application-name", content: SITE_NAME },
       { name: "author", content: SITE_NAME },
-      { name: "theme-color", content: "#17233b" },
+      { name: "theme-color", content: "#071c3d" },
       { name: "color-scheme", content: "light" },
       { property: "og:title", content: "Rotaro | Workforce Scheduling Software" },
       {
@@ -100,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:locale", content: "en_US" },
       { property: "og:url", content: absoluteUrl("/") },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Rotaro | Workforce Scheduling Software" },
       {
         name: "twitter:description",
@@ -108,12 +109,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Plan rosters, track attendance, approve leave, manage holidays, and connect teams in real time.",
       },
       { property: "og:image", content: absoluteUrl(SOCIAL_IMAGE_PATH) },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "Rotaro workforce scheduling" },
       { name: "twitter:image", content: absoluteUrl(SOCIAL_IMAGE_PATH) },
+      { name: "twitter:image:alt", content: "Rotaro workforce scheduling" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
-      { rel: "apple-touch-icon", href: "/favicon.svg" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/site.webmanifest" },
       {
         rel: "preconnect",
@@ -161,7 +166,7 @@ function RootShell({ children }: { children: ReactNode }) {
         "@id": `${SITE_URL}/#organization`,
         name: SITE_NAME,
         url: SITE_URL,
-        logo: absoluteUrl(SOCIAL_IMAGE_PATH),
+        logo: absoluteUrl(LOGO_IMAGE_PATH),
       },
       {
         "@type": "WebSite",
