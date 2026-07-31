@@ -136,6 +136,10 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
       throw new Error(`The Razorpay ${data.planKey} ${data.billingCycle} plan is not configured.`);
     }
 
+    // Verify the provider-owned amount before creating or reusing any checkout.
+    // This prevents stale checkout links from surviving a plan ID or price change.
+    await verifyRazorpayPlan(credentials, planId, data.planKey, data.billingCycle);
+
     const { data: currentSubscription, error: subscriptionError } = await supabaseAdmin
       .from("billing_subscriptions")
       .select("provider,provider_subscription_id,plan_key,status,current_period_end")
@@ -152,7 +156,9 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
 
     const { data: pendingCheckout, error: pendingError } = await supabaseAdmin
       .from("billing_checkout_sessions")
-      .select("id,provider_subscription_id,plan_key,billing_cycle,checkout_url,created_at")
+      .select(
+        "id,provider_subscription_id,expected_plan_id,plan_key,billing_cycle,checkout_url,created_at",
+      )
       .eq("business_id", businessId)
       .eq("provider", "razorpay")
       .in("status", ["pending", "created", "authenticated"])
@@ -164,6 +170,7 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
       pendingCheckout &&
       pendingCheckout.provider_subscription_id &&
       pendingCheckout.checkout_url &&
+      pendingCheckout.expected_plan_id === planId &&
       Date.now() - new Date(pendingCheckout.created_at).getTime() < 25 * 60 * 60 * 1000;
     if (pendingIsUsable) {
       if (
@@ -186,7 +193,6 @@ export const createBillingCheckout = createServerFn({ method: "POST" })
       };
     }
 
-    await verifyRazorpayPlan(credentials, planId, data.planKey, data.billingCycle);
     const result = await razorpayRequest<{ id?: string; short_url?: string }>(
       credentials,
       "/subscriptions",
@@ -274,7 +280,7 @@ export const activateStarterPlan = createServerFn({ method: "POST" })
       plan_name: "60-day free trial",
       status: "trialing",
       billing_interval: "trial",
-      currency: "USD",
+      currency: "INR",
       amount_cents: 0,
       current_period_end: trialEndsAt,
       trial_ends_at: trialEndsAt,
