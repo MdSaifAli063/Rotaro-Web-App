@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rotaro">
+  <rect width="512" height="512" fill="#FFFFFF"/>
+  <g transform="translate(64 64) scale(6)">
+    <circle cx="47" cy="11" r="7" fill="#176BFF"/>
+    <rect x="7" y="35" width="12" height="24" rx="5" fill="#071C3D"/>
+    <rect x="24" y="22" width="12" height="37" rx="5" fill="#071C3D"/>
+    <rect x="41" y="22" width="12" height="37" rx="5" fill="#071C3D"/>
+  </g>
+</svg>
