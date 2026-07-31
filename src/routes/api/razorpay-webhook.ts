@@ -308,7 +308,7 @@ export const Route = createFileRoute("/api/razorpay-webhook")({
                 provider: "razorpay",
                 invoice_number: payment.invoice_id ?? payment.id,
                 amount_cents: payment.amount ?? 0,
-                currency: payment.currency ?? "USD",
+                currency: payment.currency ?? "INR",
                 status: "paid",
                 issued_at: payment.created_at
                   ? new Date(payment.created_at * 1000).toISOString()
