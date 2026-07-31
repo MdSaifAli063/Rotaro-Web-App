@@ -187,7 +187,7 @@ function RootShell({ children }: { children: ReactNode }) {
         offers: {
           "@type": "Offer",
           price: "0",
-          priceCurrency: "USD",
+          priceCurrency: "INR",
           description: "60-day trial",
         },
       },
