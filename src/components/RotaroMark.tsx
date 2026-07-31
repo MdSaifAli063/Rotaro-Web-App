@@ -1,24 +1,25 @@
 type Props = {
   className?: string;
-  /** Background color of the rounded square. Defaults to navy. */
-  bg?: string;
-  /** Color of the "card" cells / pins. Defaults to white. */
-  fg?: string;
-  /** Opacity for the muted cells (top-right & bottom-left). */
-  mutedOpacity?: number;
+  variant?: "default" | "inverse";
 };
 
-/**
- * Rotaro symbol-only mark: navy rounded square containing a 2x2 calendar grid
- * (two cells with checkmarks, two muted) and two binding pins at the top.
- * Stays crisp from 16px (favicon) up to large hero usage.
- */
-export function RotaroMark({
-  className,
-  bg = "#1E2A45",
-  fg = "#FFFFFF",
-  mutedOpacity = 0.35,
-}: Props) {
+type BrandProps = Props & {
+  size?: "sm" | "md" | "lg";
+  subtitle?: string;
+  subtitleClassName?: string;
+  textClassName?: string;
+};
+
+const brandSizes = {
+  sm: { mark: "size-7", text: "text-lg", subtitle: "pl-9" },
+  md: { mark: "size-8", text: "text-xl", subtitle: "pl-10" },
+  lg: { mark: "size-10", text: "text-[2rem]", subtitle: "pl-12" },
+} as const;
+
+/** Rotaro's symbol mark, kept inline so it stays crisp at every interface size. */
+export function RotaroMark({ className, variant = "default" }: Props) {
+  const barColor = variant === "inverse" ? "#FFFFFF" : "#071C3D";
+
   return (
     <svg
       viewBox="0 0 64 64"
@@ -27,36 +28,47 @@ export function RotaroMark({
       aria-hidden="true"
       focusable="false"
     >
-      {/* Binding pins */}
-      <rect x="18" y="2" width="6" height="8" rx="2" fill={bg} />
-      <rect x="40" y="2" width="6" height="8" rx="2" fill={bg} />
-      {/* Rounded square base */}
-      <rect x="6" y="8" width="52" height="52" rx="10" fill={bg} />
-      {/* 2x2 grid cells */}
-      {/* top-left (checked) */}
-      <rect x="13" y="20" width="16" height="16" rx="3" fill={fg} />
-      <path
-        d="M17 28.5 L20.5 32 L26 25.5"
-        fill="none"
-        stroke={bg}
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* top-right (muted) */}
-      <rect x="35" y="20" width="16" height="16" rx="3" fill={fg} fillOpacity={mutedOpacity} />
-      {/* bottom-left (muted) */}
-      <rect x="13" y="42" width="16" height="16" rx="3" fill={fg} fillOpacity={mutedOpacity} />
-      {/* bottom-right (checked) */}
-      <rect x="35" y="42" width="16" height="16" rx="3" fill={fg} />
-      <path
-        d="M39 50.5 L42.5 54 L48 47.5"
-        fill="none"
-        stroke={bg}
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <circle cx="47" cy="11" r="7" fill="#176BFF" />
+      <rect x="7" y="35" width="12" height="24" rx="5" fill={barColor} />
+      <rect x="24" y="22" width="12" height="37" rx="5" fill={barColor} />
+      <rect x="41" y="22" width="12" height="37" rx="5" fill={barColor} />
     </svg>
+  );
+}
+
+/** The canonical Rotaro symbol and wordmark lockup used throughout the product. */
+export function RotaroBrand({
+  className,
+  variant = "default",
+  size = "md",
+  subtitle,
+  subtitleClassName,
+  textClassName,
+}: BrandProps) {
+  const styles = brandSizes[size];
+  const textColor = variant === "inverse" ? "text-white" : "text-[var(--navy)]";
+
+  return (
+    <span className={`inline-flex min-w-0 flex-col ${className ?? ""}`}>
+      <span className="inline-flex min-w-0 items-end gap-2">
+        <RotaroMark className={`${styles.mark} shrink-0`} variant={variant} />
+        <span
+          className={`truncate font-bold leading-none tracking-tight ${textColor} ${
+            textClassName ?? ""
+          } ${styles.text}`}
+        >
+          Rotaro
+        </span>
+      </span>
+      {subtitle ? (
+        <span
+          className={`mt-1 truncate text-xs capitalize ${styles.subtitle} ${
+            subtitleClassName ?? ""
+          }`}
+        >
+          {subtitle}
+        </span>
+      ) : null}
+    </span>
   );
 }

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RotaroMark } from "@/components/RotaroMark";
+import { RotaroBrand } from "@/components/RotaroMark";
 import { fetchProfile, isManager } from "@/lib/auth";
 
 export type AuthMode = "signin" | "signup";
@@ -97,10 +97,7 @@ export function AuthPortal({ portal, mode = "signin", plan, next }: AuthPortalPr
       <div className="auth-angle" />
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mb-2 flex items-center justify-center gap-2">
-            <RotaroMark className="size-10" />
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--navy)]">Rotaro</h1>
-          </div>
+          <RotaroBrand className="mb-2" size="lg" />
           <p className="text-sm text-muted-foreground">Workforce scheduling made simple.</p>
         </div>
         <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-8">
