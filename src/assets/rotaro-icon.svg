@@ -1,25 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <!-- Calendar binding pins -->
-  <rect x="164" y="-22" width="32" height="50" rx="16" fill="#1E2A45"/>
-  <rect x="316" y="-22" width="32" height="50" rx="16" fill="#1E2A45"/>
-
-  <!-- Base rounded square -->
-  <rect width="512" height="512" rx="96" fill="#1E2A45"/>
-
-  <!-- Header strip -->
-  <path d="M0 96a96 96 0 0 1 96-96h320a96 96 0 0 1 96 96v24H0V96z" fill="#2D3E5F"/>
-
-  <!-- Grid cells -->
-  <!-- Top-left: solid white with checkmark -->
-  <rect x="44" y="140" width="204" height="156" rx="24" fill="#FFFFFF"/>
-  <!-- Top-right: 35% white -->
-  <rect x="264" y="140" width="204" height="156" rx="24" fill="#FFFFFF" fill-opacity="0.35"/>
-  <!-- Bottom-left: 35% white -->
-  <rect x="44" y="312" width="204" height="156" rx="24" fill="#FFFFFF" fill-opacity="0.35"/>
-  <!-- Bottom-right: solid white with checkmark -->
-  <rect x="264" y="312" width="204" height="156" rx="24" fill="#FFFFFF"/>
-
-  <!-- Checkmarks -->
-  <path d="M106 208l25 35 55-50" stroke="#1E2A45" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M326 380l25 35 55-50" stroke="#1E2A45" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Rotaro">
+  <circle cx="47" cy="11" r="7" fill="#176BFF"/>
+  <rect x="7" y="35" width="12" height="24" rx="5" fill="#071C3D"/>
+  <rect x="24" y="22" width="12" height="37" rx="5" fill="#071C3D"/>
+  <rect x="41" y="22" width="12" height="37" rx="5" fill="#071C3D"/>
 </svg>

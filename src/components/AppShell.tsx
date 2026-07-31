@@ -33,7 +33,7 @@ import type { Profile } from "@/lib/auth";
 import { isManager } from "@/lib/auth";
 import { hasPlanAtLeast, type AppPlanKey, useBusinessPlan } from "@/lib/billing/plans";
 import { NotificationBell } from "@/components/NotificationBell";
-import { RotaroMark } from "@/components/RotaroMark";
+import { RotaroBrand, RotaroMark } from "@/components/RotaroMark";
 import { UserAvatar } from "@/components/UserAvatar";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import {
@@ -136,12 +136,14 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
           collapsed ? "justify-center" : "gap-2"
         }`}
       >
-        <RotaroMark className="size-8 shrink-0" bg="#FFFFFF" fg="#1E2A45" />
-        {!collapsed && (
-          <div className="min-w-0">
-            <div className="text-lg font-bold tracking-tight truncate">Rotaro</div>
-            <div className="text-xs opacity-70 capitalize truncate">{profile.role} portal</div>
-          </div>
+        {collapsed ? (
+          <RotaroMark className="size-8 shrink-0" variant="inverse" />
+        ) : (
+          <RotaroBrand
+            variant="inverse"
+            subtitle={`${profile.role} portal`}
+            subtitleClassName="text-white/70"
+          />
         )}
       </div>
       {isManager(profile) && (
@@ -294,9 +296,8 @@ export function AppShell({ children, profile }: { children: ReactNode; profile: 
             >
               <Menu className="size-5" />
             </button>
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <RotaroMark className="size-7" />
-              <span className="font-bold text-[var(--navy)]">Rotaro</span>
+            <Link to="/dashboard" className="flex items-center">
+              <RotaroBrand size="sm" />
             </Link>
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2">
