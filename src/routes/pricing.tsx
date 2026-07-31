@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/billing.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { canonicalLink, publicPageMeta } from "@/lib/seo";
+import { formatPaidPlanPrice } from "@/lib/billing/catalog";
 
 type RazorpayCheckoutResponse = {
   razorpay_payment_id: string;
@@ -336,7 +337,7 @@ function PricingCards({
       {
         key: "starter" as const,
         name: "Free trial",
-        price: "$0",
+        price: "₹0",
         priceNote: "60 days, no payment required",
         features: [
           "Every Rotaro feature unlocked",
@@ -350,7 +351,9 @@ function PricingCards({
       {
         key: "professional" as const,
         name: "Professional",
-        price: billingCycle === "monthly" ? "$20/mo" : "$200/yr",
+        price: `${formatPaidPlanPrice("professional", billingCycle)}/${
+          billingCycle === "monthly" ? "mo" : "yr"
+        }`,
         priceNote: billingCycle === "monthly" ? "per month" : "per year",
         features: [
           "Up to 1,000 employees",
@@ -368,7 +371,9 @@ function PricingCards({
       {
         key: "business" as const,
         name: "Business",
-        price: billingCycle === "monthly" ? "$79/mo" : "$790/yr",
+        price: `${formatPaidPlanPrice("business", billingCycle)}/${
+          billingCycle === "monthly" ? "mo" : "yr"
+        }`,
         priceNote: billingCycle === "monthly" ? "per month" : "per year",
         features: [
           "Unlimited employees and locations",

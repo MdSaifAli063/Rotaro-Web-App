@@ -265,7 +265,7 @@ function BillingPage() {
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
               {amount > 0
-                ? `${subscription?.currency ?? "USD"} ${amount.toFixed(2)} / ${subscription?.billing_interval ?? "month"}`
+                ? `${subscription?.currency ?? "INR"} ${amount.toFixed(2)} / ${subscription?.billing_interval ?? "month"}`
                 : isTrial
                   ? "No payment required during your trial"
                   : "No charge"}
