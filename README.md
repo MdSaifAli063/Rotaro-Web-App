@@ -74,8 +74,8 @@ RAZORPAY_BUSINESS_ANNUAL_PLAN_ID=plan_business_annual
 ## Plans And Razorpay
 
 - Free trial: 60 days, all product features, up to 10 employees.
-- Professional: USD 20/month or USD 200/year, all features, up to 1,000 employees and 5 locations.
-- Business: USD 79/month or USD 790/year, all features, unlimited employees and locations.
+- Professional: INR 1,999/month or INR 19,990/year, all features, up to 1,000 employees and 5 locations.
+- Business: INR 6,499/month or INR 64,990/year, all features, unlimited employees and locations.
 
 Create four Razorpay subscription plans with those exact prices and billing periods, then set their plan IDs and the Razorpay credentials in every Vercel environment that serves the app. Configure the Razorpay webhook URL as:
 
