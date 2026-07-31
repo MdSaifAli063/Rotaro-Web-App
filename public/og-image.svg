@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Rotaro workforce scheduling">
+  <rect width="1200" height="630" fill="#F8FAFD"/>
+  <rect x="72" y="72" width="1056" height="486" rx="32" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2"/>
+  <g transform="translate(155 175) scale(4.4)">
+    <circle cx="47" cy="11" r="7" fill="#176BFF"/>
+    <rect x="7" y="35" width="12" height="24" rx="5" fill="#071C3D"/>
+    <rect x="24" y="22" width="12" height="37" rx="5" fill="#071C3D"/>
+    <rect x="41" y="22" width="12" height="37" rx="5" fill="#071C3D"/>
+  </g>
+  <text x="495" y="294" fill="#071C3D" font-family="Arial, sans-serif" font-size="82" font-weight="700">Rotaro</text>
+  <text x="499" y="352" fill="#526077" font-family="Arial, sans-serif" font-size="28">Workforce scheduling made simple.</text>
+</svg>
