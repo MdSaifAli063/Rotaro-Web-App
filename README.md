@@ -59,6 +59,7 @@ VITE_EMAILJS_NOTIFICATION_TEMPLATE_ID=template_notification
 VITE_EMAILJS_PUBLIC_TEMPLATE_ID=template_public_forms
 VITE_EMAILJS_PUBLIC_TO_EMAIL=support@yourdomain.com
 VITE_APP_URL=https://your-production-domain.com
+GOOGLE_MAPS_GEOCODING_API_KEY=your_server_side_google_maps_geocoding_key
 
 RAZORPAY_KEY_ID=rzp_live_your_key_id
 RAZORPAY_KEY_SECRET=your_key_secret
@@ -70,6 +71,8 @@ RAZORPAY_BUSINESS_ANNUAL_PLAN_ID=plan_business_annual
 ```
 
 > Note: Use the same public key for both `SUPABASE_ANON_KEY` and `SUPABASE_PUBLISHABLE_KEY` if your Supabase project exposes only one public key.
+
+Enable the Google Maps Geocoding API for the geocoding key and restrict the key to that API. Keep it server-only; do not prefix it with `VITE_`.
 
 ## Plans And Razorpay
 
