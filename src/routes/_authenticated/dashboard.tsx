@@ -7,6 +7,7 @@ import {
   FileText,
   LogIn,
   LogOut,
+  MapPin,
   Repeat,
   Users,
 } from "lucide-react";
@@ -30,6 +31,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { findEmployeeForUser } from "@/lib/employee";
 import { notifyManagers } from "@/lib/notify";
+import {
+  attendanceAccuracyLabel,
+  attendanceMapUrl,
+  getCurrentAttendanceLocation,
+} from "@/lib/attendance-location";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -680,11 +686,44 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
     };
   }, [employee, load, profile.id]);
 
-  const updateAttendance = async (patch: Record<string, any>) => {
+  const updateAttendance = async (
+    patch: Record<string, any>,
+    locationAction?: "check-in" | "check-out",
+  ) => {
     if (!employee || !profile.business_id) return;
     setSaving(true);
+
+    let attendancePatch = patch;
+    if (locationAction) {
+      const location = await getCurrentAttendanceLocation().catch((error: Error) => {
+        toast.error(error.message);
+        return null;
+      });
+      if (!location) {
+        setSaving(false);
+        return;
+      }
+
+      attendancePatch = {
+        ...patch,
+        ...(locationAction === "check-in"
+          ? {
+              check_in_latitude: location.latitude,
+              check_in_longitude: location.longitude,
+              check_in_accuracy_m: location.accuracyM,
+              check_in_address: location.address,
+            }
+          : {
+              check_out_latitude: location.latitude,
+              check_out_longitude: location.longitude,
+              check_out_accuracy_m: location.accuracyM,
+              check_out_address: location.address,
+            }),
+      };
+    }
+
     const payload = {
-      ...patch,
+      ...attendancePatch,
       business_id: profile.business_id,
       employee_id: employee.id,
       user_id: employee.user_id ?? profile.id,
@@ -693,7 +732,7 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
     const result = today?.id
       ? await supabase
           .from("attendance_records")
-          .update({ ...patch, user_id: employee.user_id ?? profile.id } as any)
+          .update({ ...attendancePatch, user_id: employee.user_id ?? profile.id } as any)
           .eq("id", today.id)
           .select("id")
           .single()
@@ -737,6 +776,13 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
           }).catch((notifyError) => console.error(notifyError));
         }
       }
+      if (locationAction) {
+        toast.success(
+          locationAction === "check-in"
+            ? "Checked in with location captured"
+            : "Checked out with location captured",
+        );
+      }
       load();
     }
   };
@@ -747,11 +793,14 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
     if (today.break_start && today.break_end)
       hours -=
         (new Date(today.break_end).getTime() - new Date(today.break_start).getTime()) / 3600000;
-    await updateAttendance({
-      check_out_time: out.toISOString(),
-      total_hours: Math.max(hours, 0),
-      status: "completed",
-    });
+    await updateAttendance(
+      {
+        check_out_time: out.toISOString(),
+        total_hours: Math.max(hours, 0),
+        status: "completed",
+      },
+      "check-out",
+    );
   };
   const displayName = employee?.name || profile.name || profile.email || "there";
   const firstName = displayName.split(" ")[0] || displayName;
@@ -797,7 +846,10 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
             <button
               disabled={saving}
               onClick={() =>
-                updateAttendance({ check_in_time: new Date().toISOString(), status: "checked_in" })
+                updateAttendance(
+                  { check_in_time: new Date().toISOString(), status: "checked_in" },
+                  "check-in",
+                )
               }
               className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-[var(--navy)] disabled:opacity-60"
             >
@@ -833,10 +885,26 @@ function EmployeeDashboard({ profile }: { profile: Profile }) {
             </>
           )}
           {today?.check_in_time && (
-            <span className="self-center text-sm text-white/75">
-              Checked in at {time(today.check_in_time)}
-              {today.check_out_time ? ` - Out ${time(today.check_out_time)}` : ""}
-            </span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 self-center text-sm text-white/75">
+              <span>
+                Checked in at {time(today.check_in_time)}
+                {today.check_out_time ? ` - Out ${time(today.check_out_time)}` : ""}
+              </span>
+              {today.check_in_latitude != null && today.check_in_longitude != null && (
+                <a
+                  href={attendanceMapUrl(today.check_in_latitude, today.check_in_longitude)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex max-w-full items-start gap-1 underline-offset-2 hover:underline"
+                  title={attendanceAccuracyLabel(today.check_in_accuracy_m)}
+                >
+                  <MapPin className="mt-0.5 size-3.5 shrink-0" />
+                  <span className="line-clamp-2">
+                    {today.check_in_address ?? "Location captured"}
+                  </span>
+                </a>
+              )}
+            </div>
           )}
         </div>
       </section>
@@ -915,16 +983,46 @@ function TodayPanel({
           ) : attendance.length === 0 ? (
             <p className="text-muted-foreground">No staff clocked in yet today.</p>
           ) : (
-            attendance.slice(0, 8).map((a) => (
-              <div key={a.id} className="flex justify-between gap-3">
-                <span className="truncate font-medium">{a.employees?.name ?? "Staff member"}</span>
-                <span className={a.check_out_time ? "text-red-600" : "text-emerald-700"}>
-                  {a.check_out_time
-                    ? "Out " + time(a.check_out_time)
-                    : "In " + time(a.check_in_time)}
-                </span>
-              </div>
-            ))
+            attendance.slice(0, 8).map((a) => {
+              const latitude = a.check_out_time ? a.check_out_latitude : a.check_in_latitude;
+              const longitude = a.check_out_time ? a.check_out_longitude : a.check_in_longitude;
+              const accuracy = a.check_out_time ? a.check_out_accuracy_m : a.check_in_accuracy_m;
+              const address = a.check_out_time ? a.check_out_address : a.check_in_address;
+
+              return (
+                <div key={a.id} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
+                      {a.employees?.name ?? "Staff member"}
+                    </div>
+                    {address && (
+                      <div className="max-w-[190px] truncate text-xs text-muted-foreground">
+                        {address}
+                      </div>
+                    )}
+                  </div>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className={a.check_out_time ? "text-red-600" : "text-emerald-700"}>
+                      {a.check_out_time
+                        ? "Out " + time(a.check_out_time)
+                        : "In " + time(a.check_in_time)}
+                    </span>
+                    {latitude != null && longitude != null && (
+                      <a
+                        href={attendanceMapUrl(latitude, longitude)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-[var(--navy)]"
+                        title={`${a.check_out_time ? "Check-out" : "Check-in"} location: ${address ?? "address unavailable"}. ${attendanceAccuracyLabel(accuracy)}`}
+                        aria-label={`Open ${a.check_out_time ? "check-out" : "check-in"} location for ${a.employees?.name ?? "staff member"}`}
+                      >
+                        <MapPin className="size-3.5" />
+                      </a>
+                    )}
+                  </span>
+                </div>
+              );
+            })
           )}
         </div>
       </section>

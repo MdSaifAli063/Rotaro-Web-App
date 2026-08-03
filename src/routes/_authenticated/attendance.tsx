@@ -11,6 +11,8 @@ import {
   Filter,
   LogIn,
   LogOut,
+  LoaderCircle,
+  MapPin,
   TimerReset,
   Trash2,
   Users2,
@@ -32,6 +34,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchProfile, isManager, type Profile } from "@/lib/auth";
 import { findEmployeeForUser } from "@/lib/employee";
 import { notifyManagers } from "@/lib/notify";
+import {
+  attendanceAccuracyLabel,
+  attendanceMapUrl,
+  getCurrentAttendanceLocation,
+} from "@/lib/attendance-location";
 
 export const Route = createFileRoute("/_authenticated/attendance")({
   component: AttendancePage,
@@ -42,7 +49,17 @@ type AttendanceRow = {
   user_id: string;
   employee_id: string;
   date: string;
+  check_in_address: string | null;
+  check_in_accuracy_m: number | null;
+  check_in_latitude: number | null;
+  check_in_location_captured_at: string | null;
+  check_in_longitude: number | null;
   check_in_time: string | null;
+  check_out_address: string | null;
+  check_out_accuracy_m: number | null;
+  check_out_latitude: number | null;
+  check_out_location_captured_at: string | null;
+  check_out_longitude: number | null;
   check_out_time: string | null;
   break_start: string | null;
   break_end: string | null;
@@ -135,6 +152,36 @@ const workedHours = (
 };
 const weekdayShort = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+function AttendanceLocationLink({
+  latitude,
+  longitude,
+  accuracyM,
+  address,
+}: {
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracyM?: number | null;
+  address?: string | null;
+}) {
+  if (latitude == null || longitude == null) return null;
+
+  return (
+    <a
+      href={attendanceMapUrl(latitude, longitude)}
+      target="_blank"
+      rel="noreferrer"
+      title={[address, attendanceAccuracyLabel(accuracyM)].filter(Boolean).join(". ")}
+      className="mt-1 inline-flex max-w-[220px] items-start gap-1 text-xs font-medium text-[var(--navy)] underline-offset-2 hover:underline"
+    >
+      <MapPin className="mt-0.5 size-3.5 shrink-0" />
+      <span className="line-clamp-2">
+        {address ??
+          `Open map${accuracyM == null ? "" : ` (~${Math.max(Math.round(accuracyM), 1)} m)`}`}
+      </span>
+    </a>
+  );
+}
+
 function AttendancePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [managerRows, setManagerRows] = useState<AttendanceRow[]>([]);
@@ -154,6 +201,7 @@ function AttendancePage() {
   const [pageSize, setPageSize] = useState(10);
   const [activeTab, setActiveTab] = useState("overview");
   const [mismatchesOnly, setMismatchesOnly] = useState(false);
+  const [attendanceAction, setAttendanceAction] = useState<"check-in" | "check-out" | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -439,7 +487,7 @@ function AttendancePage() {
           today={employeeState.today}
           history={employeeState.history}
           onCheckIn={async () => {
-            if (!employeeState.employeeId || !profile.business_id) return;
+            if (!employeeState.employeeId || !profile.business_id || attendanceAction) return;
             const todayStr = todayKey();
             const { data: existing } = await supabase
               .from("attendance_records")
@@ -456,6 +504,16 @@ function AttendancePage() {
               return;
             }
 
+            setAttendanceAction("check-in");
+            const location = await getCurrentAttendanceLocation().catch((error: Error) => {
+              toast.error(error.message);
+              return null;
+            });
+            if (!location) {
+              setAttendanceAction(null);
+              return;
+            }
+
             const checkedInAt = new Date();
             const { data: inserted, error } = await supabase
               .from("attendance_records")
@@ -465,12 +523,17 @@ function AttendancePage() {
                 user_id: profile.id,
                 date: todayStr,
                 check_in_time: checkedInAt.toISOString(),
+                check_in_latitude: location.latitude,
+                check_in_longitude: location.longitude,
+                check_in_accuracy_m: location.accuracyM,
+                check_in_address: location.address,
                 status: "checked_in",
               })
               .select("id")
               .single();
             if (error) {
               toast.error(error.message);
+              setAttendanceAction(null);
               return;
             }
 
@@ -480,14 +543,33 @@ function AttendancePage() {
               message: `${employeeState.employeeName} checked in at ${timeLabel(checkedInAt.toISOString())}.`,
               relatedId: inserted.id,
             }).catch((notifyError) => console.error(notifyError));
-            toast.success("Checked in");
+            toast.success("Checked in with location captured");
             await loadEmployee(profile);
+            setAttendanceAction(null);
           }}
           onCheckOut={async () => {
-            if (!employeeState.today?.check_in_time || !employeeState.employeeId) return;
+            if (
+              !employeeState.today?.check_in_time ||
+              !employeeState.employeeId ||
+              attendanceAction
+            )
+              return;
+            setAttendanceAction("check-out");
+            const location = await getCurrentAttendanceLocation().catch((error: Error) => {
+              toast.error(error.message);
+              return null;
+            });
+            if (!location) {
+              setAttendanceAction(null);
+              return;
+            }
             const out = new Date();
             const patch = {
               check_out_time: out.toISOString(),
+              check_out_latitude: location.latitude,
+              check_out_longitude: location.longitude,
+              check_out_accuracy_m: location.accuracyM,
+              check_out_address: location.address,
               total_hours: workedHours(employeeState.today, out),
               status: "completed",
               user_id: profile.id,
@@ -498,6 +580,7 @@ function AttendancePage() {
               .eq("id", employeeState.today.id);
             if (error) {
               toast.error(error.message);
+              setAttendanceAction(null);
               return;
             }
             if (profile.business_id) {
@@ -508,8 +591,9 @@ function AttendancePage() {
                 relatedId: employeeState.today.id,
               }).catch((notifyError) => console.error(notifyError));
             }
-            toast.success("Checked out");
+            toast.success("Checked out with location captured");
             await loadEmployee(profile);
+            setAttendanceAction(null);
           }}
           onStartBreak={async () => {
             if (!employeeState.today?.id) return;
@@ -554,6 +638,7 @@ function AttendancePage() {
             await loadEmployee(profile);
           }}
           onDelete={deleteAttendance}
+          attendanceAction={attendanceAction}
         />
       </PlanGate>
     );
@@ -699,7 +784,7 @@ function AttendancePage() {
               </div>
 
               <div className="mt-6 overflow-x-auto rounded-2xl border">
-                <table className="min-w-[840px] w-full table-fixed text-[13px]">
+                <table className="w-full min-w-[1100px] table-fixed text-[13px]">
                   <thead className="bg-secondary text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="w-10 px-3 py-3">
@@ -708,8 +793,8 @@ function AttendancePage() {
                       <th className="w-[96px] whitespace-nowrap px-3 py-3">Employee ID</th>
                       <th className="w-[140px] whitespace-nowrap px-3 py-3">Name</th>
                       <th className="w-[120px] whitespace-nowrap px-3 py-3">Department</th>
-                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-in</th>
-                      <th className="w-[96px] whitespace-nowrap px-3 py-3">Check-out</th>
+                      <th className="w-[210px] whitespace-nowrap px-3 py-3">Check-in</th>
+                      <th className="w-[210px] whitespace-nowrap px-3 py-3">Check-out</th>
                       <th className="w-[88px] whitespace-nowrap px-3 py-3">Hours</th>
                       <th className="w-[88px] whitespace-nowrap px-3 py-3">Status</th>
                       <th className="w-[104px] whitespace-nowrap px-3 py-3 text-right">Actions</th>
@@ -742,11 +827,23 @@ function AttendancePage() {
                             {row.employees?.name ?? "-"}
                           </td>
                           <td className="px-3 py-3 truncate">{row.employees?.department ?? "-"}</td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            {timeLabel(row.check_in_time)}
+                          <td className="px-3 py-3 align-top">
+                            <div>{timeLabel(row.check_in_time)}</div>
+                            <AttendanceLocationLink
+                              latitude={row.check_in_latitude}
+                              longitude={row.check_in_longitude}
+                              accuracyM={row.check_in_accuracy_m}
+                              address={row.check_in_address}
+                            />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            {timeLabel(row.check_out_time)}
+                          <td className="px-3 py-3 align-top">
+                            <div>{timeLabel(row.check_out_time)}</div>
+                            <AttendanceLocationLink
+                              latitude={row.check_out_latitude}
+                              longitude={row.check_out_longitude}
+                              accuracyM={row.check_out_accuracy_m}
+                              address={row.check_out_address}
+                            />
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap">
                             {formatHours(row.total_hours ?? workedHours(row))}
@@ -945,6 +1042,7 @@ function EmployeeView({
   onStartBreak,
   onEndBreak,
   onDelete,
+  attendanceAction,
 }: {
   employeeName: string;
   today: AttendanceRow | null;
@@ -954,6 +1052,7 @@ function EmployeeView({
   onStartBreak: () => Promise<void>;
   onEndBreak: () => Promise<void>;
   onDelete: (row: AttendanceRow) => Promise<void>;
+  attendanceAction: "check-in" | "check-out" | null;
 }) {
   return (
     <div className="space-y-6">
@@ -975,34 +1074,59 @@ function EmployeeView({
               {today?.check_in_time ? `In ${timeLabel(today.check_in_time)}` : "No check-in yet"}
               {today?.check_out_time ? ` - Out ${timeLabel(today.check_out_time)}` : ""}
             </div>
+            {today?.check_in_latitude != null && today.check_in_longitude != null && (
+              <AttendanceLocationLink
+                latitude={today.check_in_latitude}
+                longitude={today.check_in_longitude}
+                accuracyM={today.check_in_accuracy_m}
+                address={today.check_in_address}
+              />
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {!today?.check_in_time && (
-              <Button onClick={onCheckIn} className="bg-[var(--navy)] hover:bg-[var(--navy-light)]">
-                <LogIn className="mr-2 size-4" />
-                Check in
+              <Button
+                onClick={onCheckIn}
+                disabled={attendanceAction !== null}
+                className="bg-[var(--navy)] hover:bg-[var(--navy-light)]"
+              >
+                {attendanceAction === "check-in" ? (
+                  <LoaderCircle className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <LogIn className="mr-2 size-4" />
+                )}
+                {attendanceAction === "check-in" ? "Getting location..." : "Check in"}
               </Button>
             )}
             {today?.check_in_time && !today?.break_start && !today?.check_out_time && (
-              <Button variant="outline" onClick={onStartBreak}>
+              <Button variant="outline" onClick={onStartBreak} disabled={attendanceAction !== null}>
                 <Coffee className="mr-2 size-4" />
                 Start break
               </Button>
             )}
             {today?.break_start && !today?.break_end && (
-              <Button variant="outline" onClick={onEndBreak}>
+              <Button variant="outline" onClick={onEndBreak} disabled={attendanceAction !== null}>
                 <Coffee className="mr-2 size-4" />
                 End break
               </Button>
             )}
             {today?.check_in_time && !today?.check_out_time && (
-              <Button onClick={onCheckOut}>
-                <LogOut className="mr-2 size-4" />
-                Check out
+              <Button onClick={onCheckOut} disabled={attendanceAction !== null}>
+                {attendanceAction === "check-out" ? (
+                  <LoaderCircle className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <LogOut className="mr-2 size-4" />
+                )}
+                {attendanceAction === "check-out" ? "Getting location..." : "Check out"}
               </Button>
             )}
           </div>
         </div>
+        <p className="mt-4 flex items-start gap-2 border-t pt-4 text-xs text-muted-foreground">
+          <MapPin className="mt-0.5 size-3.5 shrink-0" />
+          Your device location is recorded at check-in and check-out and is visible to your employer
+          in attendance records.
+        </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
@@ -1012,7 +1136,7 @@ function EmployeeView({
             <p className="text-sm text-muted-foreground">Recent attendance history.</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-secondary text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Date</th>
@@ -1034,8 +1158,24 @@ function EmployeeView({
                   history.map((row) => (
                     <tr key={row.id} className="border-t">
                       <td className="px-4 py-3">{row.date}</td>
-                      <td className="px-4 py-3">{timeLabel(row.check_in_time)}</td>
-                      <td className="px-4 py-3">{timeLabel(row.check_out_time)}</td>
+                      <td className="px-4 py-3">
+                        <div>{timeLabel(row.check_in_time)}</div>
+                        <AttendanceLocationLink
+                          latitude={row.check_in_latitude}
+                          longitude={row.check_in_longitude}
+                          accuracyM={row.check_in_accuracy_m}
+                          address={row.check_in_address}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>{timeLabel(row.check_out_time)}</div>
+                        <AttendanceLocationLink
+                          latitude={row.check_out_latitude}
+                          longitude={row.check_out_longitude}
+                          accuracyM={row.check_out_accuracy_m}
+                          address={row.check_out_address}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         {row.break_start && row.break_end ? `${breakMinutes(row)}m` : "—"}
                       </td>
